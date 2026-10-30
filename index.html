@@ -75,6 +75,17 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
 .icon-btn svg{width:20px;height:20px}
 .hbtns{display:flex;gap:8px}
+.say{display:flex;gap:8px;align-items:center;margin-top:10px}
+.say .inp{height:44px;font-size:15px}
+.mic{flex:0 0 44px;height:44px;border-radius:12px;background:var(--deep);color:var(--accent);display:grid;place-items:center}
+.mic svg{width:20px;height:20px}
+.mic.on{background:var(--spent);color:var(--bg);animation:pulse 1s ease-in-out infinite}
+.heard{font-size:13px;color:var(--ink-2);margin-top:6px}
+.heard b{color:var(--ink)}
+.ubar{display:flex;align-items:center;gap:8px;width:100%;background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:600;margin-bottom:12px;text-align:left}
+.ubar svg{width:16px;height:16px;flex:0 0 auto}
+.ubar b{margin-left:auto;text-decoration:underline;text-underline-offset:3px}
+.fab{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .icon-btn.unlocked{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
 .tag.priv{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--ink)}
 .pin{position:fixed;inset:0;z-index:90;background:var(--bg);display:grid;place-items:center;
@@ -345,6 +356,11 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
     <h2 id="sh-title">New entry</h2>
     <button class="icon-btn" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
+  <div class="say" id="say">
+    <input class="inp" id="f-say" autocomplete="off" enterkeyhint="go" placeholder="Say or type: lent 200 to Ashish">
+    <button class="mic" id="mic-btn" data-act="mic" aria-label="Speak an entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
+  </div>
+  <div class="heard" id="heard" hidden></div>
   <div class="types" id="sh-types" role="group" aria-label="Entry type"></div>
   <div class="amount zero" id="sh-amount" role="button" tabindex="0" aria-label="Amount"><span class="cur">₹</span><span id="amt-val">0</span></div>
   <div class="sh-body" id="sh-body">
@@ -428,6 +444,7 @@ const MONTH_FULL = ['January','February','March','April','May','June','July','Au
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
 const ICON = {
+  mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',
   unlock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.7"/></svg>',
   group:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.4 3.6 5.2"/></svg>',
@@ -783,7 +800,7 @@ function topBar(){
   const si = syncInfo();
   const wd = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
   return `<div class="top"><div><div class="brand"><i>₹</i>Ledger</div><button class="sync" data-act="settings">${wd}, ${d.getDate()} ${MONTH_FULL[d.getMonth()]} · <span class="sd ${si.cls}"></span>${esc(si.txt)}</button></div>
-    ${headBtns()}</div>`;
+    ${headBtns()}</div>${S.unlocked && privacyOn() ? `<button class="ubar" data-act="lock">${ICON.unlock}Private entries are showing<b>Hide</b></button>` : ''}`;
 }
 function viewHome(){
   if (S.loading) return topBar() + `<p class="muted" style="padding:40px 4px;text-align:center">Opening Ledger…</p>`;
@@ -822,7 +839,7 @@ function viewHome(){
   </section>
   <div class="streak"><div class="s-txt"><b>${st} day${st===1?'':'s'} streak</b><span>${loggedToday?'Logged today. Nice.':'Nothing logged today yet'}</span></div><div class="dots" aria-label="Last 7 days">${dots}</div></div>
   <div class="qa">
-    <button data-act="add" data-type="spent"><i style="--c:var(--spent)">${ICON.out}</i>Spent</button>
+    <button data-act="voice"><i style="--c:var(--ink)">${ICON.mic}</i>Say it</button>
     <button data-act="add" data-type="spent" data-with="1"><i style="--c:var(--accent)">${ICON.group}</i>With people</button>
     <button data-act="add" data-type="lent"><i style="--c:var(--lend)">${ICON.out}</i>Lent</button>
     <button data-act="add" data-type="borrowed"><i style="--c:var(--in)">${ICON.in}</i>Borrowed</button>
@@ -1017,6 +1034,8 @@ function showSheet(el){
 }
 function closeSheet(){
   if (!openEl) return;
+  stopVoice();
+  if (openEl.id === 'panel' && privTouched && S.unlocked){ privTouched = false; setTimeout(() => lockNow(true), 280); }
   const el = openEl, sc = $('#scrim'); openEl = null;
   el.classList.remove('open','typing'); sc.classList.remove('open');
   document.body.style.overflow = '';
@@ -1034,6 +1053,7 @@ function openEntry(pref = {}, editId = null){
   $('#f-desc').value = D.desc || ''; $('#f-person').value = D.person || ''; $('#f-note').value = D.note || ''; $('#f-date').value = D.date;
   $('#desc-sugg').innerHTML = ''; $('#sh-title').textContent = e ? 'Edit entry' : 'New entry';
   $('#sh-del').hidden = !e; $('#done').hidden = true;
+  $('#say').hidden = !!e; $('#heard').hidden = true; $('#f-say').value = '';
   syncSheet(); showSheet($('#sheet'));
   $('#sh-body').scrollTop = 0;
   if (pref.focusWith) setTimeout(() => $('#f-person').focus(), 320);
@@ -1263,7 +1283,9 @@ document.addEventListener('click', ev => {
   const a = el.dataset.act;
   switch (a){
     case 'nav': S.person = null; go(el.dataset.v); break;
-    case 'add': openEntry({type: el.dataset.type, person: el.dataset.person, amount: el.dataset.amount, focusWith: el.dataset.with}); break;
+    case 'voice': openEntry({}); startVoice(); break;
+    case 'mic': startVoice(); break;
+    case 'add': if (el.dataset.lp){ delete el.dataset.lp; break; } openEntry({type: el.dataset.type, person: el.dataset.person, amount: el.dataset.amount, focusWith: el.dataset.with}); break;
     case 'open': openEntry({}, el.dataset.id); break;
     case 'close': closeSheet(); break;
     case 'person': S.person = el.dataset.name; go('person'); break;
@@ -1313,14 +1335,15 @@ document.addEventListener('click', ev => {
     case 'month': { const d = new Date(S.im.y, S.im.m + Number(el.dataset.d), 1); S.im = {y:d.getFullYear(), m:d.getMonth()}; render(); break; }
     case 'lock': if (S.unlocked) lockNow(true); else unlockNow(); break;
     case 'privunlock': unlockNow().then(() => { if (D) syncSheet(); }); break;
-    case 'privsetup': privacySetup(); break;
+    case 'privsetup': privTouched = true; privacySetup(); break;
     case 'privtoggle': {
+      privTouched = true;
       const c = el.dataset.c, cur = getSettings().privateCats || [];
       const on = cur.some(x => x.toLowerCase() === c.toLowerCase());
       saveSettings({privateCats: on ? cur.filter(x => x.toLowerCase() !== c.toLowerCase()) : [...cur, c]}).then(renderPanel);
       break;
     }
-    case 'privmove': privacyMove(el.dataset.w).then(renderPanel); break;
+    case 'privmove': privTouched = true; privacyMove(el.dataset.w).then(renderPanel); break;
     case 'privchange': askPin('setup').then(ok => { if (ok){ toast('PIN changed'); renderPanel(); } }); break;
     case 'privoff':
       if (!confirmOff){ confirmOff = true; renderPanel(); break; }
@@ -1443,7 +1466,7 @@ window.addEventListener('online', () => { if (!Sync.fb) Sync.init(); else if (Sy
 window.addEventListener('offline', () => { if (Sync.user && !Sync.pushing){ Sync.state = 'offline'; ui(); } });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && S.unlocked && Pin.mode == null) lockNow(false); if (document.visibilityState === 'visible'){ if (Sync.user) Sync.push(); render(); } });
 /* ---------- private categories ---------- */
-let confirmOff = false;
+let confirmOff = false, privTouched = false;
 const PRIVATE_WORDS = ['sutta','cigarette','cigarettes','cig','cigs','smoke','smoking','gold flake','marlboro','classic milds','hookah','vape','beer','beers','daru','alcohol','liquor','whisky','whiskey','vodka','rum','wine','pub','bar','theka','bira','kingfisher','budweiser','weed','ganja','gutka','gutkha','tobacco','pan masala','betting','casino','poker','rummy','dream11','lottery'];
 const wordRe = new RegExp('\\b(' + PRIVATE_WORDS.map(w => w.replace(/ /g, '\\s+')).join('|') + ')\\b', 'i');
 const title1 = w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
@@ -1585,12 +1608,208 @@ async function pinWipe(){
   pinDone(false); remount(); toast('Private entries deleted. You can set a new PIN in settings.');
 }
 
+/* ---------- say or type an entry ---------- */
+const CAT_WORDS = {
+  Food: ['chai','tea','coffee','lunch','dinner','breakfast','brunch','snack','snacks','samosa','pizza','burger','biryani','swiggy','zomato','maggi','momos','juice','food','restaurant','cafe','dosa','idli','thali','sweets','ice cream','icecream','starbucks','dominos','kfc','mcdonalds','pani puri','vada pav','paratha','canteen','mess','tiffin'],
+  Groceries: ['grocery','groceries','dmart','d mart','blinkit','zepto','bigbasket','big basket','instamart','vegetables','veggies','sabzi','fruits','milk','ration','kirana','eggs','bread'],
+  Transport: ['uber','ola','rapido','auto','rickshaw','cab','taxi','metro','bus','petrol','diesel','fuel','parking','toll','fastag'],
+  Bills: ['electricity','bill','bills','wifi','internet','broadband','recharge','gas cylinder','water bill','dth','emi','insurance','postpaid'],
+  Rent: ['rent','pg','maintenance'],
+  Health: ['medicine','medicines','doctor','pharmacy','hospital','gym','chemist','dentist','clinic','lab test'],
+  Fun: ['movie','movies','netflix','prime','hotstar','spotify','youtube premium','concert','game','games','party','bowling','pvr','inox'],
+  Shopping: ['amazon','flipkart','myntra','ajio','clothes','shoes','shirt','tshirt','t-shirt','jeans','shopping','meesho','nykaa','watch','headphones'],
+  Travel: ['flight','hotel','trip','train','irctc','airbnb','makemytrip','goibibo','oyo','bus ticket'],
+  Gifts: ['gift','gifts','present'],
+};
+const CAT_WORD_SET = new Set(Object.values(CAT_WORDS).flat().filter(w => !w.includes(' ')));
+const GROUP_WORDS = new Set(['friends','friend','family','colleagues','colleague','team','office','everyone','gang','roommates','flatmates','guys']);
+const NAME_STOP = new Set('for on by via using through yesterday today tomorrow rs rupee rupees and in at with cash upi card as back me the i we my to from of a an is was it this that some money him her them his'.split(' '));
+const NM = "([a-z][a-z'-]*(?: [a-z][a-z'-]*)?)";
+const SMALLN = {zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90};
+const MULTN = {hundred:100, thousand:1000, k:1000, lakh:100000, lakhs:100000, lac:100000, lacs:100000, l:100000, crore:10000000};
+const titleCase = s => s.replace(/\b[a-z]/g, c => c.toUpperCase());
+function lev(a, b){
+  const d = Array.from({length: a.length + 1}, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function matchPerson(n){
+  const l = (n || '').toLowerCase().trim(); if (!l) return '';
+  const ppl = allPeople(), first = p => p.toLowerCase().split(' ')[0];
+  return ppl.find(p => p.toLowerCase() === l) || ppl.find(p => first(p) === l)
+    || (l.length >= 4 && !l.includes(' ') ? ppl.find(p => lev(first(p), l) <= 1) : '') || '';
+}
+function numberize(t){
+  const toks = t.trim().split(' '), out = [];
+  let total = 0, cur = 0, any = false, lastDigit = false;
+  const flush = () => { if (any) out.push(String(Math.round((total + cur) * 100) / 100)); total = 0; cur = 0; any = false; lastDigit = false; };
+  for (let i = 0; i < toks.length; i++){
+    const w = toks[i], nx = toks[i + 1] || '';
+    if (/^\d+(\.\d+)?$/.test(w)){ if (any && lastDigit) flush(); cur += parseFloat(w); any = true; lastDigit = true; continue; }
+    if (w in SMALLN){ cur += SMALLN[w]; any = true; lastDigit = false; continue; }
+    if (w === 'a' && (nx === 'hundred' || nx === 'thousand' || nx === 'lakh')){ cur += 1; any = true; continue; }
+    if ((w in MULTN) && any){ if (w === 'hundred') cur *= 100; else { total += cur * MULTN[w]; cur = 0; } lastDigit = false; continue; }
+    if (w === 'and' && any && ((nx in SMALLN) || /^\d/.test(nx))) continue;
+    flush(); out.push(w);
+  }
+  flush();
+  return ' ' + out.join(' ') + ' ';
+}
+function parseLine(raw){
+  let t = ' ' + String(raw).toLowerCase().replace(/₹/g, ' rs ').replace(/(\d),(?=\d)/g, '$1').replace(/(\d)(rs|k|l)\b/g, '$1 $2')
+    .replace(/\brs\b\.?/g, ' rs ').replace(/,/g, ' , ').replace(/\.(?!\d)/g, ' ').replace(/[^a-z0-9.&,' -]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+  // Hinglish: "rahul ko" = to Rahul, "rahul se" = from Rahul, "rahul ne" = Rahul (did)
+  t = t.replace(/\b([a-z]+) ko\b/g, 'to $1').replace(/\b([a-z]+) se\b/g, 'from $1').replace(/\b([a-z]+) ne\b/g, '$1')
+       .replace(/\bmaine\b/g, 'i').replace(/\bmujhe\b/g, 'me').replace(/\bke liye\b/g, 'for');
+  t = ' ' + t.replace(/\s+/g, ' ').trim() + ' ';
+  t = numberize(t);
+  const r = {type: 'spent', amount: 0, person: '', with: [], desc: '', cat: '', mode: '', day: 0};
+  const cut = re => { t = (' ' + t.replace(re, ' ') + ' ').replace(/\s+/g, ' '); };
+  let m = t.match(/ (\d+(?:\.\d+)?) /);
+  if (m){ r.amount = parseFloat(m[1]); t = t.replace(m[0], ' '); }
+  if (/\bday before yesterday\b/.test(t)){ r.day = 2; cut(/\bday before yesterday\b/); }
+  else if (/\byesterday\b/.test(t)){ r.day = 1; cut(/\byesterday\b/); }
+  cut(/\btoday\b/);
+  for (const [re, mo] of [[/\b(?:by |via |through |using |with |in |on )?(?:upi|gpay|g pay|google pay|phonepe|phone pe|paytm|bhim)\b/, 'UPI'],
+                          [/\b(?:by |via |using |with |in )?cash\b/, 'Cash'],
+                          [/\b(?:by |via |using |with |through |on )?(?:credit |debit )?card\b/, 'Card']])
+    if (re.test(t)){ r.mode = mo; cut(re); break; }
+  cut(/\b(?:rs|rupees?|rupay|inr|bucks)\b/g);
+
+  const after = w => { const mm = t.match(new RegExp('\\b' + w + ' ' + NM)); return mm ? mm[1] : ''; };
+  const subj = verbs => { const mm = t.match(new RegExp('^ ' + NM + ' (?:' + verbs + ')\\b')); return mm && !NAME_STOP.has(mm[1].split(' ')[0]) ? mm[1] : ''; };
+  let who;
+  if (/\b(?:got|get|received|recieved|took|taken|getting) (?:my money )?back\b|\bwapas (?:mile|aaye|liye|liya|mil gaye)\b/.test(t)){ r.type = 'gotback'; r.person = after('from'); }
+  else if ((who = subj('returned|repaid|paid me back|paid back|gave me back|gave back|has returned|has paid|wapas diye|wapas diya|wapas kiye|wapas kar diye|lauta diye|lauta diya'))){ r.type = 'gotback'; r.person = who; }
+  else if (/\b(?:paid|gave|given|returned|repaid|pay) back\b|\b(?:returned|repaid)\b|\b(?:wapas|lauta) (?:diye|diya|kiye|kar diye|de diye)\b/.test(t)){ r.type = 'paidback'; r.person = after('to'); }
+  else if ((who = subj('gave me|lent me|loaned me|lend me|me diye|me diya|me de diye'))){ r.type = 'borrowed'; r.person = who; }
+  else if (/\b(?:borrowed|borrow|borrowing|udhaar liya|udhar liya|udhaar li|udhar li)\b/.test(t) || (/\b(?:took|taken|liye|liya|le liye)\b/.test(t) && /\bfrom\b/.test(t))){ r.type = 'borrowed'; r.person = after('from'); }
+  else if (/\b(?:lent|lend|lended|lented|lending|loaned|udhaar diya|udhar diya|udhaar di|udhar di)\b/.test(t) || (/\b(?:diye|diya|de diye)\b/.test(t) && /\bto\b/.test(t))){ r.type = 'lent'; r.person = after('to') || after('(?:lent|lend|lended|lented|loaned)'); }
+  else if (/\bgave\b/.test(t) && (after('to') || matchPerson((after('gave').split(' ')[0])))){ r.type = 'lent'; r.person = after('to') || after('gave'); }
+  else if (/\b(?:received|recieved|credited|salary|income|earned|refund|cashback|stipend)\b/.test(t) || (/\bgot\b/.test(t) && /\bfrom\b/.test(t))){ r.type = 'received'; r.person = after('from'); }
+
+  if (r.person){
+    const words = r.person.trim().split(' ');
+    if (NAME_STOP.has(words[0])) r.person = '';
+    else {
+      const two = words.length > 1 && matchPerson(words.join(' ')) ? words.join(' ') : '';
+      const used = two || words[0];
+      r.person = matchPerson(used) || titleCase(used);
+      cut(new RegExp('\\b(?:to |from )?' + used.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b'));
+    }
+  }
+  if (r.type === 'spent'){
+    const toks = t.trim().split(' '), wi = toks.indexOf('with');
+    if (wi >= 0){
+      const names = []; let j = wi + 1;
+      for (; j < toks.length; j++){
+        const w = toks[j];
+        if (w === ',' || w === 'and' || w === '&') continue;
+        if (NAME_STOP.has(w) || CAT_WORD_SET.has(w) || GROUP_WORDS.has(w) || /\d/.test(w)) break;
+        names.push(w);
+      }
+      if (names.length){ r.with = [...new Set(names.map(n => matchPerson(n) || titleCase(n)))]; toks.splice(wi, j - wi); t = ' ' + toks.join(' ') + ' '; }
+    }
+  }
+  const FILL = /\b(?:i|we|me|my|have|has|had|just|did|spent|spend|spending|paid|pay|paying|bought|buy|purchased|purchase|lent|lend|lended|lented|lending|loaned|loan|borrowed|borrow|borrowing|took|taken|got|get|received|recieved|returned|repaid|gave|given|give|back|credited|for|on|of|the|a|an|to|from|worth|amount|udhaar|udhar|diya|diye|liya|liye|kiye|di|li|wapas|lauta|mile|de|le|kar|via|by|using|through|in|at|some|money)\b/g;
+  let desc = t.replace(FILL, ' ').replace(/[,&]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^and\b|\band$/g, '').trim();
+  if (r.type === 'received' && !desc && /salary/.test(raw.toLowerCase())) desc = 'salary';
+  const tpl = desc && templates(S.everything).find(x => x.key === desc.toLowerCase());
+  r.desc = tpl ? tpl.desc : (desc ? desc.charAt(0).toUpperCase() + desc.slice(1) : '');
+  if (TYPES[r.type].kind === 'flow' && r.desc){
+    if (tpl && tpl.cat && tpl.type === r.type) r.cat = tpl.cat;
+    const dl = ' ' + r.desc.toLowerCase() + ' ', words = dl.trim().split(' ');
+    if (!r.cat){
+      const cats = [...new Set([...S.everything.map(e => e.cat).filter(Boolean), ...(getSettings().privateCats || []), ...DEFAULT_CATS])];
+      r.cat = cats.find(c => words.includes(c.toLowerCase())) || '';
+    }
+    if (!r.cat && r.type === 'spent') for (const [c, list] of Object.entries(CAT_WORDS)) if (list.some(w => dl.includes(' ' + w + ' '))){ r.cat = c; break; }
+    if (!r.cat && r.type === 'received' && /\b(?:salary|stipend)\b/.test(dl)) r.cat = 'Salary';
+  }
+  return r;
+}
+window.__ledgerParse = parseLine;
+
+function applyParsed(r, heard){
+  D.type = r.type; D.typeTouched = true;
+  if (r.amount) D.amountStr = trimAmt(r.amount);
+  D.desc = r.desc; $('#f-desc').value = r.desc;
+  if (r.type === 'spent'){ D.with = r.with.slice(); D.person = ''; $('#f-person').value = ''; }
+  else { D.person = r.person; $('#f-person').value = r.person; }
+  if (r.cat){ D.cat = r.cat; D.catTouched = true; }
+  if (r.mode) D.mode = r.mode;
+  D.date = addDays(todayKey(), -r.day);
+  $('#desc-sugg').innerHTML = '';
+  syncSheet(); syncAmount(true); buzz();
+  const notes = [];
+  if (!r.amount) notes.push('tap in the amount');
+  if (TYPES[r.type].kind === 'debt' && !r.person) notes.push('add who it was with');
+  if (!S.unlocked && r.cat && isPrivate({cat: r.cat, type: r.type})) notes.push('this goes to a private category');
+  const h = $('#heard'); h.hidden = false;
+  h.innerHTML = `Heard <b>“${esc(heard)}”</b>${notes.length ? ' · ' + esc(notes.join(' · ')) : '. Check it and tap Save.'}`;
+}
+function runLine(v){ stopVoice(); v = (v || '').trim(); if (!v || !D) return; applyParsed(parseLine(v), v); $('#f-say').value = ''; $('#f-say').blur(); }
+
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false;
+function micUI(){
+  const b = $('#mic-btn'), i = $('#f-say');
+  b.classList.toggle('on', listening);
+  b.setAttribute('aria-label', listening ? 'Stop listening' : 'Speak an entry');
+  i.placeholder = listening ? 'Listening… say it like “chai 20”' : 'Say or type: lent 200 to Ashish';
+}
+function stopVoice(){ if (rec && listening){ try { rec.abort(); } catch {} } listening = false; if ($('#mic-btn')) micUI(); }
+function startVoice(){
+  if (!SpeechRec){ $('#f-say').focus(); toast("Voice isn't available in this browser. Type it in the box instead."); return; }
+  if (listening){ try { rec.stop(); } catch {} return; }
+  rec = new SpeechRec(); rec.lang = 'en-IN'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+  let finalText = '', failed = false;
+  rec.onresult = ev => {
+    let txt = '';
+    for (let i = 0; i < ev.results.length; i++){ txt += ev.results[i][0].transcript; if (ev.results[i].isFinal) finalText = txt; }
+    $('#f-say').value = txt;
+  };
+  rec.onerror = ev => {
+    failed = true;
+    const e = ev.error;
+    if (e === 'not-allowed' || e === 'service-not-allowed') toast('Allow the microphone for this site in your browser settings, then try again.');
+    else if (e === 'no-speech') toast("Didn't catch that. Tap the mic and try again.");
+    else if (e === 'network') toast('Voice needs internet. Type it in the box instead.');
+    else if (e !== 'aborted') toast("Voice didn't work this time. Type it in the box instead.");
+  };
+  rec.onend = () => {
+    const was = listening; listening = false; micUI();
+    const v = (finalText || $('#f-say').value).trim();
+    if (was && v && !failed) runLine(v); else if (was && v) runLine(v);
+  };
+  try { rec.start(); listening = true; micUI(); buzz(); }
+  catch { listening = false; micUI(); $('#f-say').focus(); }
+}
+$('#f-say').addEventListener('focus', () => { if (listening) stopVoice(); });
+$('#f-say').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); runLine(e.target.value); } });
+// long-press the + button to speak straight away
+(() => {
+  const fab = $('.fab'); let t = null;
+  const clear = () => { clearTimeout(t); t = null; };
+  fab.addEventListener('pointerdown', () => { clear(); t = setTimeout(() => { t = null; fab.dataset.lp = '1'; openEntry({}); startVoice(); }, 450); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => fab.addEventListener(ev, clear));
+  fab.addEventListener('contextmenu', e => e.preventDefault());
+})();
+
 async function boot(){
   S.loading = true; render();
   try { await IDB.open(); } catch { DB = LSDB; }
   try { (await DB.all()).forEach(r => { if (r && typeof r.id === 'string') S.all.set(r.id, r); }); } catch {}
   refreshEntries(); S.loading = false; render();
   Sync.init();
+  const qp = new URLSearchParams(location.search);
+  if (qp.has('add') || qp.has('voice')){
+    try { history.replaceState(null, '', location.pathname); } catch {}
+    openEntry({});
+    if (qp.has('voice')) startVoice();
+  }
 }
 boot();
 })();
