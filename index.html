@@ -74,6 +74,28 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .top small{display:block;color:var(--ink-2);font-size:13px}
 .icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
 .icon-btn svg{width:20px;height:20px}
+.hbtns{display:flex;gap:8px}
+.icon-btn.unlocked{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+.tag.priv{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--ink)}
+.pin{position:fixed;inset:0;z-index:90;background:var(--bg);display:grid;place-items:center;
+  padding:calc(16px + env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px));overflow-y:auto}
+.pin-card{width:100%;max-width:360px;display:grid;gap:14px;text-align:center}
+.pin-ic{width:56px;height:56px;border-radius:18px;background:var(--deep);color:var(--accent);display:grid;place-items:center;margin:0 auto}
+.pin-ic svg{width:26px;height:26px}
+.pin-card h2{margin:0;font-family:var(--f-display);font-size:24px;text-wrap:balance}
+.pin-card .sub{margin:0;color:var(--ink-2);min-height:21px}
+.pin-card .sub.bad{color:var(--spent);font-weight:600}
+.pin-dots{display:flex;justify-content:center;gap:14px;min-height:18px}
+.pin-dots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--ink-2)}
+.pin-dots i.on{background:var(--ink);border-color:var(--ink)}
+.pin .pad{border-top:0}
+.pin-foot{display:flex;justify-content:space-between;gap:12px}
+.code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:26px;font-weight:700;letter-spacing:.08em;background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:16px;user-select:all}
+.priv-list{display:flex;flex-wrap:wrap;gap:8px}
+.chip.pv.on{background:var(--deep);border-color:var(--deep);color:var(--deep-ink)}
+.sugg-box{background:var(--accent-soft);border-radius:12px;padding:12px;display:grid;gap:8px;text-align:left}
+.sugg-box b{font-family:var(--f-display)}
+.sugg-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px}
 h1.page{font-family:var(--f-display);font-weight:800;font-size:28px;letter-spacing:-.02em;margin:0;text-wrap:balance}
 
 /* hero */
@@ -377,6 +399,9 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
   <div class="sh-body" id="pn-body"></div>
 </section>
 
+<div class="pin" id="pin" hidden role="dialog" aria-modal="true" aria-labelledby="pin-title">
+  <div class="pin-card" id="pin-card"></div>
+</div>
 <div class="toast" id="toast" role="status"><span id="toast-msg"></span><button id="toast-act" hidden></button></div>
 <input type="file" id="import-file" accept=".json,application/json" hidden>
 
@@ -403,6 +428,8 @@ const MONTH_FULL = ['January','February','March','April','May','June','July','Au
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
 const ICON = {
+  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',
+  unlock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.7"/></svg>',
   group:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.4 3.6 5.2"/></svg>',
   out:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>',
   in:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17M15 17H7V9"/></svg>',
@@ -414,7 +441,7 @@ const ICON = {
 
 /* ---------- state ---------- */
 const S = {
-  entries: [], all: new Map(), view:'home', person:null, mode:'local', loading:false,
+  entries: [], everything: [], all: new Map(), unlocked: false, hiddenCount: 0, view:'home', person:null, mode:'local', loading:false,
   f: freshFilters(),
   im: null,            // insights month {y,m}
   flashId: null,
@@ -486,9 +513,9 @@ function canonPerson(n){
   if (!n) return '';
   return allPeople().find(p => p.toLowerCase() === n.toLowerCase()) || n;
 }
-function templates(){
+function templates(src = S.entries){
   const m = new Map();
-  const sorted = [...S.entries].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const sorted = [...src].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   for (const e of sorted){
     if (!e.desc) continue;
     const k = e.desc.trim().toLowerCase();
@@ -502,7 +529,8 @@ function catOrder(){
   const cnt = {};
   for (const e of S.entries) if (e.cat) cnt[e.cat] = (cnt[e.cat]||0) + 1;
   const used = Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]);
-  return [...used, ...DEFAULT_CATS.filter(c => !cnt[c])];
+  const ps = S.unlocked ? new Set() : privateSet();
+  return [...used, ...DEFAULT_CATS.filter(c => !cnt[c])].filter(c => !ps.has(c.toLowerCase()));
 }
 function monthSum(y, m, type, uptoDay){
   const pre = `${y}-${pad2(m+1)}`;
@@ -510,7 +538,7 @@ function monthSum(y, m, type, uptoDay){
   for (const e of S.entries) if (e.type === type && e.date.startsWith(pre) && (!uptoDay || Number(e.date.slice(8)) <= uptoDay)) s += e.amount;
   return s;
 }
-function loggedDays(){ const s = new Set(); for (const e of S.entries) if (e.createdAt) s.add(keyOf(new Date(e.createdAt))); return s; }
+function loggedDays(){ const s = new Set(); for (const e of S.everything) if (e.createdAt) s.add(keyOf(new Date(e.createdAt))); return s; }
 function streak(){
   const days = loggedDays(); let k = todayKey(), n = 0;
   if (!days.has(k)) k = addDays(k,-1);
@@ -521,7 +549,17 @@ function streak(){
 /* ---------- storage: this device first (IndexedDB), Google sync on top ---------- */
 function validEntry(e){ return e && typeof e === 'object' && typeof e.id === 'string' && TYPES[e.type] && typeof e.amount === 'number' && /^\d{4}-\d{2}-\d{2}$/.test(e.date||''); }
 function cleanRec(r){ const c = {...r}; delete c._dirty; return c; }
-function refreshEntries(){ S.entries = [...S.all.values()].filter(r => !r.deleted && validEntry(r)); }
+const CFG_ID = 'cfg-private';
+function getSettings(){ const r = S.all.get(CFG_ID); return (r && !r.deleted) ? r : {}; }
+function saveSettings(patch){ return store.put({...getSettings(), ...patch, id: CFG_ID}); }
+function privacyOn(){ return !!getSettings().pinHash; }
+function privateSet(){ return new Set(privacyOn() ? (getSettings().privateCats || []).map(c => c.toLowerCase()) : []); }
+function isPrivate(e, ps = privateSet()){ return !!e.cat && TYPES[e.type].kind !== 'debt' && ps.has(e.cat.toLowerCase()); }
+function refreshEntries(){
+  S.everything = [...S.all.values()].filter(r => !r.deleted && validEntry(r));
+  const ps = privateSet(); S.hiddenCount = 0;
+  S.entries = (S.unlocked || !ps.size) ? S.everything : S.everything.filter(e => { const h = isPrivate(e, ps); if (h) S.hiddenCount++; return !h; });
+}
 
 const IDB = {
   db: null,
@@ -721,7 +759,7 @@ function rowHtml(e, opts={}){
   const sign = t.sign < 0 ? '−' : '+';
   return `<button class="row${S.flashId===e.id?' flash':''}" data-act="open" data-id="${esc(e.id)}">
     <span class="ic" style="--c:${color}">${icon}</span>
-    <span class="mid"><span class="t">${esc(title)}${e.sample?'<span class="tag">Example</span>':''}</span>
+    <span class="mid"><span class="t">${esc(title)}${S.unlocked && isPrivate(e) ? '<span class="tag priv">Private</span>' : ''}${e.sample?'<span class="tag">Example</span>':''}</span>
       ${meta.length?`<span class="m">${meta.join(' · ')}</span>`:''}
       ${e.note?`<span class="n">“${esc(e.note)}”</span>`:''}</span>
     <span class="amt ${cls}">${sign}${rupee(e.amount)}${theirs ? `<small>${theirs}</small>` : (isDebt||e.type==='received'?`<small>${t.label}</small>`:'')}</span>
@@ -745,7 +783,7 @@ function topBar(){
   const si = syncInfo();
   const wd = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
   return `<div class="top"><div><div class="brand"><i>₹</i>Ledger</div><button class="sync" data-act="settings">${wd}, ${d.getDate()} ${MONTH_FULL[d.getMonth()]} · <span class="sd ${si.cls}"></span>${esc(si.txt)}</button></div>
-    <button class="icon-btn" data-act="settings" aria-label="Your data and backups">${ICON.gear}</button></div>`;
+    ${headBtns()}</div>`;
 }
 function viewHome(){
   if (S.loading) return topBar() + `<p class="muted" style="padding:40px 4px;text-align:center">Opening Ledger…</p>`;
@@ -806,7 +844,7 @@ function viewPeople(){
     return `<button class="row" data-act="person" data-name="${esc(p.name)}"><span class="av" style="background:color-mix(in srgb,${hashColor(p.name.toLowerCase())} 22%,transparent)">${esc(initial(p.name))}</span>
       <span class="mid"><span class="t">${esc(p.name)}</span><span class="m">${p.count} entr${p.count===1?'y':'ies'} · last ${esc(dayLabel(p.last))}${extra}</span></span>${pill}</button>`;
   }).join('')}</div>` : `<div class="empty" style="margin-top:14px"><h2>No one here yet</h2><p>Add names to an expense you shared, or log money you lent or borrowed. Each person shows up here with what's pending and what you've spent on them.</p><div class="btns"><button class="btn primary" data-act="add" data-type="lent">Log money I lent</button><button class="btn" data-act="add" data-type="spent" data-with="1">Add a shared expense</button></div></div>`;
-  return `<div class="top"><h1 class="page">People</h1><button class="icon-btn" data-act="settings" aria-label="Your data and backups">${ICON.gear}</button></div>
+  return `<div class="top"><h1 class="page">People</h1>${headBtns()}</div>
     <div class="tiles"><div class="tile"><span>Owed to you</span><b class="num" style="color:var(--in)">${rupee(owed)}</b><small>${nOwed} ${nOwed===1?'person':'people'}</small></div>
     <div class="tile"><span>You owe</span><b class="num" style="color:var(--spent)">${rupee(owe)}</b><small>${nOwe} ${nOwe===1?'person':'people'}</small></div>
     <div class="tile" style="grid-column:1/-1"><span>Spent on others</span><b class="num">${rupee(treat)}</b><small>Treats and shared bills with ${nTreat} ${nTreat===1?'person':'people'}, not expected back</small></div></div>${body}`;
@@ -842,7 +880,7 @@ function searchShell(){
   const rangeChips = ranges.map(([k,l])=>`<button class="chip${f.range===k?' on':''}" data-act="frange" data-r="${k}">${l}</button>`).join('');
   const opt = (list, val, all) => `<option value="">${all}</option>` + list.map(x=>`<option${x===val?' selected':''}>${esc(x)}</option>`).join('');
   const cats = [...new Set(S.entries.map(e=>e.cat).filter(Boolean))].sort();
-  return `<div class="top"><h1 class="page">Search</h1><button class="icon-btn" data-act="settings" aria-label="Your data and backups">${ICON.gear}</button></div>
+  return `<div class="top"><h1 class="page">Search</h1>${headBtns()}</div>
   <div class="searchbar">${ICON.search}<input id="q" type="search" placeholder="Name, note, category or amount" value="${esc(f.q)}" autocomplete="off"></div>
   <div class="chips scroll frow" id="f-types">${typeChips}</div>
   <div class="chips scroll frow" id="f-range">${rangeChips}</div>
@@ -929,7 +967,7 @@ function viewInsights(){
   let vs = '';
   if (prev > 0){ const d = spent - prev; vs = `${d<=0?'Down':'Up'} ${Math.round(Math.abs(d)/prev*100)}% from ${MON[pm]} (${rupee(prev)})`; }
 
-  return `<div class="top"><h1 class="page">Insights</h1><button class="icon-btn" data-act="settings" aria-label="Your data and backups">${ICON.gear}</button></div>
+  return `<div class="top"><h1 class="page">Insights</h1>${headBtns()}</div>
   <div class="mnav"><button data-act="month" data-d="-1" aria-label="Previous month">${ICON.back}</button><b>${MONTH_FULL[m]} ${y}</b>
     <button data-act="month" data-d="1" aria-label="Next month" ${isCur?'disabled':''} style="transform:scaleX(-1)">${ICON.back}</button></div>
   <section class="hero" style="margin-top:12px"><div class="lbl">Spent</div><div class="big num">${rupee(spent)}</div>
@@ -1026,7 +1064,8 @@ function syncSheet(){
   const cats = catOrder();
   if (D.cat && !cats.includes(D.cat)) cats.unshift(D.cat);
   $('#cat-chips').innerHTML = cats.map(c=>`<button class="chip${D.cat===c?' on':''}" data-act="cat" data-c="${esc(c)}" style="--c:${catColor(c)}"><span class="sw"></span>${esc(c)}</button>`).join('')
-    + `<button class="chip" data-act="newcat">+ New</button>`;
+    + `<button class="chip" data-act="newcat">+ New</button>`
+    + (privacyOn() && !S.unlocked ? `<button class="chip" data-act="privunlock">${ICON.lock.replace('<svg', '<svg width="14" height="14"')} Private</button>` : '');
   const tk = todayKey();
   document.querySelectorAll('#date-chips .chip').forEach(b => b.classList.toggle('on', D.date === addDays(tk, -Number(b.dataset.d))));
   $('#f-date').value = D.date;
@@ -1127,7 +1166,7 @@ async function saveEntry(){
   render();
   setTimeout(() => {
     closeSheet();
-    toast(prev ? 'Entry updated' : `Logged ${rupee(amount)}${e.desc ? ' · '+e.desc : ''}${e.with ? ' · with ' + e.with.length + (e.with.length===1 ? ' person' : ' people') : ''}`);
+    toast(!S.unlocked && isPrivate(e) ? 'Saved privately' : prev ? 'Entry updated' : `Logged ${rupee(amount)}${e.desc ? ' · '+e.desc : ''}${e.with ? ' · with ' + e.with.length + (e.with.length===1 ? ' person' : ' people') : ''}`);
   }, 650);
 }
 async function deleteEntry(){
@@ -1159,9 +1198,11 @@ function renderPanel(){
   $('#pn-body').innerHTML = `<div class="stack">
     <div class="status"><i class="${si.cls === 'ok' ? '' : 'local'}"></i>${esc(si.txt)}</div>
     ${sync}
+    ${privateSection()}
     ${install}
     <p class="muted" style="margin:0">${n} entr${n===1?'y':'ies'} saved on this device.</p>
     <div class="btns" style="justify-content:flex-start">
+      ${privacyOn() && !S.unlocked ? `<p class="muted" style="margin:0;flex-basis:100%">Private entries are left out of exports while locked.</p>` : ''}
       <button class="btn" data-act="export" data-f="json">Export backup (JSON)</button>
       <button class="btn" data-act="export" data-f="csv">Export spreadsheet (CSV)</button>
       <button class="btn" data-act="import">Import backup</button>
@@ -1270,6 +1311,29 @@ document.addEventListener('click', ev => {
       { const {y,m} = S.im; S.f.from = `${y}-${pad2(m+1)}-01`; S.f.to = keyOf(new Date(y, m+1, 0)); }
       $('#main').innerHTML = ''; go('search'); break;
     case 'month': { const d = new Date(S.im.y, S.im.m + Number(el.dataset.d), 1); S.im = {y:d.getFullYear(), m:d.getMonth()}; render(); break; }
+    case 'lock': if (S.unlocked) lockNow(true); else unlockNow(); break;
+    case 'privunlock': unlockNow().then(() => { if (D) syncSheet(); }); break;
+    case 'privsetup': privacySetup(); break;
+    case 'privtoggle': {
+      const c = el.dataset.c, cur = getSettings().privateCats || [];
+      const on = cur.some(x => x.toLowerCase() === c.toLowerCase());
+      saveSettings({privateCats: on ? cur.filter(x => x.toLowerCase() !== c.toLowerCase()) : [...cur, c]}).then(renderPanel);
+      break;
+    }
+    case 'privmove': privacyMove(el.dataset.w).then(renderPanel); break;
+    case 'privchange': askPin('setup').then(ok => { if (ok){ toast('PIN changed'); renderPanel(); } }); break;
+    case 'privoff':
+      if (!confirmOff){ confirmOff = true; renderPanel(); break; }
+      confirmOff = false;
+      saveSettings({pinHash:null, salt:null, pinLen:null, recHash:null, recSalt:null, privateCats:[]}).then(() => { S.unlocked = false; remount(); renderPanel(); toast('Private categories turned off'); });
+      break;
+    case 'pinkey': pinKey(el.dataset.k); break;
+    case 'pincancel': pinDone(false); break;
+    case 'pinforgot': Pin.mode = 'recover'; Pin.msg = ''; pinRender(); setTimeout(() => { const i = $('#rec-in'); i && i.focus(); }, 50); break;
+    case 'pinrecover': pinRecover(); break;
+    case 'pinnocode': Pin.mode = 'reset'; Pin.msg = ''; pinRender(); break;
+    case 'pinwipe': pinWipe(); break;
+    case 'pincodeok': pinDone(true); break;
     case 'signin': Sync.signIn(); break;
     case 'signout': Sync.signOut(); break;
     case 'syncnow': Sync.syncNow(); break;
@@ -1302,8 +1366,11 @@ sheet.addEventListener('focusin', e => { if (e.target.matches('input:not([type=d
 sheet.addEventListener('focusout', () => setTimeout(() => { if (!sheet.contains(document.activeElement) || !document.activeElement.matches('input:not([type=date]):not([type=checkbox]),textarea')) sheet.classList.remove('typing'); }, 50));
 $('#f-desc').addEventListener('input', e => {
   D.desc = e.target.value; renderDescSugg(); renderQuick();
-  const exact = templates().find(t => t.key === D.desc.trim().toLowerCase());
-  if (exact && !D.catTouched && TYPES[D.type].kind==='flow'){ D.cat = exact.cat || ''; syncSheetCats(); }
+  const exact = templates(S.everything).find(t => t.key === D.desc.trim().toLowerCase());
+  if (exact && !D.catTouched && TYPES[D.type].kind==='flow'){
+    D.cat = exact.cat || ''; syncSheetCats();
+    if (!S.unlocked && isPrivate({cat: D.cat, type: D.type})) $('#desc-sugg').innerHTML = '<div class="hint">This will be saved to a private category.</div>';
+  }
 });
 function syncSheetCats(){ document.querySelectorAll('#cat-chips .chip[data-c]').forEach(c => c.classList.toggle('on', c.dataset.c === D.cat)); }
 $('#f-person').addEventListener('input', e => {
@@ -1327,6 +1394,14 @@ $('#f-person').addEventListener('keydown', e => {
 
 // keyboard on desktop
 document.addEventListener('keydown', e => {
+  if (!$('#pin').hidden){
+    if (e.target.matches('input')){ if (e.key === 'Enter'){ e.preventDefault(); pinRecover(); } return; }
+    if (/^[0-9]$/.test(e.key)) pinKey(e.key);
+    else if (e.key === 'Backspace') pinKey('del');
+    else if (e.key === 'Enter') pinKey('ok');
+    else if (e.key === 'Escape' && Pin.mode !== 'code') pinDone(false);
+    e.preventDefault(); return;
+  }
   if (e.key === 'Escape' && openEl){ closeSheet(); return; }
   if (openEl !== sheet || !D) {
     if (!openEl && e.key === 'n' && !e.target.matches('input,textarea,select') && !e.metaKey && !e.ctrlKey){ e.preventDefault(); openEntry(); }
@@ -1366,7 +1441,150 @@ document.addEventListener('change', e => {
 /* ---------- boot ---------- */
 window.addEventListener('online', () => { if (!Sync.fb) Sync.init(); else if (Sync.user) Sync.syncNow(); });
 window.addEventListener('offline', () => { if (Sync.user && !Sync.pushing){ Sync.state = 'offline'; ui(); } });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible'){ if (Sync.user) Sync.push(); render(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && S.unlocked && Pin.mode == null) lockNow(false); if (document.visibilityState === 'visible'){ if (Sync.user) Sync.push(); render(); } });
+/* ---------- private categories ---------- */
+let confirmOff = false;
+const PRIVATE_WORDS = ['sutta','cigarette','cigarettes','cig','cigs','smoke','smoking','gold flake','marlboro','classic milds','hookah','vape','beer','beers','daru','alcohol','liquor','whisky','whiskey','vodka','rum','wine','pub','bar','theka','bira','kingfisher','budweiser','weed','ganja','gutka','gutkha','tobacco','pan masala','betting','casino','poker','rummy','dream11','lottery'];
+const wordRe = new RegExp('\\b(' + PRIVATE_WORDS.map(w => w.replace(/ /g, '\\s+')).join('|') + ')\\b', 'i');
+const title1 = w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+function privacySuggestions(){
+  const ps = privateSet(), cats = new Map(), moves = new Map();
+  for (const e of S.everything){
+    if (TYPES[e.type].kind === 'debt' || isPrivate(e, ps)) continue;
+    if (e.cat && wordRe.test(e.cat)){ cats.set(e.cat, (cats.get(e.cat) || 0) + 1); continue; }
+    const m = (e.desc || '').match(wordRe);
+    if (m){ const w = title1(m[1].replace(/\s+/g, ' ')); const g = moves.get(w) || {word: w, ids: []}; g.ids.push(e.id); moves.set(w, g); }
+  }
+  return {cats: [...cats.entries()].map(([c, n]) => ({c, n})), moves: [...moves.values()]};
+}
+async function privacyMove(word){
+  const g = privacySuggestions().moves.find(x => x.word === word); if (!g) return;
+  const now = Date.now();
+  await commit(g.ids.map(id => ({...cleanRec(S.all.get(id)), cat: word, updatedAt: now, _dirty: 1})));
+  const cur = getSettings().privateCats || [];
+  if (!cur.some(x => x.toLowerCase() === word.toLowerCase())) await saveSettings({privateCats: [...cur, word]});
+  toast(`Moved ${g.ids.length} entr${g.ids.length===1?'y':'ies'} to private “${word}”`);
+}
+function privateSection(){
+  const s = getSettings(), sug = privacySuggestions();
+  if (!s.pinHash){
+    const hint = (sug.cats.length || sug.moves.length) ? `<p class="muted" style="margin:0 0 10px">From your entries, you might want to hide: <b style="color:var(--ink)">${esc([...sug.cats.map(x => x.c), ...sug.moves.map(x => x.word)].slice(0,4).join(', '))}</b></p>` : '';
+    return `<div class="card" style="margin:0"><h3>Private categories</h3>
+      <p class="muted" style="margin:0 0 10px">Pick categories nobody else should see. While locked, they vanish from every list, total, person, search and export. Unlock with your PIN.</p>${hint}
+      <button class="btn primary" data-act="privsetup">Set a PIN</button></div>`;
+  }
+  if (!S.unlocked) return `<div class="card" style="margin:0"><h3>Private categories</h3>
+      <p class="muted" style="margin:0 0 10px">Locked. Unlock to see or change them.</p><button class="btn primary" data-act="lock">Unlock</button></div>`;
+  const ps = privateSet();
+  const all = [...new Set([...S.everything.filter(e => e.cat && TYPES[e.type].kind !== 'debt').map(e => e.cat), ...(s.privateCats || []), ...DEFAULT_CATS])];
+  all.sort((a, b) => (Number(ps.has(b.toLowerCase())) - Number(ps.has(a.toLowerCase()))) || a.localeCompare(b));
+  const sugRows = [
+    ...sug.cats.map(x => `<div class="sugg-row"><span><b>${esc(x.c)}</b> · ${x.n} entr${x.n===1?'y':'ies'}</span><button class="btn" data-act="privtoggle" data-c="${esc(x.c)}">Hide</button></div>`),
+    ...sug.moves.map(x => `<div class="sugg-row"><span><b>${esc(x.word)}</b> · ${x.ids.length} entr${x.ids.length===1?'y':'ies'} in other categories</span><button class="btn" data-act="privmove" data-w="${esc(x.word)}">Move &amp; hide</button></div>`),
+  ];
+  return `<div class="card" style="margin:0"><h3>Private categories</h3>
+    <p class="muted" style="margin:0 0 10px">Tap to make a category private. Dark chips are hidden while locked. The app locks itself whenever you leave it.</p>
+    <div class="priv-list">${all.map(c => `<button class="chip pv${ps.has(c.toLowerCase()) ? ' on' : ''}" data-act="privtoggle" data-c="${esc(c)}">${ps.has(c.toLowerCase()) ? ICON.lock.replace('<svg', '<svg width="14" height="14"') + ' ' : ''}${esc(c)}</button>`).join('')}</div>
+    ${sugRows.length ? `<div class="sugg-box" style="margin-top:12px"><span>Looks like these could be private</span>${sugRows.join('')}</div>` : ''}
+    <div class="btns" style="justify-content:flex-start;margin-top:12px">
+      <button class="btn" data-act="lock">Lock now</button><button class="btn" data-act="privchange">Change PIN</button>
+      <button class="btn danger" data-act="privoff">${confirmOff ? 'Tap again to turn off' : 'Turn off'}</button></div></div>`;
+}
+function headBtns(){
+  const lock = privacyOn() ? `<button class="icon-btn${S.unlocked ? ' unlocked' : ''}" data-act="lock" aria-label="${S.unlocked ? 'Hide private categories' : 'Show private categories'}">${S.unlocked ? ICON.unlock : ICON.lock}</button>` : '';
+  return `<div class="hbtns">${lock}<button class="icon-btn" data-act="settings" aria-label="Settings and backups">${ICON.gear}</button></div>`;
+}
+function remount(){ refreshEntries(); $('#main').innerHTML = ''; ui(); }
+function lockNow(say){ S.unlocked = false; confirmOff = false; remount(); if (say) toast('Private categories hidden'); }
+async function unlockNow(){ if (S.unlocked) return true; const ok = await askPin('unlock'); if (ok){ S.unlocked = true; remount(); } return ok; }
+async function privacySetup(){ const ok = await askPin('setup'); if (ok){ S.unlocked = true; remount(); renderPanel(); } }
+
+/* PIN screen */
+const Pin = {mode: null, stage: 0, buf: '', first: '', code: '', msg: '', bad: false, fails: 0, until: 0, resolve: null};
+const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+const unhex = h => new Uint8Array(h.match(/../g).map(x => parseInt(x, 16)));
+const randHex = n => hex(crypto.getRandomValues(new Uint8Array(n)));
+async function slowHash(text, saltHex){
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(text), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name: 'PBKDF2', salt: unhex(saltHex), iterations: 200000, hash: 'SHA-256'}, key, 256);
+  return hex(new Uint8Array(bits));
+}
+function newRecoveryCode(){ const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = crypto.getRandomValues(new Uint8Array(10)); const c = [...r].map(x => A[x % A.length]).join(''); return c.slice(0,5) + '-' + c.slice(5); }
+const normCode = c => (c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+function askPin(mode){
+  return new Promise(res => {
+    if (Pin.resolve) Pin.resolve(false);
+    Object.assign(Pin, {mode, stage: 0, buf: '', first: '', code: '', msg: '', bad: false, resolve: res});
+    $('#pin').hidden = false; pinRender();
+  });
+}
+function pinDone(ok){ $('#pin').hidden = true; const r = Pin.resolve; Object.assign(Pin, {resolve: null, mode: null, buf: '', first: '', code: ''}); r && r(ok); }
+function pinRender(){
+  const card = $('#pin-card'), s = getSettings(), m = Pin.mode;
+  const sub = t => `<p class="sub${Pin.bad ? ' bad' : ''}">${t}</p>`;
+  const head = (h) => `<div class="pin-ic">${ICON.lock}</div><h2 id="pin-title">${h}</h2>`;
+  const pad = (ok) => `<div class="pad">${['1','2','3','4','5','6','7','8','9', ok ? 'ok' : '', '0','del'].map(k => k ? `<button data-act="pinkey" data-k="${k}" aria-label="${k === 'del' ? 'Delete digit' : k === 'ok' ? 'Done' : k}">${k === 'del' ? ICON.del : k === 'ok' ? '✓' : k}</button>` : '<span></span>').join('')}</div>`;
+  if (m === 'unlock'){
+    const len = s.pinLen || 4;
+    card.innerHTML = head('Enter your PIN') + sub(esc(Pin.msg)) + `<div class="pin-dots" id="pin-dots">${Array.from({length: len}, (_, i) => `<i class="${i < Pin.buf.length ? 'on' : ''}"></i>`).join('')}</div>` + pad(false)
+      + `<div class="pin-foot"><button class="link" data-act="pincancel">Cancel</button><button class="link" data-act="pinforgot">Forgot PIN?</button></div>`;
+  } else if (m === 'setup'){
+    const t = Pin.first ? 'Enter it again' : 'Choose a PIN';
+    card.innerHTML = head(t) + sub(esc(Pin.msg || (Pin.first ? 'Same digits, then tap ✓' : '4 to 6 digits, then tap ✓')))
+      + `<div class="pin-dots" id="pin-dots">${Array.from({length: Math.max(4, Pin.buf.length)}, (_, i) => `<i class="${i < Pin.buf.length ? 'on' : ''}"></i>`).join('')}</div>` + pad(true)
+      + `<div class="pin-foot"><button class="link" data-act="pincancel">Cancel</button><span></span></div>`;
+  } else if (m === 'code'){
+    card.innerHTML = head('Save your recovery code') + `<p class="sub">If you ever forget your PIN, this code lets you set a new one. Screenshot it or write it down somewhere safe.</p>`
+      + `<div class="code">${esc(Pin.code)}</div><button class="btn primary wide" data-act="pincodeok">I've saved it</button>`;
+  } else if (m === 'recover'){
+    card.innerHTML = head('Forgot your PIN?') + sub(esc(Pin.msg || 'Enter the recovery code you saved when you set the PIN.'))
+      + `<input class="inp" id="rec-in" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX" style="text-align:center;font-size:20px;letter-spacing:.08em">`
+      + `<button class="btn primary wide" data-act="pinrecover">Reset PIN</button>`
+      + `<div class="pin-foot"><button class="link" data-act="pincancel">Cancel</button><button class="link" data-act="pinnocode">I don't have the code</button></div>`;
+  } else if (m === 'reset'){
+    const n = S.everything.filter(e => isPrivate(e)).length;
+    card.innerHTML = head('Reset without the code') + `<p class="sub">Without your PIN or recovery code, the only way to reset is to permanently delete your ${n} private entr${n===1?'y':'ies'}. Everything else stays.</p>`
+      + `<button class="btn danger wide" data-act="pinwipe">Delete private entries and reset</button>`
+      + `<div class="pin-foot"><button class="link" data-act="pincancel">Cancel</button><span></span></div>`;
+  }
+  Pin.bad = false;
+}
+function pinFail(msg){ Pin.msg = msg; Pin.bad = true; Pin.buf = ''; pinRender(); const d = $('#pin-dots'); d && shake(d); buzz(); }
+async function pinKey(k){
+  if (Pin.mode !== 'unlock' && Pin.mode !== 'setup') return;
+  if (Date.now() < Pin.until){ pinFail('Too many tries. Wait a few seconds.'); return; }
+  if (k === 'del'){ Pin.buf = Pin.buf.slice(0, -1); pinRender(); return; }
+  if (k === 'ok'){ if (Pin.mode === 'setup') await pinSetupNext(); return; }
+  if (Pin.buf.length >= 6) return;
+  Pin.buf += k; Pin.msg = ''; pinRender();
+  if (Pin.mode === 'unlock' && Pin.buf.length === (getSettings().pinLen || 4)){
+    const s = getSettings();
+    if (await slowHash(Pin.buf, s.salt) === s.pinHash){ Pin.fails = 0; pinDone(true); }
+    else { Pin.fails++; if (Pin.fails >= 5){ Pin.fails = 0; Pin.until = Date.now() + 30000; pinFail('Too many tries. Wait 30 seconds.'); } else pinFail('Wrong PIN. Try again.'); }
+  }
+}
+async function pinSetupNext(){
+  if (Pin.buf.length < 4){ pinFail('Use at least 4 digits'); return; }
+  if (!Pin.first){ Pin.first = Pin.buf; Pin.buf = ''; Pin.msg = ''; pinRender(); return; }
+  if (Pin.buf !== Pin.first){ Pin.first = ''; pinFail("Those didn't match. Choose your PIN again."); return; }
+  const salt = randHex(16), recSalt = randHex(16), code = newRecoveryCode();
+  const [pinHash, recHash] = await Promise.all([slowHash(Pin.buf, salt), slowHash(normCode(code), recSalt)]);
+  await saveSettings({pinHash, salt, pinLen: Pin.buf.length, recHash, recSalt, privateCats: getSettings().privateCats || []});
+  Pin.mode = 'code'; Pin.code = code; Pin.buf = ''; Pin.first = ''; pinRender();
+}
+async function pinRecover(){
+  const s = getSettings(), v = normCode($('#rec-in') && $('#rec-in').value);
+  if (!v){ return; }
+  if (s.recHash && await slowHash(v, s.recSalt) === s.recHash){ Object.assign(Pin, {mode: 'setup', buf: '', first: '', msg: 'Code accepted. Choose a new PIN.'}); pinRender(); }
+  else { Pin.msg = "That code doesn't match."; Pin.bad = true; pinRender(); }
+}
+async function pinWipe(){
+  const ids = S.everything.filter(e => isPrivate(e)).map(e => e.id);
+  if (ids.length) await store.removeMany(ids);
+  await saveSettings({pinHash: null, salt: null, pinLen: null, recHash: null, recSalt: null, privateCats: []});
+  pinDone(false); remount(); toast('Private entries deleted. You can set a new PIN in settings.');
+}
+
 async function boot(){
   S.loading = true; render();
   try { await IDB.open(); } catch { DB = LSDB; }
