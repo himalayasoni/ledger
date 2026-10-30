@@ -547,7 +547,8 @@ function catOrder(){
   for (const e of S.entries) if (e.cat) cnt[e.cat] = (cnt[e.cat]||0) + 1;
   const used = Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]);
   const ps = S.unlocked ? new Set() : privateSet();
-  return [...used, ...DEFAULT_CATS.filter(c => !cnt[c])].filter(c => !ps.has(c.toLowerCase()));
+  const extra = (getSettings().privateCats || []).filter(c => !cnt[c] && !DEFAULT_CATS.includes(c));
+  return [...used, ...extra, ...DEFAULT_CATS.filter(c => !cnt[c])].filter(c => !ps.has(c.toLowerCase()));
 }
 function monthSum(y, m, type, uptoDay){
   const pre = `${y}-${pad2(m+1)}`;
@@ -1343,6 +1344,20 @@ document.addEventListener('click', ev => {
       saveSettings({privateCats: on ? cur.filter(x => x.toLowerCase() !== c.toLowerCase()) : [...cur, c]}).then(renderPanel);
       break;
     }
+    case 'privnew': {
+      el.outerHTML = `<input class="date-inp" id="privnew" placeholder="e.g. Sutta" style="width:160px" maxlength="24">`;
+      const i = $('#privnew'); i.focus();
+      i.addEventListener('keydown', e2 => { if (e2.key === 'Enter'){ e2.preventDefault(); i.blur(); } });
+      i.addEventListener('blur', () => {
+        const v = i.value.trim().replace(/\s+/g, ' ');
+        if (!v){ renderPanel(); return; }
+        const name = v.charAt(0).toUpperCase() + v.slice(1), cur = getSettings().privateCats || [];
+        privTouched = true;
+        if (cur.some(x => x.toLowerCase() === name.toLowerCase())){ renderPanel(); return; }
+        saveSettings({privateCats: [...cur, name]}).then(() => { renderPanel(); toast(`“${name}” is now a private category`); });
+      }, {once: true});
+      break;
+    }
     case 'privmove': privTouched = true; privacyMove(el.dataset.w).then(renderPanel); break;
     case 'privchange': askPin('setup').then(ok => { if (ok){ toast('PIN changed'); renderPanel(); } }); break;
     case 'privoff':
@@ -1393,6 +1408,11 @@ $('#f-desc').addEventListener('input', e => {
   if (exact && !D.catTouched && TYPES[D.type].kind==='flow'){
     D.cat = exact.cat || ''; syncSheetCats();
     if (!S.unlocked && isPrivate({cat: D.cat, type: D.type})) $('#desc-sugg').innerHTML = '<div class="hint">This will be saved to a private category.</div>';
+  } else if (!exact && !D.catTouched && TYPES[D.type].kind === 'flow'){
+    // typing a category's own name (e.g. "Sutta") files it there, private ones included
+    const want = D.desc.trim().toLowerCase();
+    const c = want && [...new Set([...(getSettings().privateCats || []), ...S.everything.map(x => x.cat).filter(Boolean)])].find(x => x.toLowerCase() === want);
+    if (c){ D.cat = c; syncSheetCats(); if (!S.unlocked && isPrivate({cat: c, type: D.type})) $('#desc-sugg').innerHTML = '<div class="hint">This will be saved to a private category.</div>'; }
   }
 });
 function syncSheetCats(){ document.querySelectorAll('#cat-chips .chip[data-c]').forEach(c => c.classList.toggle('on', c.dataset.c === D.cat)); }
@@ -1507,7 +1527,7 @@ function privateSection(){
   ];
   return `<div class="card" style="margin:0"><h3>Private categories</h3>
     <p class="muted" style="margin:0 0 10px">Tap to make a category private. Dark chips are hidden while locked. The app locks itself whenever you leave it.</p>
-    <div class="priv-list">${all.map(c => `<button class="chip pv${ps.has(c.toLowerCase()) ? ' on' : ''}" data-act="privtoggle" data-c="${esc(c)}">${ps.has(c.toLowerCase()) ? ICON.lock.replace('<svg', '<svg width="14" height="14"') + ' ' : ''}${esc(c)}</button>`).join('')}</div>
+    <div class="priv-list">${all.map(c => `<button class="chip pv${ps.has(c.toLowerCase()) ? ' on' : ''}" data-act="privtoggle" data-c="${esc(c)}">${ps.has(c.toLowerCase()) ? ICON.lock.replace('<svg', '<svg width="14" height="14"') + ' ' : ''}${esc(c)}</button>`).join('')}<button class="chip" data-act="privnew">+ New private category</button></div>
     ${sugRows.length ? `<div class="sugg-box" style="margin-top:12px"><span>Looks like these could be private</span>${sugRows.join('')}</div>` : ''}
     <div class="btns" style="justify-content:flex-start;margin-top:12px">
       <button class="btn" data-act="lock">Lock now</button><button class="btn" data-act="privchange">Change PIN</button>
