@@ -75,6 +75,16 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
 .icon-btn svg{width:20px;height:20px}
 .hbtns{display:flex;gap:8px}
+.clist{display:grid}
+.crow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.crow:first-child{border-top:0}
+.crow > .sw{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.crow .cn{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow .cc{color:var(--ink-2);font-size:13px;font-variant-numeric:tabular-nums}
+.cbtn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface-2);flex:0 0 auto}
+.cbtn svg{width:16px;height:16px}
+.cbtn.on{background:var(--deep);color:var(--accent)}
+.crow.edit{display:grid;gap:8px}
 .say{display:flex;gap:8px;align-items:center;margin-top:10px}
 .say .inp{height:44px;font-size:15px}
 .mic{flex:0 0 44px;height:44px;border-radius:12px;background:var(--deep);color:var(--accent);display:grid;place-items:center}
@@ -409,7 +419,7 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
 <section class="sheet" id="panel" hidden role="dialog" aria-modal="true" aria-labelledby="pn-title">
   <div class="grab"></div>
   <div class="sh-head">
-    <h2 id="pn-title">Your data</h2>
+    <h2 id="pn-title">Settings</h2>
     <button class="icon-btn" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
   <div class="sh-body" id="pn-body"></div>
@@ -444,6 +454,7 @@ const MONTH_FULL = ['January','February','March','April','May','June','July','Au
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
 const ICON = {
+  pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
   mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',
   unlock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.7"/></svg>',
@@ -542,13 +553,75 @@ function templates(src = S.entries){
   }
   return [...m.values()];
 }
+const CATS_ID = 'cfg-cats';
+function catSettings(){ const r = S.all.get(CATS_ID); return (r && !r.deleted) ? r : {custom: [], removed: []}; }
+function saveCats(patch){ return store.put({...catSettings(), ...patch, id: CATS_ID}); }
+const lc = x => String(x || '').toLowerCase();
+function uniqCI(list){ const seen = new Set(), out = []; for (const c of list){ if (!c) continue; const k = lc(c); if (!seen.has(k)){ seen.add(k); out.push(c); } } return out; }
+/* every category the person has: used ones, ones they added, private ones, and defaults they haven't removed */
+function allCats(){
+  const cs = catSettings(), removed = new Set((cs.removed || []).map(lc));
+  const used = S.everything.filter(e => e.cat && TYPES[e.type].kind !== 'debt').map(e => e.cat);
+  return uniqCI([...used, ...(cs.custom || []), ...(getSettings().privateCats || []), ...DEFAULT_CATS.filter(c => !removed.has(lc(c)))]);
+}
 function catOrder(){
   const cnt = {};
-  for (const e of S.entries) if (e.cat) cnt[e.cat] = (cnt[e.cat]||0) + 1;
-  const used = Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]);
+  for (const e of S.entries) if (e.cat) cnt[lc(e.cat)] = (cnt[lc(e.cat)] || 0) + 1;
   const ps = S.unlocked ? new Set() : privateSet();
-  const extra = (getSettings().privateCats || []).filter(c => !cnt[c] && !DEFAULT_CATS.includes(c));
-  return [...used, ...extra, ...DEFAULT_CATS.filter(c => !cnt[c])].filter(c => !ps.has(c.toLowerCase()));
+  return allCats().filter(c => !ps.has(lc(c))).sort((a, b) => (cnt[lc(b)] || 0) - (cnt[lc(a)] || 0));
+}
+const tidyCat = v => { v = String(v || '').trim().replace(/\s+/g, ' ').slice(0, 24); return v ? v.charAt(0).toUpperCase() + v.slice(1) : ''; };
+async function addCat(name){
+  name = tidyCat(name); if (!name) return '';
+  const existing = allCats().find(c => lc(c) === lc(name));
+  if (existing) return existing;
+  const cs = catSettings();
+  await saveCats({custom: [...(cs.custom || []), name], removed: (cs.removed || []).filter(c => lc(c) !== lc(name))});
+  return name;
+}
+async function renameCat(oldN, newN){
+  newN = tidyCat(newN); if (!newN || newN === oldN) return;
+  const lo = lc(oldN), now = Date.now();
+  const changed = S.everything.filter(e => lc(e.cat) === lo).map(e => ({...cleanRec(e), cat: newN, updatedAt: now, _dirty: 1}));
+  if (changed.length) await commit(changed);
+  const cs = catSettings();
+  const custom = (cs.custom || []).filter(c => lc(c) !== lo && lc(c) !== lc(newN)).concat(newN);
+  const removed = (cs.removed || []).concat(DEFAULT_CATS.some(c => lc(c) === lo) ? [oldN] : []).filter(c => lc(c) !== lc(newN));
+  await saveCats({custom, removed});
+  const pc = getSettings().privateCats || [];
+  if (pc.some(c => lc(c) === lo)) await saveSettings({privateCats: uniqCI(pc.map(c => lc(c) === lo ? newN : c))});
+  toast(`Renamed to “${newN}”${changed.length ? ` · ${changed.length} entr${changed.length===1?'y':'ies'} updated` : ''}`);
+}
+async function deleteCat(name){
+  const lo = lc(name), now = Date.now(), to = lo === 'other' ? '' : 'Other';
+  const moved = S.everything.filter(e => lc(e.cat) === lo).map(e => ({...cleanRec(e), cat: to, updatedAt: now, _dirty: 1}));
+  if (moved.length) await commit(moved);
+  const cs = catSettings();
+  await saveCats({custom: (cs.custom || []).filter(c => lc(c) !== lo), removed: (cs.removed || []).concat(DEFAULT_CATS.some(c => lc(c) === lo) ? [name] : [])});
+  const pc = getSettings().privateCats || [];
+  if (pc.some(c => lc(c) === lo)) await saveSettings({privateCats: pc.filter(c => lc(c) !== lo)});
+  toast(`Deleted “${name}”${moved.length ? ` · ${moved.length} moved to ${to || 'no category'}` : ''}`);
+}
+let catEdit = null, catConfirm = null;
+function categoriesSection(){
+  const cnt = {}; for (const e of S.everything) if (e.cat && TYPES[e.type].kind !== 'debt') cnt[lc(e.cat)] = (cnt[lc(e.cat)] || 0) + 1;
+  const ps = privateSet(), hide = privacyOn() && !S.unlocked;
+  const list = allCats().filter(c => !(hide && ps.has(lc(c)))).sort((a, b) => a.localeCompare(b));
+  const rows = list.map(c => {
+    const n = cnt[lc(c)] || 0, priv = ps.has(lc(c));
+    if (catEdit === c) return `<div class="crow edit">
+        <input class="inp" id="cat-rename" value="${esc(c)}" maxlength="24" aria-label="Category name">
+        <div class="btns" style="justify-content:flex-start"><button class="btn primary" data-act="catsave" data-c="${esc(c)}">Save</button>
+        <button class="btn danger" data-act="catdel" data-c="${esc(c)}">${catConfirm === c ? (n ? `Tap again: move ${n} to Other` : 'Tap again to delete') : 'Delete'}</button>
+        <button class="btn" data-act="catcancel">Cancel</button></div></div>`;
+    return `<div class="crow"><span class="sw" style="background:${catColor(c)}"></span><span class="cn">${esc(c)}</span><span class="cc">${n ? n + (n === 1 ? ' entry' : ' entries') : ''}</span>
+      <button class="cbtn${priv ? ' on' : ''}" data-act="catpriv" data-c="${esc(c)}" aria-label="${priv ? `Make ${esc(c)} visible` : `Make ${esc(c)} private`}" aria-pressed="${priv}">${priv ? ICON.lock : ICON.unlock}</button>
+      <button class="cbtn" data-act="catedit" data-c="${esc(c)}" aria-label="Rename or delete ${esc(c)}">${ICON.pencil}</button></div>`;
+  });
+  return `<div class="card" style="margin:0"><h3>Categories</h3>
+    <div class="say" style="margin:0 0 6px"><input class="inp" id="cat-new" placeholder="New category, e.g. Pets" maxlength="24" enterkeyhint="done"><button class="btn primary" data-act="catadd">Add</button></div>
+    <div class="clist">${rows.join('')}</div>
+    <p class="muted" style="margin:8px 0 0;font-size:13px">Tap the lock to make a category private${hide ? '. Private ones are hidden while locked.' : '.'}</p></div>`;
 }
 function monthSum(y, m, type, uptoDay){
   const pre = `${y}-${pad2(m+1)}`;
@@ -1012,7 +1085,21 @@ function render(){
   }
   S.flashId = null;
 }
-function go(view){ S.view = view; render(); window.scrollTo({top:0}); }
+function go(view, fromBack){
+  if (!fromBack){
+    const top = () => layers[layers.length - 1];
+    let n = 0;
+    if (view === 'home'){ for (let i = layers.length - 1; i >= 0 && (layers[i].type === 'view' || layers[i].type === 'person'); i--) n++; dropLayers(n); }
+    else if (view === 'person'){ pushLayer('person', S.view); }
+    else {
+      for (let i = layers.length - 1; i >= 0 && layers[i].type === 'person'; i--) n++;
+      if (n) dropLayers(n);
+      if (!layers.some(l => l.type === 'view')) pushLayer('view');
+    }
+  }
+  if (S.view === 'search' && view !== 'search') $('#main').innerHTML = '';
+  S.view = view; render(); window.scrollTo({top:0});
+}
 
 /* ---------- toast ---------- */
 let toastTimer = null;
@@ -1025,16 +1112,32 @@ function toast(msg, actLabel, act){
 }
 function hideToast(){ $('#toast').classList.remove('show'); }
 
+/* ---------- back button: each open layer owns one history entry ---------- */
+const layers = []; let skipPops = 0;
+function pushLayer(type, data){ layers.push({type, data}); try { history.pushState({ledger: layers.length}, ''); } catch {} }
+function dropLayers(n){ if (n <= 0) return; layers.length -= n; skipPops++; try { history.go(-n); } catch { skipPops--; } }
+function popLayer(type){ const top = layers[layers.length - 1]; if (top && top.type === type) dropLayers(1); }
+window.addEventListener('popstate', () => {
+  if (skipPops > 0){ skipPops--; return; }
+  const top = layers.pop(); if (!top) return;
+  if (top.type === 'pin'){ if (Pin.mode === 'code'){ pushLayer('pin'); return; } pinDone(false, true); }
+  else if (top.type === 'sheet') closeSheet(true);
+  else if (top.type === 'person'){ S.person = null; go(top.data || 'people', true); }
+  else if (top.type === 'view') go('home', true);
+});
+
 /* ---------- sheet ---------- */
 let D = null, openEl = null;
 function showSheet(el){
+  if (!openEl) pushLayer('sheet');
   openEl = el; const sc = $('#scrim');
   sc.hidden = false; el.hidden = false; void el.offsetWidth;
   sc.classList.add('open'); el.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
-function closeSheet(){
+function closeSheet(fromBack){
   if (!openEl) return;
+  if (!fromBack) popLayer('sheet');
   stopVoice();
   if (openEl.id === 'panel' && privTouched && S.unlocked){ privTouched = false; setTimeout(() => lockNow(true), 280); }
   const el = openEl, sc = $('#scrim'); openEl = null;
@@ -1200,7 +1303,7 @@ async function deleteEntry(){
 /* ---------- data panel ---------- */
 let confirmWipe = false;
 function openPanel(){
-  confirmWipe = false; renderPanel(); showSheet($('#panel'));
+  confirmWipe = false; catEdit = null; catConfirm = null; renderPanel(); showSheet($('#panel'));
 }
 function renderPanel(){
   const n = S.entries.length, samples = S.entries.filter(e=>e.sample).length, s = Sync.state, si = syncInfo();
@@ -1219,6 +1322,7 @@ function renderPanel(){
   $('#pn-body').innerHTML = `<div class="stack">
     <div class="status"><i class="${si.cls === 'ok' ? '' : 'local'}"></i>${esc(si.txt)}</div>
     ${sync}
+    ${categoriesSection()}
     ${privateSection()}
     ${install}
     <p class="muted" style="margin:0">${n} entr${n===1?'y':'ies'} saved on this device.</p>
@@ -1275,7 +1379,7 @@ async function addSamples(){
     batch.push(x);
   }
   await store.putMany(batch);
-  toast('Added example entries. Remove them any time from Your data.');
+  toast('Added example entries. Remove them any time from Settings.');
 }
 
 /* ---------- events ---------- */
@@ -1302,7 +1406,7 @@ document.addEventListener('click', ev => {
     case 'newcat': {
       el.outerHTML = `<input class="date-inp" id="newcat" placeholder="New category" style="width:150px" maxlength="24">`;
       const i = $('#newcat'); i.focus();
-      const done = () => { const v = i.value.trim().replace(/\s+/g,' '); if (v){ D.cat = v.charAt(0).toUpperCase()+v.slice(1); D.catTouched = true; } syncSheet(); };
+      const done = async () => { const v = tidyCat(i.value); if (v){ D.cat = await addCat(v); D.catTouched = true; } syncSheet(); };
       i.addEventListener('keydown', e2 => { if (e2.key==='Enter'){ e2.preventDefault(); i.blur(); } });
       i.addEventListener('blur', done, {once:true});
       break;
@@ -1344,6 +1448,29 @@ document.addEventListener('click', ev => {
       saveSettings({privateCats: on ? cur.filter(x => x.toLowerCase() !== c.toLowerCase()) : [...cur, c]}).then(renderPanel);
       break;
     }
+    case 'catadd': {
+      const i = $('#cat-new'), v = i && i.value;
+      if (!tidyCat(v)){ i && i.focus(); break; }
+      const exists = allCats().some(c => lc(c) === lc(v));
+      addCat(v).then(nm => { renderPanel(); toast(exists ? `“${nm}” already exists` : `Added “${nm}”`); });
+      break;
+    }
+    case 'catedit': catEdit = el.dataset.c; catConfirm = null; renderPanel(); setTimeout(() => { const i = $('#cat-rename'); if (i){ i.focus(); i.select(); } }, 30); break;
+    case 'catcancel': catEdit = null; catConfirm = null; renderPanel(); break;
+    case 'catsave': { const v = $('#cat-rename').value; const old = el.dataset.c; catEdit = null; renameCat(old, v).then(renderPanel); break; }
+    case 'catdel':
+      if (catConfirm !== el.dataset.c){ catConfirm = el.dataset.c; renderPanel(); break; }
+      { const c = el.dataset.c; catEdit = null; catConfirm = null; deleteCat(c).then(renderPanel); }
+      break;
+    case 'catpriv': (async () => {
+      const c = el.dataset.c;
+      if (!privacyOn()){ const ok = await askPin('setup'); if (!ok) return; S.unlocked = true; }
+      privTouched = true;
+      const cur = getSettings().privateCats || [], on = cur.some(x => lc(x) === lc(c));
+      await saveSettings({privateCats: on ? cur.filter(x => lc(x) !== lc(c)) : [...cur, c]});
+      remount(); renderPanel();
+      toast(on ? `“${c}” is visible again` : `“${c}” is now private`);
+    })(); break;
     case 'privnew': {
       el.outerHTML = `<input class="date-inp" id="privnew" placeholder="e.g. Sutta" style="width:160px" maxlength="24">`;
       const i = $('#privnew'); i.focus();
@@ -1512,24 +1639,21 @@ function privateSection(){
   const s = getSettings(), sug = privacySuggestions();
   if (!s.pinHash){
     const hint = (sug.cats.length || sug.moves.length) ? `<p class="muted" style="margin:0 0 10px">From your entries, you might want to hide: <b style="color:var(--ink)">${esc([...sug.cats.map(x => x.c), ...sug.moves.map(x => x.word)].slice(0,4).join(', '))}</b></p>` : '';
-    return `<div class="card" style="margin:0"><h3>Private categories</h3>
-      <p class="muted" style="margin:0 0 10px">Pick categories nobody else should see. While locked, they vanish from every list, total, person, search and export. Unlock with your PIN.</p>${hint}
+    return `<div class="card" style="margin:0"><h3>Privacy</h3>
+      <p class="muted" style="margin:0 0 10px">Set a PIN, then tap the lock next to any category above. Private categories vanish from every list, total, person, search and export until you unlock.</p>${hint}
       <button class="btn primary" data-act="privsetup">Set a PIN</button></div>`;
   }
-  if (!S.unlocked) return `<div class="card" style="margin:0"><h3>Private categories</h3>
+  if (!S.unlocked) return `<div class="card" style="margin:0"><h3>Privacy</h3>
       <p class="muted" style="margin:0 0 10px">Locked. Unlock to see or change them.</p><button class="btn primary" data-act="lock">Unlock</button></div>`;
-  const ps = privateSet();
-  const all = [...new Set([...S.everything.filter(e => e.cat && TYPES[e.type].kind !== 'debt').map(e => e.cat), ...(s.privateCats || []), ...DEFAULT_CATS])];
-  all.sort((a, b) => (Number(ps.has(b.toLowerCase())) - Number(ps.has(a.toLowerCase()))) || a.localeCompare(b));
   const sugRows = [
     ...sug.cats.map(x => `<div class="sugg-row"><span><b>${esc(x.c)}</b> · ${x.n} entr${x.n===1?'y':'ies'}</span><button class="btn" data-act="privtoggle" data-c="${esc(x.c)}">Hide</button></div>`),
     ...sug.moves.map(x => `<div class="sugg-row"><span><b>${esc(x.word)}</b> · ${x.ids.length} entr${x.ids.length===1?'y':'ies'} in other categories</span><button class="btn" data-act="privmove" data-w="${esc(x.word)}">Move &amp; hide</button></div>`),
   ];
-  return `<div class="card" style="margin:0"><h3>Private categories</h3>
-    <p class="muted" style="margin:0 0 10px">Tap to make a category private. Dark chips are hidden while locked. The app locks itself whenever you leave it.</p>
-    <div class="priv-list">${all.map(c => `<button class="chip pv${ps.has(c.toLowerCase()) ? ' on' : ''}" data-act="privtoggle" data-c="${esc(c)}">${ps.has(c.toLowerCase()) ? ICON.lock.replace('<svg', '<svg width="14" height="14"') + ' ' : ''}${esc(c)}</button>`).join('')}<button class="chip" data-act="privnew">+ New private category</button></div>
-    ${sugRows.length ? `<div class="sugg-box" style="margin-top:12px"><span>Looks like these could be private</span>${sugRows.join('')}</div>` : ''}
-    <div class="btns" style="justify-content:flex-start;margin-top:12px">
+  const n = (s.privateCats || []).length;
+  return `<div class="card" style="margin:0"><h3>Privacy</h3>
+    <p class="muted" style="margin:0 0 10px">${n} private categor${n===1?'y':'ies'}. Mark more with the lock in Categories. Ledger locks itself whenever you leave it.</p>
+    ${sugRows.length ? `<div class="sugg-box" style="margin-bottom:12px"><span>Looks like these could be private</span>${sugRows.join('')}</div>` : ''}
+    <div class="btns" style="justify-content:flex-start">
       <button class="btn" data-act="lock">Lock now</button><button class="btn" data-act="privchange">Change PIN</button>
       <button class="btn danger" data-act="privoff">${confirmOff ? 'Tap again to turn off' : 'Turn off'}</button></div></div>`;
 }
@@ -1558,10 +1682,11 @@ function askPin(mode){
   return new Promise(res => {
     if (Pin.resolve) Pin.resolve(false);
     Object.assign(Pin, {mode, stage: 0, buf: '', first: '', code: '', msg: '', bad: false, resolve: res});
+    if ($('#pin').hidden) pushLayer('pin');
     $('#pin').hidden = false; pinRender();
   });
 }
-function pinDone(ok){ $('#pin').hidden = true; const r = Pin.resolve; Object.assign(Pin, {resolve: null, mode: null, buf: '', first: '', code: ''}); r && r(ok); }
+function pinDone(ok, fromBack){ if (!fromBack) popLayer('pin'); $('#pin').hidden = true; const r = Pin.resolve; Object.assign(Pin, {resolve: null, mode: null, buf: '', first: '', code: ''}); r && r(ok); }
 function pinRender(){
   const card = $('#pin-card'), s = getSettings(), m = Pin.mode;
   const sub = t => `<p class="sub${Pin.bad ? ' bad' : ''}">${t}</p>`;
@@ -1807,6 +1932,11 @@ function startVoice(){
   try { rec.start(); listening = true; micUI(); buzz(); }
   catch { listening = false; micUI(); $('#f-say').focus(); }
 }
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (e.target.id === 'cat-new'){ e.preventDefault(); $('[data-act=catadd]').click(); }
+  else if (e.target.id === 'cat-rename'){ e.preventDefault(); $('[data-act=catsave]').click(); }
+});
 $('#f-say').addEventListener('focus', () => { if (listening) stopVoice(); });
 $('#f-say').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); runLine(e.target.value); } });
 // long-press the + button to speak straight away
