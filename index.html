@@ -874,7 +874,7 @@ function topBar(){
   const si = syncInfo();
   const wd = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
   return `<div class="top"><div><div class="brand"><i>₹</i>Ledger</div><button class="sync" data-act="settings">${wd}, ${d.getDate()} ${MONTH_FULL[d.getMonth()]} · <span class="sd ${si.cls}"></span>${esc(si.txt)}</button></div>
-    ${headBtns()}</div>${S.unlocked && privacyOn() ? `<button class="ubar" data-act="lock">${ICON.unlock}Private entries are showing<b>Hide</b></button>` : ''}`;
+    ${headBtns()}</div>`;
 }
 function viewHome(){
   if (S.loading) return topBar() + `<p class="muted" style="padding:40px 4px;text-align:center">Opening Ledger…</p>`;
@@ -1139,7 +1139,6 @@ function closeSheet(fromBack){
   if (!openEl) return;
   if (!fromBack) popLayer('sheet');
   stopVoice();
-  if (openEl.id === 'panel' && privTouched && S.unlocked){ privTouched = false; setTimeout(() => lockNow(true), 280); }
   const el = openEl, sc = $('#scrim'); openEl = null;
   el.classList.remove('open','typing'); sc.classList.remove('open');
   document.body.style.overflow = '';
@@ -1322,8 +1321,8 @@ function renderPanel(){
   $('#pn-body').innerHTML = `<div class="stack">
     <div class="status"><i class="${si.cls === 'ok' ? '' : 'local'}"></i>${esc(si.txt)}</div>
     ${sync}
-    ${categoriesSection()}
     ${privateSection()}
+    ${categoriesSection()}
     ${install}
     <p class="muted" style="margin:0">${n} entr${n===1?'y':'ies'} saved on this device.</p>
     <div class="btns" style="justify-content:flex-start">
@@ -1438,7 +1437,10 @@ document.addEventListener('click', ev => {
       { const {y,m} = S.im; S.f.from = `${y}-${pad2(m+1)}-01`; S.f.to = keyOf(new Date(y, m+1, 0)); }
       $('#main').innerHTML = ''; go('search'); break;
     case 'month': { const d = new Date(S.im.y, S.im.m + Number(el.dataset.d), 1); S.im = {y:d.getFullYear(), m:d.getMonth()}; render(); break; }
-    case 'lock': if (S.unlocked) lockNow(true); else unlockNow(); break;
+    case 'lock':
+      if (S.unlocked){ lockNow(true); closeSheet(); }
+      else unlockNow().then(ok => { if (ok){ closeSheet(); toast('Private expenses showing'); } });
+      break;
     case 'privunlock': unlockNow().then(() => { if (D) syncSheet(); }); break;
     case 'privsetup': privTouched = true; privacySetup(); break;
     case 'privtoggle': {
@@ -1490,7 +1492,7 @@ document.addEventListener('click', ev => {
     case 'privoff':
       if (!confirmOff){ confirmOff = true; renderPanel(); break; }
       confirmOff = false;
-      saveSettings({pinHash:null, salt:null, pinLen:null, recHash:null, recSalt:null, privateCats:[]}).then(() => { S.unlocked = false; remount(); renderPanel(); toast('Private categories turned off'); });
+      saveSettings({pinHash:null, salt:null, pinLen:null, recHash:null, recSalt:null, privateCats:[]}).then(() => { S.unlocked = true; remount(); renderPanel(); toast('Private categories turned off'); });
       break;
     case 'pinkey': pinKey(el.dataset.k); break;
     case 'pincancel': pinDone(false); break;
@@ -1611,7 +1613,7 @@ document.addEventListener('change', e => {
 /* ---------- boot ---------- */
 window.addEventListener('online', () => { if (!Sync.fb) Sync.init(); else if (Sync.user) Sync.syncNow(); });
 window.addEventListener('offline', () => { if (Sync.user && !Sync.pushing){ Sync.state = 'offline'; ui(); } });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && S.unlocked && Pin.mode == null) lockNow(false); if (document.visibilityState === 'visible'){ if (Sync.user) Sync.push(); render(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible'){ if (Sync.user) Sync.push(); render(); } });
 /* ---------- private categories ---------- */
 let confirmOff = false, privTouched = false;
 const PRIVATE_WORDS = ['sutta','cigarette','cigarettes','cig','cigs','smoke','smoking','gold flake','marlboro','classic milds','hookah','vape','beer','beers','daru','alcohol','liquor','whisky','whiskey','vodka','rum','wine','pub','bar','theka','bira','kingfisher','budweiser','weed','ganja','gutka','gutkha','tobacco','pan masala','betting','casino','poker','rummy','dream11','lottery'];
@@ -1640,29 +1642,29 @@ function privateSection(){
   if (!s.pinHash){
     const hint = (sug.cats.length || sug.moves.length) ? `<p class="muted" style="margin:0 0 10px">From your entries, you might want to hide: <b style="color:var(--ink)">${esc([...sug.cats.map(x => x.c), ...sug.moves.map(x => x.word)].slice(0,4).join(', '))}</b></p>` : '';
     return `<div class="card" style="margin:0"><h3>Privacy</h3>
-      <p class="muted" style="margin:0 0 10px">Set a PIN, then tap the lock next to any category above. Private categories vanish from every list, total, person, search and export until you unlock.</p>${hint}
+      <p class="muted" style="margin:0 0 10px">Set a PIN, then tap the lock next to categories below. Come here and tap Hide whenever you want them gone from every list, total, search and export. Showing them again needs the PIN.</p>${hint}
       <button class="btn primary" data-act="privsetup">Set a PIN</button></div>`;
   }
   if (!S.unlocked) return `<div class="card" style="margin:0"><h3>Privacy</h3>
-      <p class="muted" style="margin:0 0 10px">Locked. Unlock to see or change them.</p><button class="btn primary" data-act="lock">Unlock</button></div>`;
+      <p class="muted" style="margin:0 0 10px">Private expenses are hidden.</p><button class="btn primary" data-act="lock">Show private expenses</button></div>`;
   const sugRows = [
     ...sug.cats.map(x => `<div class="sugg-row"><span><b>${esc(x.c)}</b> · ${x.n} entr${x.n===1?'y':'ies'}</span><button class="btn" data-act="privtoggle" data-c="${esc(x.c)}">Hide</button></div>`),
     ...sug.moves.map(x => `<div class="sugg-row"><span><b>${esc(x.word)}</b> · ${x.ids.length} entr${x.ids.length===1?'y':'ies'} in other categories</span><button class="btn" data-act="privmove" data-w="${esc(x.word)}">Move &amp; hide</button></div>`),
   ];
   const n = (s.privateCats || []).length;
   return `<div class="card" style="margin:0"><h3>Privacy</h3>
-    <p class="muted" style="margin:0 0 10px">${n} private categor${n===1?'y':'ies'}. Mark more with the lock in Categories. Ledger locks itself whenever you leave it.</p>
+    <p class="muted" style="margin:0 0 10px">${n} private categor${n===1?'y':'ies'}, showing right now. Mark more with the lock in Categories below.</p>
     ${sugRows.length ? `<div class="sugg-box" style="margin-bottom:12px"><span>Looks like these could be private</span>${sugRows.join('')}</div>` : ''}
     <div class="btns" style="justify-content:flex-start">
-      <button class="btn" data-act="lock">Lock now</button><button class="btn" data-act="privchange">Change PIN</button>
+      <button class="btn primary" data-act="lock">Hide private expenses</button><button class="btn" data-act="privchange">Change PIN</button>
       <button class="btn danger" data-act="privoff">${confirmOff ? 'Tap again to turn off' : 'Turn off'}</button></div></div>`;
 }
 function headBtns(){
   const lock = privacyOn() ? `<button class="icon-btn${S.unlocked ? ' unlocked' : ''}" data-act="lock" aria-label="${S.unlocked ? 'Hide private categories' : 'Show private categories'}">${S.unlocked ? ICON.unlock : ICON.lock}</button>` : '';
-  return `<div class="hbtns">${lock}<button class="icon-btn" data-act="settings" aria-label="Settings and backups">${ICON.gear}</button></div>`;
+  return `<div class="hbtns"><button class="icon-btn" data-act="settings" aria-label="Settings and backups">${ICON.gear}</button></div>`;
 }
-function remount(){ refreshEntries(); $('#main').innerHTML = ''; ui(); }
-function lockNow(say){ S.unlocked = false; confirmOff = false; remount(); if (say) toast('Private categories hidden'); }
+function remount(){ lsSet('ledger-hidden', S.unlocked ? '0' : '1'); refreshEntries(); $('#main').innerHTML = ''; ui(); }
+function lockNow(say){ S.unlocked = false; confirmOff = false; remount(); if (say) toast('Private expenses hidden'); }
 async function unlockNow(){ if (S.unlocked) return true; const ok = await askPin('unlock'); if (ok){ S.unlocked = true; remount(); } return ok; }
 async function privacySetup(){ const ok = await askPin('setup'); if (ok){ S.unlocked = true; remount(); renderPanel(); } }
 
@@ -1950,6 +1952,7 @@ $('#f-say').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.prevent
 
 async function boot(){
   S.loading = true; render();
+  S.unlocked = lsGet('ledger-hidden') !== '1';
   try { await IDB.open(); } catch { DB = LSDB; }
   try { (await DB.all()).forEach(r => { if (r && typeof r.id === 'string') S.all.set(r.id, r); }); } catch {}
   refreshEntries(); S.loading = false; render();
