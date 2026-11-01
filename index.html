@@ -25,7 +25,7 @@
   --accent:#F0A20F; --accent-ink:#2A1B00; --accent-soft:#FBE7BD;
   --deep:#0E3A33; --deep-2:#175046; --deep-ink:#EAF4F0; --deep-ink-2:#A6C6BC;
   --spent:#BF3F29; --in:#1B8455; --lend:#2C66AD;
-  --scrim:rgba(10,24,20,.45); --shadow:0 12px 32px -14px rgba(14,58,51,.45);
+  --scrim:rgba(10,24,20,.45); --c-cur:#1E7563; --shadow:0 12px 32px -14px rgba(14,58,51,.45);
   --f-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
   --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
   --r:16px;
@@ -35,7 +35,7 @@
   --accent:#F5B43A; --accent-ink:#231700; --accent-soft:#3A2D10;
   --deep:#113F37; --deep-2:#1A5248; --deep-ink:#E8F4EF; --deep-ink-2:#9CC2B7;
   --spent:#F0806A; --in:#4CC48D; --lend:#72A6EA;
-  --scrim:rgba(0,0,0,.6); --shadow:0 12px 32px -14px rgba(0,0,0,.7);
+  --scrim:rgba(0,0,0,.6); --c-cur:#5FC4AA; --shadow:0 12px 32px -14px rgba(0,0,0,.7);
   color-scheme:dark;
 }}
 :root[data-theme="dark"]{
@@ -43,7 +43,7 @@
   --accent:#F5B43A; --accent-ink:#231700; --accent-soft:#3A2D10;
   --deep:#113F37; --deep-2:#1A5248; --deep-ink:#E8F4EF; --deep-ink-2:#9CC2B7;
   --spent:#F0806A; --in:#4CC48D; --lend:#72A6EA;
-  --scrim:rgba(0,0,0,.6); --shadow:0 12px 32px -14px rgba(0,0,0,.7);
+  --scrim:rgba(0,0,0,.6); --c-cur:#5FC4AA; --shadow:0 12px 32px -14px rgba(0,0,0,.7);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -75,6 +75,52 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
 .icon-btn svg{width:20px;height:20px}
 .hbtns{display:flex;gap:8px}
+/* keypad bar */
+.padbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:6px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2);min-height:34px}
+.padbar button{font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;padding:6px 4px}
+.padbar svg{width:16px;height:16px}
+#pad{border-top:0}
+.sheet.padoff #pad{display:none}
+@media (pointer:coarse){ .sheet.typing .padbar{display:none} }
+/* insights */
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:12px;padding:4px;margin-top:14px}
+.seg button{height:36px;border-radius:9px;font-weight:700;color:var(--ink-2)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--ink-2);margin:-4px 0 8px}
+.legend span{display:flex;align-items:center;gap:6px}
+.lg{display:inline-block;width:16px;height:0;border-top:2px solid var(--c-cur)}
+.lg.prev{border-top:2px dashed var(--ink-2)}
+.pace{width:100%;height:auto;display:block;touch-action:pan-y}
+.pace .gl{stroke:var(--line);stroke-width:1}
+.pace .yl,.pace .xl{fill:var(--ink-2);font-size:10px;font-family:var(--f-body)}
+.pace .yl{text-anchor:end} .pace .xl{text-anchor:middle}
+.pace .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.pace .ln.cur{stroke:var(--c-cur)}
+.pace .ln.prev{stroke:var(--ink-2);stroke-dasharray:4 4;opacity:.75}
+.pace .dot{fill:var(--c-cur);stroke:var(--surface);stroke-width:2}
+.pace .guide{stroke:var(--ink-2);stroke-width:1}
+.cap{margin:8px 0 0;font-size:13px;color:var(--ink-2);min-height:20px}
+.cap b{color:var(--ink)}
+.heat-h,.heat{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.heat-h span{text-align:center;font-size:11px;font-weight:700;color:var(--ink-2);padding-bottom:4px}
+.hd{aspect-ratio:1;max-width:100%;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--ink);background:var(--surface-2);font-variant-numeric:tabular-nums}
+.hd.l1{background:color-mix(in srgb,var(--accent) 22%,var(--surface-2))}
+.hd.l2{background:color-mix(in srgb,var(--accent) 45%,var(--surface-2))}
+.hd.l3{background:color-mix(in srgb,var(--accent) 72%,var(--surface-2));color:var(--accent-ink)}
+.hd.l4{background:var(--accent);color:var(--accent-ink)}
+.hd.sel{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
+.hd.fut{opacity:.35}
+.heat-key{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:10px;font-size:11px;color:var(--ink-2)}
+.heat-key i{width:14px;height:14px;border-radius:4px}
+.bar-item{display:grid}
+.cat-detail{padding:10px 0 4px}
+.mini-cols{display:grid;gap:6px;align-items:end;height:76px}
+.mc{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%;min-width:0}
+.mc .b{width:100%;max-width:26px;border-radius:4px 4px 2px 2px;background:color-mix(in srgb,var(--c) 40%,transparent)}
+.mc.cur .b{background:var(--c)}
+.mc .x{font-size:10px;font-weight:700;color:var(--ink-2)}
+.cols.y12{gap:4px} .cols.y12 .x{font-size:10px}
+button.col{padding:0;min-width:0}
 .clist{display:grid}
 .crow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
 .crow:first-child{border-top:0}
@@ -411,6 +457,7 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
       <textarea class="inp" id="f-note" rows="2" placeholder="Anything you want to remember"></textarea></label>
     <button class="del" id="sh-del" data-act="delete" hidden>Delete this entry</button>
   </div>
+  <div class="padbar" id="padbar"><span id="padbar-hint"></span><button data-act="padtoggle" id="padbar-btn"></button></div>
   <div class="pad" id="pad"></div>
   <button class="save" id="sh-save" data-act="save">Save</button>
   <div class="done" id="done" hidden><div class="done-in"><div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><p id="done-txt">Logged</p></div></div>
@@ -1033,44 +1080,184 @@ function refreshResults(){
   $('#results').innerHTML = !r.length ? `<p class="muted" style="text-align:center;padding:30px 0">${S.entries.length?'Nothing matches these filters.':'No entries yet. Tap + to add one.'}</p>`
     : byDate ? groupedList(r.slice(0,300)) : `<div class="list">${r.slice(0,300).map(e=>rowHtml(e,{showDate:true})).join('')}</div>`;
 }
-function viewInsights(){
-  if (!S.im){ const d = new Date(); S.im = {y:d.getFullYear(), m:d.getMonth()}; }
-  const {y,m} = S.im, pre = `${y}-${pad2(m+1)}`;
-  const now = new Date(), isCur = y===now.getFullYear() && m===now.getMonth();
-  const month = S.entries.filter(e => e.date.startsWith(pre));
-  const spentL = month.filter(e=>e.type==='spent');
-  const spent = spentL.reduce((s,e)=>s+e.amount,0), recv = month.filter(e=>e.type==='received').reduce((s,e)=>s+e.amount,0);
-  const py = m===0?y-1:y, pm = m===0?11:m-1, prev = monthSum(py,pm,'spent');
-  const byCat = {}; for (const e of spentL){ const c = e.cat||'Other'; byCat[c]=(byCat[c]||0)+e.amount; }
-  const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-  const byDesc = {}; for (const e of spentL){ const k = e.desc || e.cat || 'Untitled'; byDesc[k]=(byDesc[k]||0)+e.amount; }
-  const tops = Object.entries(byDesc).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const byMode = {}; for (const e of spentL){ const k = e.mode||'Other'; byMode[k]=(byMode[k]||0)+e.amount; }
-  const others = new Map(); let othersTotal = 0;
-  for (const e of spentL){ const w = withOf(e); if (!w.length) continue; const sh = shareOf(e);
-    for (const n of w){ const k = n.toLowerCase(); const o = others.get(k) || {name:n, v:0}; o.v += sh; others.set(k, o); othersTotal += sh; } }
-  const othersTop = [...others.values()].sort((a,b)=>b.v-a.v).slice(0,5);
-  const months = [];
-  for (let i=5;i>=0;i--){ const d = new Date(y, m-i, 1); months.push({y:d.getFullYear(), m:d.getMonth(), v:monthSum(d.getFullYear(), d.getMonth(), 'spent')}); }
-  const mx = Math.max(1, ...months.map(x=>x.v));
-  const days = new Date(y, m+1, 0).getDate(), elapsed = isCur ? now.getDate() : days;
-  const avg = spent / Math.max(1, elapsed);
-  let vs = '';
-  if (prev > 0){ const d = spent - prev; vs = `${d<=0?'Down':'Up'} ${Math.round(Math.abs(d)/prev*100)}% from ${MON[pm]} (${rupee(prev)})`; }
+function niceMax(v){ if (v <= 0) return 100; const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+const spentOf = list => list.filter(e => e.type === 'spent');
+const sumOf = list => list.reduce((s, e) => s + e.amount, 0);
+function catSum(c, y, m){ const pre = `${y}-${pad2(m+1)}`; let s = 0; for (const e of S.entries) if (e.type === 'spent' && (e.cat || 'Other') === c && e.date.startsWith(pre)) s += e.amount; return s; }
 
-  return `<div class="top"><h1 class="page">Insights</h1>${headBtns()}</div>
-  <div class="mnav"><button data-act="month" data-d="-1" aria-label="Previous month">${ICON.back}</button><b>${MONTH_FULL[m]} ${y}</b>
-    <button data-act="month" data-d="1" aria-label="Next month" ${isCur?'disabled':''} style="transform:scaleX(-1)">${ICON.back}</button></div>
-  <section class="hero" style="margin-top:12px"><div class="lbl">Spent</div><div class="big num">${rupee(spent)}</div>
-    <div class="cmp">${vs || (spentL.length ? spentL.length+' expenses' : 'No expenses logged this month')}</div>
-    <div class="minis"><div class="mini"><span>Received</span><b class="num">${rupee(recv)}</b></div>
-      <div class="mini"><span>Daily average</span><b class="num">${rupee(avg)}</b></div>
-      <div class="mini"><span>Net</span><b class="num">${recv-spent<0?'−':''}${rupee(recv-spent)}</b></div></div></section>
-  <div class="card"><h3>Where it went</h3>${cats.length ? `<div class="bars">${cats.map(([c,v])=>`<button class="bar-row" data-act="fcat" data-cat="${esc(c)}" style="text-align:left"><div class="bar-top"><span><span class="sw" style="width:8px;height:8px;border-radius:50%;background:${catColor(c)};display:inline-block"></span>${esc(c)}</span><span>${rupee(v)} · ${Math.round(v/spent*100)}%</span></div><div class="track"><i style="width:${(v/cats[0][1]*100).toFixed(1)}%;--c:${catColor(c)}"></i></div></button>`).join('')}</div>` : '<p class="muted" style="margin:0">Nothing spent this month yet.</p>'}</div>
-  <div class="card"><h3>Last 6 months</h3><div class="cols">${months.map(x=>`<div class="col${x.y===y&&x.m===m?' cur':''}"><span class="v">${x.v?short(x.v):''}</span><span class="b" style="height:${(x.v/mx*120).toFixed(0)}px"></span><span class="x">${MON[x.m]}</span></div>`).join('')}</div></div>
-  ${othersTop.length?`<div class="card"><h3>Spent on others · ${rupee(othersTotal)}</h3>${othersTop.map(o=>`<button class="kv" data-act="person" data-name="${esc(o.name)}" style="width:100%"><span>${esc(o.name)}</span><b>${rupee(o.v)}</b></button>`).join('')}</div>`:''}
-  ${tops.length?`<div class="card"><h3>Biggest spends</h3>${tops.map(([k,v])=>`<div class="kv"><span>${esc(k)}</span><b>${rupee(v)}</b></div>`).join('')}</div>`:''}
-  ${Object.keys(byMode).length?`<div class="card"><h3>Paid with</h3>${Object.entries(byMode).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="kv"><span>${esc(k)}</span><b>${rupee(v)}</b></div>`).join('')}</div>`:''}`;
+/* cumulative spending this month vs last month */
+function paceChart(y, m){
+  const now = new Date(), isCur = y === now.getFullYear() && m === now.getMonth();
+  const days = new Date(y, m+1, 0).getDate(), pdt = new Date(y, m, 0), py = pdt.getFullYear(), pm = pdt.getMonth(), pdays = pdt.getDate();
+  const cumul = (yy, mm, n) => { const a = new Array(n + 1).fill(0), pre = `${yy}-${pad2(mm+1)}-`;
+    for (const e of S.entries) if (e.type === 'spent' && e.date.startsWith(pre)) a[+e.date.slice(8)] += e.amount;
+    for (let i = 1; i <= n; i++) a[i] += a[i-1]; return a; };
+  const cur = cumul(y, m, days), prev = cumul(py, pm, pdays), upto = isCur ? now.getDate() : days;
+  if (!cur[upto] && !prev[pdays]) return '';
+  const X = Math.max(days, pdays), W = 340, H = 170, L = 44, R = 12, T = 12, B = 24;
+  const ymax = niceMax(Math.max(cur[upto], prev[pdays]));
+  const sx = d => L + (d - 1) / (X - 1) * (W - L - R), sy = v => T + (1 - v / ymax) * (H - T - B);
+  const path = (a, n) => a.slice(1, n + 1).map((v, i) => `${i ? 'L' : 'M'}${sx(i+1).toFixed(1)},${sy(v).toFixed(1)}`).join('');
+  const grid = [0, ymax/2, ymax].map(t => `<line x1="${L}" x2="${W-R}" y1="${sy(t).toFixed(1)}" y2="${sy(t).toFixed(1)}" class="gl"/><text x="${L-6}" y="${(sy(t)+3.5).toFixed(1)}" class="yl">${t ? short(t) : '₹0'}</text>`).join('');
+  const xl = [...new Set([1, 8, 15, 22, X])].map(d => `<text x="${sx(d).toFixed(1)}" y="${H-6}" class="xl">${d}</text>`).join('');
+  const cv = cur[upto], pv = prev[Math.min(upto, pdays)], diff = cv - pv;
+  const caption = pv ? `By day ${upto}: <b>${rupee(cv)}</b>, ${rupee(diff)} ${diff <= 0 ? 'less' : 'more'} than ${MON[pm]} by the same day.` : `By day ${upto}: <b>${rupee(cv)}</b>.`;
+  return `<div class="card"><h3>Spending pace</h3>
+    <div class="legend"><span><i class="lg"></i>${MONTH_FULL[m]}</span><span><i class="lg prev"></i>${MONTH_FULL[pm]}</span></div>
+    <svg class="pace" viewBox="0 0 ${W} ${H}" role="img" aria-label="Running total of spending in ${MONTH_FULL[m]} compared with ${MONTH_FULL[pm]}"
+      data-cur="${cur.slice(0, upto + 1).join(',')}" data-prev="${prev.join(',')}" data-x="${X}" data-l="${L}" data-r="${R}" data-w="${W}" data-m="${MON[m]}" data-pm="${MON[pm]}">
+      ${grid}${xl}
+      <path d="${path(prev, pdays)}" class="ln prev"/>
+      <path d="${path(cur, upto)}" class="ln cur"/>
+      <line class="guide" x1="0" x2="0" y1="${T}" y2="${H-B}" visibility="hidden"/>
+      <circle cx="${sx(upto).toFixed(1)}" cy="${sy(cv).toFixed(1)}" r="4.5" class="dot"/>
+      <rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent"/>
+    </svg>
+    <p class="cap" id="pace-cap" data-base="${esc(caption)}">${caption}</p>
+    <p class="cap" style="margin-top:2px;min-height:0">Touch or drag across the chart to compare any day.</p></div>`;
+}
+function onPace(ev){
+  const svg = ev.target.closest && ev.target.closest('svg.pace'); if (!svg) return;
+  const r = svg.getBoundingClientRect(), d = svg.dataset, W = +d.w, L = +d.l, R = +d.r, X = +d.x;
+  const x = (ev.clientX - r.left) / r.width * W;
+  const day = Math.max(1, Math.min(X, Math.round(1 + (x - L) / (W - L - R) * (X - 1))));
+  const cur = d.cur.split(',').map(Number), prev = d.prev.split(',').map(Number);
+  const gx = (L + (day - 1) / (X - 1) * (W - L - R)).toFixed(1), g = svg.querySelector('.guide');
+  g.setAttribute('x1', gx); g.setAttribute('x2', gx); g.setAttribute('visibility', 'visible');
+  const c = day < cur.length ? cur[day] : null, p = day < prev.length ? prev[day] : null;
+  $('#pace-cap').innerHTML = `Day ${day}: ${c != null ? `<b>${rupee(c)}</b> in ${d.m}` : `not reached yet in ${d.m}`}${p != null ? ` · ${rupee(p)} in ${d.pm}` : ''}`;
+}
+document.addEventListener('pointerdown', onPace);
+document.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) onPace(e); });
+
+/* calendar: one square per day, darker = more spent */
+function heatmap(y, m){
+  const days = new Date(y, m+1, 0).getDate(), pre = `${y}-${pad2(m+1)}-`, t = todayKey();
+  const per = new Array(days + 1).fill(0);
+  for (const e of S.entries) if (e.type === 'spent' && e.date.startsWith(pre)) per[+e.date.slice(8)] += e.amount;
+  const mx = Math.max(...per);
+  const lvl = v => !v || !mx ? 0 : Math.max(1, Math.ceil(Math.sqrt(v / mx) * 4));
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;
+  const sel = S.iday && S.iday.startsWith(pre) ? S.iday : (t.startsWith(pre) ? t : pre + pad2(Math.max(1, per.indexOf(mx))));
+  const cells = Array.from({length: lead}, () => '<span></span>');
+  for (let d = 1; d <= days; d++){
+    const k = pre + pad2(d), fut = k > t;
+    cells.push(`<button class="hd l${lvl(per[d])}${k === sel ? ' sel' : ''}${fut ? ' fut' : ''}" data-act="iday" data-k="${k}"${fut ? ' disabled' : ''} aria-label="${d} ${MON[m]}: ${per[d] ? rupee(per[d]) : 'nothing spent'}">${d}</button>`);
+  }
+  const dayList = S.entries.filter(e => e.date === sel).sort(byRecent), dayTotal = sumOf(spentOf(dayList));
+  return `<div class="card"><h3>Day by day</h3>
+    <div class="heat-h">${['M','T','W','T','F','S','S'].map(x => `<span>${x}</span>`).join('')}</div>
+    <div class="heat">${cells.join('')}</div>
+    <div class="heat-key"><span>Less</span>${[0,1,2,3,4].map(l => `<i class="hd l${l}"></i>`).join('')}<span>More</span></div>
+    <div class="day-h" style="padding:14px 4px 6px"><span>${esc(dayLabel(sel))}</span><span class="num">${dayTotal ? 'Spent ' + rupee(dayTotal) : ''}</span></div>
+    ${dayList.length ? `<div class="list">${dayList.map(e => rowHtml(e)).join('')}</div>` : '<p class="muted" style="margin:0 4px;font-size:14px">Nothing logged this day.</p>'}</div>`;
+}
+
+/* categories, each one expandable into its own trend and top items */
+function catBreakdown(list, total, scope){
+  const byCat = {}; for (const e of list){ const c = e.cat || 'Other'; byCat[c] = (byCat[c] || 0) + e.amount; }
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  if (!cats.length) return `<div class="card"><h3>Where it went</h3><p class="muted" style="margin:0">Nothing spent in this period yet.</p></div>`;
+  return `<div class="card"><h3>Where it went</h3><div class="bars">${cats.map(([c, v]) => {
+    const open = S.icat === c;
+    return `<div class="bar-item"><button class="bar-row" data-act="icat" data-cat="${esc(c)}" aria-expanded="${open}" style="text-align:left">
+      <div class="bar-top"><span><span class="sw" style="width:8px;height:8px;border-radius:50%;background:${catColor(c)};display:inline-block"></span>${esc(c)}</span><span>${rupee(v)} · ${Math.round(v / total * 100)}%</span></div>
+      <div class="track"><i style="width:${(v / cats[0][1] * 100).toFixed(1)}%;--c:${catColor(c)}"></i></div></button>
+      ${open ? catDetail(c, list.filter(e => (e.cat || 'Other') === c), scope) : ''}</div>`;
+  }).join('')}</div><p class="cap">Tap a category to see its trend and what you spent on.</p></div>`;
+}
+function catDetail(c, items, scope){
+  const pts = [];
+  if (scope.kind === 'month') for (let i = 5; i >= 0; i--){ const d = new Date(scope.y, scope.m - i, 1); pts.push({lab: MON[d.getMonth()], v: catSum(c, d.getFullYear(), d.getMonth()), cur: i === 0}); }
+  else for (let i = 0; i < 12; i++) pts.push({lab: MON[i].charAt(0), v: catSum(c, scope.y, i), cur: false});
+  const mx = Math.max(1, ...pts.map(p => p.v));
+  const groups = {}; for (const e of items){ const k = e.desc || 'No description'; const g = groups[k] || (groups[k] = {n: 0, v: 0}); g.n++; g.v += e.amount; }
+  const top = Object.entries(groups).sort((a, b) => b[1].v - a[1].v).slice(0, 4), tot = sumOf(items);
+  return `<div class="cat-detail">
+    <div class="mini-cols" style="grid-template-columns:repeat(${pts.length},1fr)">${pts.map(p => `<div class="mc${p.cur ? ' cur' : ''}" title="${p.lab}: ${rupee(p.v)}"><span class="b" style="height:${Math.max(2, p.v / mx * 56).toFixed(0)}px;--c:${catColor(c)}"></span><span class="x">${p.lab}</span></div>`).join('')}</div>
+    <p class="cap" style="margin:6px 0 8px">${items.length} entr${items.length === 1 ? 'y' : 'ies'} · average ${rupee(Math.round(tot / items.length))} each</p>
+    ${top.map(([k, g]) => `<div class="kv"><span>${esc(k)}${g.n > 1 ? ` <span class="muted">× ${g.n}</span>` : ''}</span><b>${rupee(g.v)}</b></div>`).join('')}
+    <button class="link" data-act="fcat" data-cat="${esc(c)}" style="margin-top:8px">See all ${esc(c)} entries</button></div>`;
+}
+function regulars(list){
+  const g = {}; for (const e of list){ if (!e.desc) continue; const k = e.desc.trim().toLowerCase(); const r = g[k] || (g[k] = {name: e.desc.trim(), n: 0, v: 0}); r.n++; r.v += e.amount; }
+  const top = Object.values(g).filter(r => r.n >= 2).sort((a, b) => (b.n - a.n) || (b.v - a.v)).slice(0, 5);
+  if (!top.length) return '';
+  return `<div class="card"><h3>Your regulars</h3>${top.map(r => `<div class="kv"><span>${esc(r.name)} <span class="muted">· ${r.n} times · avg ${rupee(Math.round(r.v / r.n))}</span></span><b>${rupee(r.v)}</b></div>`).join('')}</div>`;
+}
+function weekdays(endKey){
+  const sums = new Array(7).fill(0), cnt = new Array(7).fill(0), start = addDays(endKey, -83);
+  for (let i = 0; i < 84; i++) cnt[(parseKey(addDays(endKey, -i)).getDay() + 6) % 7]++;
+  for (const e of S.entries) if (e.type === 'spent' && e.date >= start && e.date <= endKey) sums[(parseKey(e.date).getDay() + 6) % 7] += e.amount;
+  const avg = sums.map((v, i) => v / cnt[i]), mx = Math.max(...avg);
+  if (!mx) return '';
+  const top = avg.indexOf(mx), names = ['Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays','Sundays'];
+  return `<div class="card"><h3>By day of the week</h3><div class="cols" style="grid-template-columns:repeat(7,1fr);height:150px">${avg.map((v, i) => `<div class="col${i === top ? ' cur' : ''}"><span class="v">${v ? short(v) : ''}</span><span class="b" style="height:${(v / mx * 100).toFixed(0)}px"></span><span class="x">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}</span></div>`).join('')}</div>
+    <p class="cap">Average spent per day over the 12 weeks to ${esc(fmtDate(endKey))}. You spend the most on <b>${names[top]}</b>.</p></div>`;
+}
+function othersCard(spentL){
+  const others = new Map(); let total = 0;
+  for (const e of spentL){ const w = withOf(e); if (!w.length) continue; const sh = shareOf(e);
+    for (const n of w){ const k = n.toLowerCase(); const o = others.get(k) || {name: n, v: 0}; o.v += sh; others.set(k, o); total += sh; } }
+  const top = [...others.values()].sort((a, b) => b.v - a.v).slice(0, 5);
+  return top.length ? `<div class="card"><h3>Spent on others · ${rupee(total)}</h3>${top.map(o => `<button class="kv" data-act="person" data-name="${esc(o.name)}" style="width:100%"><span>${esc(o.name)}</span><b>${rupee(o.v)}</b></button>`).join('')}</div>` : '';
+}
+function biggest(spentL){
+  const top = [...spentL].sort((a, b) => b.amount - a.amount).slice(0, 5);
+  return top.length ? `<div class="card"><h3>Biggest spends</h3><div class="list">${top.map(e => rowHtml(e, {showDate: true})).join('')}</div></div>` : '';
+}
+function paidWith(spentL, total){
+  const by = {}; for (const e of spentL){ const k = e.mode || 'Other'; by[k] = (by[k] || 0) + e.amount; }
+  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
+  return rows.length ? `<div class="card"><h3>Paid with</h3>${rows.map(([k, v]) => `<div class="kv"><span>${esc(k)} <span class="muted">· ${Math.round(v / total * 100)}%</span></span><b>${rupee(v)}</b></div>`).join('')}</div>` : '';
+}
+const fitR = v => { const f = (v < 0 ? '−' : '') + rupee(v); return f.length > 7 ? (v < 0 ? '−' : '') + short(v) : f; };
+function heroCard(label, spent, cmp, minis){
+  return `<section class="hero" style="margin-top:12px"><div class="lbl">${label}</div><div class="big num">${rupee(spent)}</div><div class="cmp">${cmp}</div>
+    <div class="minis">${minis.map(([k, v]) => `<div class="mini"><span>${k}</span><b class="num">${v}</b></div>`).join('')}</div></section>`;
+}
+function viewInsights(){
+  const now = new Date();
+  if (!S.im) S.im = {y: now.getFullYear(), m: now.getMonth()};
+  if (!S.iy) S.iy = S.im.y;
+  const seg = `<div class="seg"><button class="${S.ip !== 'year' ? 'on' : ''}" data-act="iperiod" data-p="month" aria-pressed="${S.ip !== 'year'}">Month</button><button class="${S.ip === 'year' ? 'on' : ''}" data-act="iperiod" data-p="year" aria-pressed="${S.ip === 'year'}">Year</button></div>`;
+  const head = `<div class="top"><h1 class="page">Insights</h1>${headBtns()}</div>${seg}`;
+  const net = (r, s) => fitR(r - s);
+
+  if (S.ip === 'year'){
+    const y = S.iy, isCur = y === now.getFullYear();
+    const list = S.entries.filter(e => e.date.startsWith(y + '-')), spentL = spentOf(list), spent = sumOf(spentL), recv = sumOf(list.filter(e => e.type === 'received'));
+    const upto = isCur ? todayKey().slice(5) : '12-31';
+    const prevSame = sumOf(S.entries.filter(e => e.type === 'spent' && e.date.startsWith((y - 1) + '-') && e.date.slice(5) <= upto));
+    const vs = prevSame > 0 ? `${spent - prevSame <= 0 ? 'Down' : 'Up'} ${Math.round(Math.abs(spent - prevSame) / prevSame * 100)}% from ${y - 1}${isCur ? ' by this date' : ''} (${rupee(prevSame)})` : (spentL.length ? spentL.length + ' expenses' : 'No expenses logged this year');
+    const ms = Array.from({length: 12}, (_, i) => monthSum(y, i, 'spent')), mx = Math.max(1, ...ms), topM = ms.indexOf(Math.max(...ms));
+    const months = isCur ? now.getMonth() + 1 : 12;
+    return head + `<div class="mnav"><button data-act="year" data-d="-1" aria-label="Previous year">${ICON.back}</button><b>${y}</b>
+      <button data-act="year" data-d="1" aria-label="Next year" ${isCur ? 'disabled' : ''} style="transform:scaleX(-1)">${ICON.back}</button></div>
+      ${heroCard('Spent in ' + y, spent, vs, [['Received', fitR(recv)], ['Monthly average', fitR(spent / months)], ['Net', net(recv, spent)]])}
+      <div class="card"><h3>Month by month</h3><div class="cols y12" style="grid-template-columns:repeat(12,1fr)">${ms.map((v, i) => `<button class="col${i === topM && v ? ' cur' : ''}" data-act="imonth" data-y="${y}" data-m="${i}" aria-label="${MONTH_FULL[i]}: ${rupee(v)}"><span class="v">${i === topM && v ? short(v) : ''}</span><span class="b" style="height:${(v / mx * 120).toFixed(0)}px"></span><span class="x">${MON[i]}</span></button>`).join('')}</div>
+        <p class="cap">${ms[topM] ? `Highest: <b>${MONTH_FULL[topM]}</b> (${rupee(ms[topM])}). ` : ''}Tap a month to open it.</p></div>
+      ${catBreakdown(spentL, spent, {kind: 'year', y})}
+      ${weekdays(isCur ? todayKey() : `${y}-12-31`)}${regulars(spentL)}${othersCard(spentL)}${biggest(spentL)}${paidWith(spentL, spent)}`;
+  }
+
+  const {y, m} = S.im, pre = `${y}-${pad2(m+1)}`, isCur = y === now.getFullYear() && m === now.getMonth();
+  const month = S.entries.filter(e => e.date.startsWith(pre)), spentL = spentOf(month);
+  const spent = sumOf(spentL), recv = sumOf(month.filter(e => e.type === 'received'));
+  const pdt = new Date(y, m, 0), pm = pdt.getMonth(), prev = monthSum(pdt.getFullYear(), pm, 'spent');
+  const days = new Date(y, m+1, 0).getDate(), elapsed = isCur ? now.getDate() : days;
+  const vs = prev > 0 ? `${spent - prev <= 0 ? 'Down' : 'Up'} ${Math.round(Math.abs(spent - prev) / prev * 100)}% from ${MON[pm]} (${rupee(prev)})` : (spentL.length ? spentL.length + ' expenses' : 'No expenses logged this month');
+  const six = []; for (let i = 5; i >= 0; i--){ const d = new Date(y, m - i, 1); six.push({y: d.getFullYear(), m: d.getMonth(), v: monthSum(d.getFullYear(), d.getMonth(), 'spent')}); }
+  const mx = Math.max(1, ...six.map(x => x.v));
+  return head + `<div class="mnav"><button data-act="month" data-d="-1" aria-label="Previous month">${ICON.back}</button><b>${MONTH_FULL[m]} ${y}</b>
+    <button data-act="month" data-d="1" aria-label="Next month" ${isCur ? 'disabled' : ''} style="transform:scaleX(-1)">${ICON.back}</button></div>
+    ${heroCard('Spent', spent, vs, [['Received', fitR(recv)], ['Daily average', fitR(spent / Math.max(1, elapsed))], ['Net', net(recv, spent)]])}
+    ${paceChart(y, m)}
+    ${spentL.length ? heatmap(y, m) : ''}
+    ${catBreakdown(spentL, spent, {kind: 'month', y, m})}
+    <div class="card"><h3>Last 6 months</h3><div class="cols">${six.map(x => `<button class="col${x.y === y && x.m === m ? ' cur' : ''}" data-act="imonth" data-y="${x.y}" data-m="${x.m}" aria-label="${MONTH_FULL[x.m]} ${x.y}: ${rupee(x.v)}"><span class="v">${x.v ? short(x.v) : ''}</span><span class="b" style="height:${(x.v / mx * 120).toFixed(0)}px"></span><span class="x">${MON[x.m]}</span></button>`).join('')}</div></div>
+    ${weekdays(isCur ? todayKey() : keyOf(new Date(y, m+1, 0)))}
+    ${regulars(spentL)}${othersCard(spentL)}${biggest(spentL)}${paidWith(spentL, spent)}`;
 }
 
 /* ---------- render ---------- */
@@ -1158,9 +1345,16 @@ function openEntry(pref = {}, editId = null){
   $('#sh-del').hidden = !e; $('#done').hidden = true;
   $('#say').hidden = !!e; $('#heard').hidden = true; $('#f-say').value = '';
   syncSheet(); showSheet($('#sheet'));
+  setPad(!e && !pref.amount);
   $('#sh-body').scrollTop = 0;
   if (pref.focusWith) setTimeout(() => $('#f-person').focus(), 320);
   else if (!matchMedia('(pointer:coarse)').matches) $('#sh-amount').focus();
+}
+const CHEV = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${d ? 'M6 9l6 6 6-6' : 'M6 15l6-6 6 6'}"/></svg>`;
+function setPad(on){
+  $('#sheet').classList.toggle('padoff', !on);
+  $('#padbar-btn').innerHTML = on ? 'Hide keypad ' + CHEV(true) : 'Show keypad ' + CHEV(false);
+  $('#padbar-hint').textContent = on ? '' : 'Or tap the amount';
 }
 function fmtAmtStr(s){
   if (!s) return '0';
@@ -1260,7 +1454,7 @@ async function saveEntry(){
   if (saving) return;
   const amount = Math.round(parseFloat(D.amountStr)*100)/100;
   const t = TYPES[D.type];
-  if (!(amount > 0)){ shake($('#sh-amount')); $('#sheet').classList.remove('typing'); return; }
+  if (!(amount > 0)){ setPad(true); shake($('#sh-amount')); $('#sheet').classList.remove('typing'); return; }
   const multi = D.type === 'spent';
   if (multi && $('#f-person').value.trim()) addWithName($('#f-person').value);
   const person = multi ? '' : canonPerson($('#f-person').value);
@@ -1420,6 +1614,7 @@ document.addEventListener('click', ev => {
     case 'unwith': D.with = D.with.filter(x => x !== el.dataset.p); renderWith(); renderPersonSugg(); break;
     case 'fullamt': D.amountStr = trimAmt(+el.dataset.v); syncAmount(true); renderPersonSugg(); break;
     case 'key': keyPress(el.dataset.k); break;
+    case 'padtoggle': setPad($('#sheet').classList.contains('padoff')); break;
     case 'save': saveEntry(); break;
     case 'delete': deleteEntry(); break;
     case 'ftype': {
@@ -1434,9 +1629,15 @@ document.addEventListener('click', ev => {
       $('#f-custom').hidden = S.f.range !== 'custom'; refreshResults(); break;
     case 'fclear': S.f = freshFilters(); $('#main').innerHTML = ''; render(); break;
     case 'fcat': S.f = freshFilters(); S.f.cat = el.dataset.cat; S.f.types = ['spent']; S.f.range = 'custom';
-      { const {y,m} = S.im; S.f.from = `${y}-${pad2(m+1)}-01`; S.f.to = keyOf(new Date(y, m+1, 0)); }
+      if (S.ip === 'year'){ S.f.from = `${S.iy}-01-01`; S.f.to = `${S.iy}-12-31`; }
+      else { const {y,m} = S.im; S.f.from = `${y}-${pad2(m+1)}-01`; S.f.to = keyOf(new Date(y, m+1, 0)); }
       $('#main').innerHTML = ''; go('search'); break;
-    case 'month': { const d = new Date(S.im.y, S.im.m + Number(el.dataset.d), 1); S.im = {y:d.getFullYear(), m:d.getMonth()}; render(); break; }
+    case 'iperiod': S.ip = el.dataset.p; S.icat = null; if (!S.iy) S.iy = (S.im || {y: new Date().getFullYear()}).y; render(); break;
+    case 'year': S.iy += Number(el.dataset.d); S.icat = null; render(); break;
+    case 'iday': S.iday = el.dataset.k; render(); break;
+    case 'icat': S.icat = S.icat === el.dataset.cat ? null : el.dataset.cat; render(); break;
+    case 'imonth': S.im = {y: Number(el.dataset.y), m: Number(el.dataset.m)}; S.ip = 'month'; S.icat = null; S.iday = null; render(); window.scrollTo({top: 0}); break;
+    case 'month': { S.icat = null; S.iday = null; const d = new Date(S.im.y, S.im.m + Number(el.dataset.d), 1); S.im = {y:d.getFullYear(), m:d.getMonth()}; render(); break; }
     case 'lock':
       if (S.unlocked){ lockNow(true); closeSheet(); }
       else unlockNow().then(ok => { if (ok){ closeSheet(); toast('Private expenses showing'); } });
@@ -1525,10 +1726,12 @@ $('#import-file').addEventListener('change', ev => { const f = ev.target.files[0
 $('#pad').innerHTML = ['1','2','3','4','5','6','7','8','9','.','0','del'].map(k =>
   `<button data-act="key" data-k="${k}" aria-label="${k==='del'?'Delete digit':k}">${k==='del'?ICON.del:k}</button>`).join('');
 $('#pad').addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); }); // keep text fields from losing/gaining focus
-$('#sh-amount').addEventListener('click', () => { document.activeElement && document.activeElement.blur(); $('#sheet').classList.remove('typing'); });
+$('#sh-amount').addEventListener('click', () => { setPad(true); document.activeElement && document.activeElement.blur(); $('#sheet').classList.remove('typing'); });
 
 // sheet inputs
 const sheet = $('#sheet');
+// touching the form tucks the keypad away; tapping the amount brings it back
+$('#sh-body').addEventListener('pointerdown', () => { if (!sheet.classList.contains('padoff')) setPad(false); });
 sheet.addEventListener('focusin', e => { if (e.target.matches('input:not([type=date]):not([type=checkbox]),textarea')) sheet.classList.add('typing'); });
 sheet.addEventListener('focusout', () => setTimeout(() => { if (!sheet.contains(document.activeElement) || !document.activeElement.matches('input:not([type=date]):not([type=checkbox]),textarea')) sheet.classList.remove('typing'); }, 50));
 $('#f-desc').addEventListener('input', e => {
@@ -1889,7 +2092,7 @@ function applyParsed(r, heard){
   if (r.mode) D.mode = r.mode;
   D.date = addDays(todayKey(), -r.day);
   $('#desc-sugg').innerHTML = '';
-  syncSheet(); syncAmount(true); buzz();
+  syncSheet(); syncAmount(true); buzz(); setPad(!r.amount);
   const notes = [];
   if (!r.amount) notes.push('tap in the amount');
   if (TYPES[r.type].kind === 'debt' && !r.person) notes.push('add who it was with');
