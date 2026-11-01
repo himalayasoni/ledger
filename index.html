@@ -503,6 +503,8 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
+const APP_VERSION = 'v9';
+window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden;
 const ICON = {
   pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
   mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
@@ -989,7 +991,7 @@ function viewPeople(){
   return `<div class="top"><h1 class="page">People</h1>${headBtns()}</div>
     <div class="tiles"><div class="tile"><span>Owed to you</span><b class="num" style="color:var(--in)">${rupee(owed)}</b><small>${nOwed} ${nOwed===1?'person':'people'}</small></div>
     <div class="tile"><span>You owe</span><b class="num" style="color:var(--spent)">${rupee(owe)}</b><small>${nOwe} ${nOwe===1?'person':'people'}</small></div>
-    <div class="tile" style="grid-column:1/-1"><span>Spent on others</span><b class="num">${rupee(treat)}</b><small>Treats and shared bills with ${nTreat} ${nTreat===1?'person':'people'}, not expected back</small></div></div>${body}`;
+    <div class="tile" style="grid-column:1/-1"><span>Spent on others</span><b class="num">${rupee(treat)}</b><small>Treats and shared bills with ${nTreat} ${nTreat===1?'person':'people'}, not expected back</small></div></div>${oldLoanCard()}${body}`;
 }
 function viewPerson(){
   const name = S.person, key = (name||'').toLowerCase();
@@ -1569,6 +1571,7 @@ function renderPanel(){
       <button class="btn" data-act="import">Import backup</button>
     </div>
     ${samples ? `<button class="btn" data-act="clearsample">Remove ${samples} example entr${samples===1?'y':'ies'}</button>` : ''}
+    <p class="muted" style="margin:0;font-size:12px">Ledger ${APP_VERSION}</p>
     ${n ? `<button class="btn danger" data-act="wipe">${confirmWipe ? `Tap again to delete all ${n} entries${Sync.user ? ' on every device' : ''}` : 'Delete everything'}</button>` : ''}
   </div>`;
 }
@@ -2206,6 +2209,22 @@ $('#f-say').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.prevent
   fab.addEventListener('contextmenu', e => e.preventDefault());
 })();
 
+function oldLoanIssues(){
+  const out = [];
+  for (const p of peopleIndex().values()){
+    if (!p.bal) continue;
+    const n = lc(p.name);
+    const sumT = t => S.everything.filter(e => e.type === t && lc(e.person) === n).reduce((s, e) => s + e.amount - (e.prior || 0), 0);
+    if (p.bal > 0){ const x = Math.min(p.bal, Math.max(0, sumT('paidback') - sumT('borrowed'))); if (x > 0) out.push({name: p.name, type: 'paidback', extra: x}); }
+    else { const x = Math.min(-p.bal, Math.max(0, sumT('gotback') - sumT('lent'))); if (x > 0) out.push({name: p.name, type: 'gotback', extra: x}); }
+  }
+  return out;
+}
+function oldLoanCard(){
+  const list = oldLoanIssues(); if (!list.length) return '';
+  return `<div class="ask" style="margin-top:14px"><p><b>Check ${list.length === 1 ? 'this balance' : 'these balances'}.</b> A repayment here has no matching loan in Ledger. If the loan was from before you started using Ledger, tap Fix so it doesn't count.</p>
+    ${list.map(i => `<div class="sugg-row"><span>${esc(i.name)} · ${i.type === 'paidback' ? `you paid back ${rupee(i.extra)}` : `returned ${rupee(i.extra)} to you`}</span><button class="btn primary" data-act="fixprior" data-t="${i.type}" data-n="${esc(i.name)}">Fix</button></div>`).join('')}</div>`;
+}
 async function fixOldLoan(name, type){
   const n = lc(name), p = peopleIndex().get(n); if (!p) return;
   const sumT = t => S.everything.filter(e => e.type === t && lc(e.person) === n).reduce((s, e) => s + e.amount - (e.prior || 0), 0);
@@ -2230,6 +2249,7 @@ async function boot(){
   try { (await DB.all()).forEach(r => { if (r && typeof r.id === 'string') S.all.set(r.id, r); }); } catch {}
   refreshEntries(); S.loading = false; render();
   Sync.init();
+  try { if (sessionStorage.getItem('ledger-updated')){ sessionStorage.removeItem('ledger-updated'); setTimeout(() => toast('Ledger updated to the latest version'), 600); } } catch {}
   const qp = new URLSearchParams(location.search);
   if (qp.has('add') || qp.has('voice')){
     try { history.replaceState(null, '', location.pathname); } catch {}
@@ -2241,7 +2261,18 @@ boot();
 })();
 </script>
 <script>
-if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+if ('serviceWorker' in navigator) window.addEventListener('load', () => {
+  const hadController = !!navigator.serviceWorker.controller;
+  let reg = null, reloading = false;
+  navigator.serviceWorker.register('./sw.js', {updateViaCache: 'none'}).then(r => { reg = r; r.update().catch(() => {}); }).catch(() => {});
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && reg) reg.update().catch(() => {}); });
+  const apply = () => {
+    if (reloading) return;
+    if (window.__ledgerBusy && window.__ledgerBusy()){ setTimeout(apply, 3000); return; }  // don't interrupt an entry in progress
+    reloading = true; try { sessionStorage.setItem('ledger-updated', '1'); } catch {} location.reload();
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) apply(); });
+});
 </script>
 </body>
 </html>

@@ -1,10 +1,10 @@
 // Ledger service worker: keeps the app usable offline.
-const VERSION = 'ledger-v8';
+const VERSION = 'ledger-v9';
 const RUNTIME = 'ledger-runtime';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: 'reload'})))));
   self.skipWaiting();
 });
 self.addEventListener('activate', e => {
@@ -18,7 +18,7 @@ self.addEventListener('activate', e => {
 function staleWhileRevalidate(req, cacheKey) {
   return caches.open(VERSION).then(async cache => {
     const hit = await cache.match(cacheKey || req);
-    const net = fetch(req).then(res => { if (res.ok) cache.put(cacheKey || req, res.clone()); return res; }).catch(() => null);
+    const net = fetch(new Request(req.url, {cache: 'no-cache', credentials: 'same-origin'})).then(res => { if (res.ok) cache.put(cacheKey || req, res.clone()); return res; }).catch(() => null);
     return hit || (await net) || cache.match('./index.html');
   });
 }
