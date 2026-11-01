@@ -75,6 +75,8 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
 .icon-btn svg{width:20px;height:20px}
 .hbtns{display:flex;gap:8px}
+.ask{background:var(--accent-soft);border-radius:12px;padding:12px;display:grid;gap:10px;margin-top:8px}
+.ask p{margin:0;font-size:14px;color:var(--ink)}
 /* keypad bar */
 .padbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:6px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2);min-height:34px}
 .padbar button{font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;padding:6px 4px}
@@ -436,6 +438,7 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
       </div>
       <div class="chips" id="person-sugg" style="margin-top:8px"></div>
       <div id="person-hint"></div>
+      <label class="check" id="prior-wrap" hidden style="margin-top:8px"><input type="checkbox" id="f-prior"> <span id="prior-txt">Settles a loan from before Ledger</span></label>
     </div>
     <div id="cat-wrap">
       <div class="quick-h">Category</div>
@@ -574,7 +577,7 @@ function peopleIndex(){
     const t = TYPES[e.type];
     if (e.person && e.type !== 'spent'){
       const p = get(e.person, e.date);
-      if (t.kind === 'debt'){ p.debt = true; p.bal += t.bal * e.amount; }
+      if (t.kind === 'debt'){ p.debt = true; p.bal += t.bal * (e.amount - (e.prior || 0)); }
     }
     const w = withOf(e);
     if (w.length){ const sh = shareOf(e); for (const n of w){ const p = get(n, e.date); p.treat += sh; p.treats++; } }
@@ -889,6 +892,7 @@ function rowHtml(e, opts={}){
   const w = withOf(e);
   if (w.length) meta.push('with ' + esc(w.slice(0,2).join(', ')) + (w.length > 2 ? ` +${w.length-2}` : ''));
   else if (e.person && !(isDebt && !e.desc)) meta.push(esc(e.person));
+  if (e.prior > 0) meta.push(e.prior >= e.amount ? 'loan from before Ledger' : rupee(e.prior) + ' from before Ledger');
   const theirs = (opts.who && w.some(x => x.toLowerCase() === opts.who)) ? rupee(shareOf(e)) + ' theirs' : '';
   if (e.cat && !isDebt) meta.push(esc(e.cat));
   if (e.mode) meta.push(esc(e.mode));
@@ -996,6 +1000,15 @@ function viewPerson(){
   if (p.bal > 0) line = `${esc(p.name)} owes you <b class="num" style="color:var(--in)">${rupee(p.bal)}</b>`;
   else if (p.bal < 0) line = `You owe ${esc(p.name)} <b class="num" style="color:var(--spent)">${rupee(p.bal)}</b>`;
   else line = p.debt ? 'All settled. Nothing pending.' : 'No lending or borrowing yet.';
+  const sumT = (type, f = () => true) => S.everything.filter(e => e.type === type && lc(e.person) === key && f(e)).reduce((s, e) => s + e.amount - (e.prior || 0), 0);
+  let fix = '';
+  if (p.bal > 0){
+    const extra = Math.min(p.bal, Math.max(0, sumT('paidback') - sumT('borrowed')));
+    if (extra > 0) fix = `<div class="ask" style="margin-top:12px"><p>${rupee(extra)} of this comes from paying ${esc(p.name)} back with no matching loan in Ledger. If you borrowed it before you started using Ledger, it shouldn't count.</p><div><button class="btn primary" data-act="fixprior" data-t="paidback" data-n="${esc(p.name)}">It was from before. Fix it</button></div></div>`;
+  } else if (p.bal < 0){
+    const extra = Math.min(-p.bal, Math.max(0, sumT('gotback') - sumT('lent')));
+    if (extra > 0) fix = `<div class="ask" style="margin-top:12px"><p>${rupee(extra)} of this comes from ${esc(p.name)} returning money with no matching loan in Ledger. If you lent it before you started using Ledger, it shouldn't count.</p><div><button class="btn primary" data-act="fixprior" data-t="gotback" data-n="${esc(p.name)}">It was from before. Fix it</button></div></div>`;
+  }
   const treat = p.treat ? `<div class="sub">Spent on ${esc(p.name)}: <b class="num">${rupee(p.treat)}</b> across ${p.treats} shared expense${p.treats===1?'':'s'}</div>` : '';
   const btns = [];
   if (p.bal > 0) btns.push(`<button class="btn primary" data-act="add" data-type="gotback" data-person="${esc(p.name)}" data-amount="${p.bal}">Got it back</button>`);
@@ -1004,7 +1017,7 @@ function viewPerson(){
   btns.push(`<button class="btn" data-act="add" data-type="lent" data-person="${esc(p.name)}">Lend</button>`);
   btns.push(`<button class="btn" data-act="add" data-type="borrowed" data-person="${esc(p.name)}">Borrow</button>`);
   return `<button class="back" data-act="nav" data-v="people">${ICON.back}People</button>
-    <div class="person-hero"><div class="nm">${esc(p.name)}</div><div class="bal">${line}</div>${treat}<div class="btns">${btns.join('')}</div></div>
+    <div class="person-hero"><div class="nm">${esc(p.name)}</div><div class="bal">${line}</div>${treat}${fix}<div class="btns">${btns.join('')}</div></div>
     <div class="sec-h"><h2>History</h2><span class="muted" style="font-size:13px">${list.length} entries</span></div>
     ${groupedList(list, {who:key})}`;
 }
@@ -1335,11 +1348,11 @@ function trimAmt(n){ return String(Math.round(n*100)/100); }
 function openEntry(pref = {}, editId = null){
   const e = editId ? S.entries.find(x=>x.id===editId) : null;
   const multi0 = (pref.type || 'spent') === 'spent';
-  D = e ? {...e, amountStr: trimAmt(e.amount), editId, catTouched:true, typeTouched:true,
+  D = e ? {...e, amountStr: trimAmt(e.amount), editId, catTouched:true, typeTouched:true, prior: e.prior || 0, priorAsked: !!e.prior, priorShown: !!e.prior,
            with: withOf(e).slice(), incMe: e.incMe !== false, person: e.type === 'spent' ? '' : (e.person || '')}
         : {type: pref.type || 'spent', amountStr: pref.amount ? trimAmt(+pref.amount) : '', desc:'',
            person: multi0 ? '' : (pref.person || ''), with: (multi0 && pref.person) ? [pref.person] : [], incMe:true, cat:'',
-           mode: lsGet(LS_MODE) || 'UPI', date: todayKey(), note:'', catTouched:false, typeTouched:!!pref.type};
+           mode: lsGet(LS_MODE) || 'UPI', date: todayKey(), note:'', catTouched:false, typeTouched:!!pref.type, prior: 0, priorAsked: false, priorShown: false};
   $('#f-desc').value = D.desc || ''; $('#f-person').value = D.person || ''; $('#f-note').value = D.note || ''; $('#f-date').value = D.date;
   $('#desc-sugg').innerHTML = ''; $('#sh-title').textContent = e ? 'Edit entry' : 'New entry';
   $('#sh-del').hidden = !e; $('#done').hidden = true;
@@ -1355,6 +1368,17 @@ function setPad(on){
   $('#sheet').classList.toggle('padoff', !on);
   $('#padbar-btn').innerHTML = on ? 'Hide keypad ' + CHEV(true) : 'Show keypad ' + CHEV(false);
   $('#padbar-hint').textContent = on ? '' : 'Or tap the amount';
+}
+/* how much of a repayment goes beyond what Ledger knows is owed */
+function settleExcess(type, person, amount, excludeId){
+  if (type !== 'gotback' && type !== 'paidback') return 0;
+  const n = lc(person); let bal = 0;
+  for (const e of S.everything){
+    if (e.id === excludeId || lc(e.person) !== n || TYPES[e.type].kind !== 'debt') continue;
+    bal += TYPES[e.type].bal * (e.amount - (e.prior || 0));
+  }
+  const outstanding = type === 'paidback' ? Math.max(0, -bal) : Math.max(0, bal);
+  return Math.max(0, Math.round((amount - outstanding) * 100) / 100);
 }
 function fmtAmtStr(s){
   if (!s) return '0';
@@ -1376,6 +1400,8 @@ function syncSheet(){
   $('#person-lbl').textContent = multi ? 'Spent with (optional)' : t.person + (t.kind==='debt' ? '' : ' (optional)');
   $('#f-person').placeholder = multi ? (D.with.length ? 'Add another name' : 'Add names, e.g. Rahul') : (t.kind==='debt' ? 'Who?' : 'Name');
   $('#f-incme').checked = D.incMe;
+  $('#prior-wrap').hidden = !(D.priorShown && (D.type === 'gotback' || D.type === 'paidback'));
+  $('#f-prior').checked = D.prior > 0;
   syncAmount();
   $('#cat-wrap').hidden = t.kind === 'debt';
   const cats = catOrder();
@@ -1462,6 +1488,22 @@ async function saveEntry(){
     const f = $('#f-person'); shake(f.parentElement); f.focus();
     $('#person-hint').innerHTML = '<div class="err">Add who this was with, so the balance adds up.</div>'; return;
   }
+  if (D.type === 'gotback' || D.type === 'paidback'){
+    if (!D.priorAsked){
+      const ex = settleExcess(D.type, person, amount, D.editId);
+      if (ex > 0){
+        const part = ex >= amount ? 'this' : rupee(ex) + ' of this';
+        const msg = D.type === 'paidback'
+          ? `Ledger has no record of you borrowing ${part} from ${esc(person)}. Did you borrow it before you started using Ledger?`
+          : `Ledger has no record of ${esc(person)} borrowing ${part} from you. Did you lend it before you started using Ledger?`;
+        $('#person-hint').innerHTML = `<div class="ask"><p>${msg}</p><div class="btns" style="justify-content:flex-start"><button class="btn primary" data-act="prioryes">Yes, from before</button><button class="btn" data-act="priorno">No, save as it is</button></div></div>`;
+        setPad(false); buzz();
+        setTimeout(() => { const h = $('#person-hint .ask'); h && h.scrollIntoView({block: 'center', behavior: 'smooth'}); }, 30);
+        return;
+      }
+      D.prior = 0;
+    }
+  } else D.prior = 0;
   const prev = D.editId ? S.entries.find(x=>x.id===D.editId) : null;
   const firstToday = !prev && !loggedDays().has(todayKey());
   const e = {
@@ -1471,6 +1513,7 @@ async function saveEntry(){
   };
   if (prev?.sample) e.sample = true;
   if (multi && D.with.length){ e.with = [...D.with]; e.incMe = !!D.incMe; }
+  if (D.prior > 0) e.prior = Math.min(D.prior, amount);
   saving = true;
   try { await store.put(e); }
   catch { saving = false; toast("Couldn't save. Check your connection and try again."); return; }
@@ -1614,6 +1657,12 @@ document.addEventListener('click', ev => {
     case 'unwith': D.with = D.with.filter(x => x !== el.dataset.p); renderWith(); renderPersonSugg(); break;
     case 'fullamt': D.amountStr = trimAmt(+el.dataset.v); syncAmount(true); renderPersonSugg(); break;
     case 'key': keyPress(el.dataset.k); break;
+    case 'prioryes': case 'priorno': {
+      const amount = Math.round(parseFloat(D.amountStr) * 100) / 100, person = canonPerson($('#f-person').value);
+      D.prior = el.dataset.act === 'prioryes' ? settleExcess(D.type, person, amount, D.editId) : 0;
+      D.priorAsked = true; $('#person-hint').innerHTML = ''; saveEntry(); break;
+    }
+    case 'fixprior': fixOldLoan(el.dataset.n, el.dataset.t); break;
     case 'padtoggle': setPad($('#sheet').classList.contains('padoff')); break;
     case 'save': saveEntry(); break;
     case 'delete': deleteEntry(); break;
@@ -1754,6 +1803,10 @@ $('#f-person').addEventListener('input', e => {
   D.person = v; renderPersonSugg();
 });
 $('#f-incme').addEventListener('change', e => { D.incMe = e.target.checked; renderWith(); });
+$('#f-prior').addEventListener('change', e => {
+  D.priorAsked = true;
+  D.prior = e.target.checked ? Math.max(D.prior, settleExcess(D.type, canonPerson($('#f-person').value), parseFloat(D.amountStr) || 0, D.editId)) || (parseFloat(D.amountStr) || 0) : 0;
+});
 ['#person-sugg','#with-chips','#desc-sugg'].forEach(sel => ['pointerdown','mousedown'].forEach(t =>
   $(sel).addEventListener(t, e => { if (e.target.closest('button')) e.preventDefault(); })));
 $('#f-note').addEventListener('input', e => { D.note = e.target.value; });
@@ -2152,6 +2205,23 @@ $('#f-say').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.prevent
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => fab.addEventListener(ev, clear));
   fab.addEventListener('contextmenu', e => e.preventDefault());
 })();
+
+async function fixOldLoan(name, type){
+  const n = lc(name), p = peopleIndex().get(n); if (!p) return;
+  const sumT = t => S.everything.filter(e => e.type === t && lc(e.person) === n).reduce((s, e) => s + e.amount - (e.prior || 0), 0);
+  let left = type === 'paidback' ? Math.min(p.bal, sumT('paidback') - sumT('borrowed')) : Math.min(-p.bal, sumT('gotback') - sumT('lent'));
+  if (!(left > 0)) return;
+  const now = Date.now(), recs = [];
+  for (const e of S.everything.filter(e => e.type === type && lc(e.person) === n).sort(byRecent)){
+    if (left <= 0) break;
+    const room = e.amount - (e.prior || 0); if (room <= 0) continue;
+    const take = Math.min(room, left); left -= take;
+    recs.push({...cleanRec(e), prior: Math.round(((e.prior || 0) + take) * 100) / 100, updatedAt: now, _dirty: 1});
+  }
+  if (recs.length) await commit(recs);
+  const q = peopleIndex().get(n);
+  toast(q && q.bal ? `Fixed. ${q.bal > 0 ? `${q.name} owes you ${rupee(q.bal)}` : `You owe ${q.name} ${rupee(q.bal)}`}` : `Fixed. You and ${name} are settled`);
+}
 
 async function boot(){
   S.loading = true; render();
