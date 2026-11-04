@@ -1,8 +1,72 @@
 name: Android app
 on:
+  push:
+    branches: [main]
+    paths: ['android/**', '.github/workflows/android.yml']
   workflow_dispatch:
+
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - run: echo placeholder
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Unlock signing key
+        env:
+          LEDGER_KEY_PASS: ${{ secrets.LEDGER_KEY_PASS }}
+        run: |
+          if [ -z "$LEDGER_KEY_PASS" ]; then echo "The LEDGER_KEY_PASS secret is missing" | tee android-build.log; exit 1; fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -in android/ledger.p12.enc -out android/app/ledger.p12 -pass env:LEDGER_KEY_PASS
+
+      - name: Build APK
+        env:
+          LEDGER_KEY_PASS: ${{ secrets.LEDGER_KEY_PASS }}
+        run: |
+          set -o pipefail
+          gradle -p android assembleRelease --no-daemon --stacktrace 2>&1 | tee android-build.log
+          cp android/app/build/outputs/apk/release/app-release.apk ledger.apk
+
+      - name: Read version
+        id: v
+        run: echo "code=$(grep -oP 'def vc = \K[0-9]+' android/app/build.gradle)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v${{ steps.v.outputs.code }}
+          name: Ledger app v${{ steps.v.outputs.code }}
+          body: Download ledger.apk on your phone and open it to install or update.
+          files: ledger.apk
+          make_latest: true
+
+      - name: Write build report
+        if: always()
+        run: |
+          {
+            echo "status=${{ job.status }}"
+            echo "run=${{ github.run_id }}"
+            echo "commit=${{ github.sha }}"
+            echo "----"
+            grep -E "error:|ERROR|FAILURE|What went wrong|e: |warning: \[|Could not|> " android-build.log 2>/dev/null | head -n 80
+            echo "---- tail ----"
+            tail -n 120 android-build.log 2>/dev/null
+          } > report.txt
+          git config user.name "ledger-ci"
+          git config user.email "ledger-ci@users.noreply.github.com"
+          git checkout --orphan ci-log
+          git rm -rq --cached .
+          git add report.txt
+          git commit -qm "Build report ${{ github.run_id }}"
+          git push -fq origin ci-log

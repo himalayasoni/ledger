@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="deep">#0E3A33</color>
+    <color name="accent">#F0A20F</color>
+    <color name="accent_ink">#2A1B00</color>
+    <color name="on_deep">#EAF4F0</color>
+    <color name="icon_bg">#0E3A33</color>
+</resources>

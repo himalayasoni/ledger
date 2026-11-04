@@ -1,0 +1,54 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Bump this for every native release. The website reads it to offer updates.
+def vc = 1
+def siteUrl = 'https://himalayasoni.github.io/ledger/'
+
+android {
+    namespace 'com.himalayasoni.ledger'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.himalayasoni.ledger'
+        minSdk 24
+        targetSdk 34
+        versionCode vc
+        versionName "1.${vc}"
+        manifestPlaceholders = [
+            launchUrl: siteUrl + '?src=apk&apkv=' + vc,
+            siteHost : 'himalayasoni.github.io'
+        ]
+        buildConfigField 'String', 'SITE_URL', "\"${siteUrl}\""
+        buildConfigField 'int', 'APK_VERSION', "${vc}"
+    }
+
+    buildFeatures { buildConfig true }
+
+    signingConfigs {
+        release {
+            storeFile file('ledger.p12')
+            storeType 'pkcs12'
+            storePassword System.getenv('LEDGER_KEY_PASS')
+            keyAlias 'ledger'
+            keyPassword System.getenv('LEDGER_KEY_PASS')
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+    implementation 'androidx.core:core:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}

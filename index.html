@@ -538,7 +538,7 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v11';
+const APP_VERSION = 'v12';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
@@ -962,7 +962,7 @@ function topBar(){
   const si = syncInfo();
   const wd = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
   return `<div class="top"><div><div class="brand"><i>₹</i>Ledger</div><button class="sync" data-act="settings">${wd}, ${d.getDate()} ${MONTH_FULL[d.getMonth()]} · <span class="sd ${si.cls}"></span>${esc(si.txt)}</button></div>
-    ${headBtns()}</div>`;
+    ${headBtns()}</div>${appUpdate ? `<a class="ubar" href="${APK_URL}" style="text-decoration:none;color:var(--ink)">${ICON.out}A new version of the app is ready<b>Download</b></a>` : ''}`;
 }
 function viewHome(){
   if (S.loading) return topBar() + `<p class="muted" style="padding:40px 4px;text-align:center">Opening Ledger…</p>`;
@@ -1617,6 +1617,61 @@ document.addEventListener('visibilitychange', () => {
   if (lsGet(QUICK_START) === '1' && hiddenAt && Date.now() - hiddenAt > 20000 && !openEl && !quickOpen() && $('#pin').hidden) openQuick();
 });
 
+/* ---------- the Android app (a shell around this page) ---------- */
+const APK_PKG = 'com.himalayasoni.ledger';
+const APK_URL = 'https://github.com/himalayasoni/ledger/releases/latest/download/ledger.apk';
+function apkVersion(){
+  let v = null; try { v = sessionStorage.getItem('ledger-apk'); } catch {}
+  if (!v && document.referrer.startsWith('android-app://' + APK_PKG)) v = '1';
+  return v ? Number(v) || 1 : 0;
+}
+const isAndroid = /Android/i.test(navigator.userAgent);
+let appUpdate = null;  // {version} when a newer app build exists
+async function checkAppUpdate(){
+  if (!apkVersion()) return;
+  try {
+    let latest = 0;
+    const cached = sessionStorage.getItem('ledger-apk-latest');
+    if (cached) latest = Number(cached);
+    else {
+      const r = await fetch('https://api.github.com/repos/himalayasoni/ledger/releases/latest', {headers: {Accept: 'application/vnd.github+json'}});
+      if (!r.ok) return;
+      const j = await r.json(); latest = Number(String(j.tag_name || '').replace(/^apk-v/, '')) || 0;
+      sessionStorage.setItem('ledger-apk-latest', String(latest));
+    }
+    if (latest > apkVersion()){ appUpdate = {version: latest}; ui(); }
+  } catch {}
+}
+function reminderState(){ try { return JSON.parse(lsGet('ledger-rem') || 'null') || {on: false, time: '21:00'}; } catch { return {on: false, time: '21:00'}; } }
+function openNative(query){
+  // hands over to the app's own reminder screen, which closes itself and comes back here
+  location.href = `intent://reminder?${query}#Intent;scheme=ledger;package=${APK_PKG};end`;
+}
+function appSection(){
+  const v = apkVersion();
+  if (!v){
+    if (!isAndroid) return '';
+    return `<div class="card" style="margin:0"><h3>Android app</h3>
+      <p class="muted" style="margin:0 0 10px">Adds a home-screen widget, a daily reminder and a Quick Settings tile. Same Ledger, same data.</p>
+      <a class="btn primary" href="${APK_URL}" style="text-decoration:none">Download the app</a>
+      <p class="muted" style="margin:10px 0 0;font-size:13px">Open the downloaded file to install. If your phone asks, allow installs from Chrome.</p></div>`;
+  }
+  const r = reminderState(), [hh, mm] = r.time.split(':').map(Number);
+  const lbl = `${(hh % 12) || 12}:${String(mm).padStart(2, '0')} ${hh < 12 ? 'AM' : 'PM'}`;
+  return `<div class="card" style="margin:0"><h3>Daily reminder</h3>
+      <p class="muted" style="margin:0 0 10px">${r.on ? `On, every day at <b style="color:var(--ink)">${lbl}</b>.` : 'Off. Get a nudge to log the day, with Quick add one tap away.'}</p>
+      <div class="btns" style="justify-content:flex-start;align-items:center">
+        <input type="time" class="inp" id="rem-time" value="${esc(r.time)}" style="width:130px" aria-label="Reminder time">
+        <button class="btn primary" data-act="remon">${r.on ? 'Update' : 'Turn on'}</button>
+        ${r.on ? '<button class="btn" data-act="remoff">Turn off</button>' : ''}
+      </div>
+      <button class="link" data-act="remtest" style="margin-top:10px">Send a test reminder now</button></div>
+    <div class="card" style="margin:0"><h3>Widget and tile</h3>
+      <p class="muted" style="margin:0;font-size:14px"><b style="color:var(--ink)">Widget:</b> long-press an empty spot on your home screen → Widgets → Ledger.</p>
+      <p class="muted" style="margin:6px 0 0;font-size:14px"><b style="color:var(--ink)">Quick Settings tile:</b> pull down the notification shade twice → edit (pencil) → drag <b style="color:var(--ink)">Quick add</b> into place.</p>
+      <p class="muted" style="margin:8px 0 0;font-size:12px">App v${v}${appUpdate ? ` · <a href="${APK_URL}">v${appUpdate.version} available, download</a>` : ''}</p></div>`;
+}
+
 async function deleteEntry(){
   const e = S.entries.find(x=>x.id===D.editId); if (!e) return;
   closeSheet();
@@ -1646,6 +1701,7 @@ function renderPanel(){
   $('#pn-body').innerHTML = `<div class="stack">
     <div class="status"><i class="${si.cls === 'ok' ? '' : 'local'}"></i>${esc(si.txt)}</div>
     ${sync}
+    ${appSection()}
     <div class="card" style="margin:0"><h3>Quick add</h3>
       <label class="switch"><span>Open Ledger straight into Quick add</span><input type="checkbox" data-act="qkstart" ${lsGet(QUICK_START) === '1' ? 'checked' : ''}></label>
       <p class="muted" style="margin:8px 0 0;font-size:13px">Then set a button on your phone to open Ledger, and logging is: press the button, type the amount, tap a category. On Samsung: Settings → Advanced features → Side button → Double press → Open app → Ledger.</p>
@@ -1763,6 +1819,12 @@ document.addEventListener('click', ev => {
     case 'qkmore': { const a = QK; closeQuick(); openEntry({amount: parseFloat(a) > 0 ? a : undefined}); break; }
     case 'qksay': closeQuick(); openEntry({}); startVoice(); break;
     case 'qkstart': lsSet(QUICK_START, el.checked ? '1' : '0'); toast(el.checked ? 'Ledger will open straight into Quick add' : 'Ledger will open on Home'); break;
+    case 'remon': {
+      const t = ($('#rem-time') && $('#rem-time').value) || '21:00', [h, m] = t.split(':').map(Number);
+      lsSet('ledger-rem', JSON.stringify({on: true, time: t})); renderPanel(); openNative(`on=1&h=${h}&m=${m}`); break;
+    }
+    case 'remoff': { const r = reminderState(); lsSet('ledger-rem', JSON.stringify({on: false, time: r.time})); renderPanel(); openNative('on=0'); break; }
+    case 'remtest': openNative('test=1'); break;
     case 'padtoggle': setPad($('#sheet').classList.contains('padoff')); break;
     case 'save': saveEntry(); break;
     case 'delete': deleteEntry(); break;
@@ -2353,11 +2415,12 @@ async function boot(){
   Sync.init();
   try { if (sessionStorage.getItem('ledger-updated')){ sessionStorage.removeItem('ledger-updated'); setTimeout(() => toast('Ledger updated to the latest version'), 600); } } catch {}
   const qp = new URLSearchParams(location.search);
-  if (qp.has('add') || qp.has('voice') || qp.has('quick')){
-    try { history.replaceState(null, '', location.pathname); } catch {}
-    if (qp.has('quick')) openQuick();
-    else { openEntry({}); if (qp.has('voice')) startVoice(); }
-  } else if (lsGet(QUICK_START) === '1') openQuick();
+  if (qp.get('src') === 'apk'){ try { sessionStorage.setItem('ledger-apk', qp.get('apkv') || '1'); } catch {} }
+  if ([...qp.keys()].length){ try { history.replaceState(null, '', location.pathname); } catch {} }
+  if (qp.has('quick')) openQuick();
+  else if (qp.has('add') || qp.has('voice')){ openEntry({}); if (qp.has('voice')) startVoice(); }
+  else if (lsGet(QUICK_START) === '1' && !qp.has('app')) openQuick();
+  checkAppUpdate();
 }
 boot();
 })();
