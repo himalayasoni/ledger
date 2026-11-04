@@ -17,7 +17,7 @@ public class QuickTile extends TileService {
     @Override
     @SuppressWarnings("deprecation")
     public void onClick() {
-        Intent i = Links.open(this, "quick=1");
+        Intent i = Links.quick(this);
         if (Build.VERSION.SDK_INT >= 34) {
             startActivityAndCollapse(PendingIntent.getActivity(this, 30, i,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));

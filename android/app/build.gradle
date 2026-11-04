@@ -3,7 +3,7 @@ plugins {
 }
 
 // Bump this for every native release. The website reads it to offer updates.
-def vc = 1
+def vc = 2
 def siteUrl = 'https://himalayasoni.github.io/ledger/'
 
 android {
@@ -22,6 +22,8 @@ android {
         ]
         buildConfigField 'String', 'SITE_URL', "\"${siteUrl}\""
         buildConfigField 'int', 'APK_VERSION', "${vc}"
+        buildConfigField 'String', 'FIREBASE_PROJECT', '"ledger-b8b51"'
+        buildConfigField 'String', 'FIREBASE_KEY', '"AIzaSyA7NTOz5ROJEJ2fygDks0yRAzjvBgm56dA"'
     }
 
     buildFeatures { buildConfig true }

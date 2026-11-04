@@ -5,4 +5,9 @@
     <color name="accent_ink">#2A1B00</color>
     <color name="on_deep">#EAF4F0</color>
     <color name="icon_bg">#0E3A33</color>
+    <color name="q_surface">#FFFFFF</color>
+    <color name="q_ink">#12201B</color>
+    <color name="q_ink2">#55665F</color>
+    <color name="q_key">#E1E8E4</color>
+    <color name="q_line">#D2DCD7</color>
 </resources>

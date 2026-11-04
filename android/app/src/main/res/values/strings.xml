@@ -5,4 +5,11 @@
     <string name="widget_desc">Log an expense in two taps, or say it.</string>
     <string name="tile_name">Quick add</string>
     <string name="asset_statements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://himalayasoni.github.io\"}}]</string>
+    <string name="q_title">Quick add</string>
+    <string name="q_open">Open Ledger</string>
+    <string name="q_hint">Type the amount, then tap a category to save</string>
+    <string name="q_amount_first">Type the amount first</string>
+    <string name="q_undo">Undo</string>
+    <string name="q_not_linked">Not connected yet: entries reach Ledger next time you open it. Connect in Ledger → Settings.</string>
+    <string name="shortcut_quick">Quick add</string>
 </resources>

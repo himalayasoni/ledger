@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <queries>
@@ -22,7 +24,7 @@
 
         <!-- Opens Ledger (the website) full-screen in Chrome, keeping Chrome's sign-in and saved data -->
         <activity
-            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:name=".Launcher"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/AppTheme">
@@ -39,6 +41,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -66,6 +69,30 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="ledger" android:host="reminder" />
+            </intent-filter>
+        </activity>
+
+        <!-- The Quick add pop-up: floats over the home screen, saves without opening Ledger -->
+        <activity
+            android:name=".QuickAddActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=".quick"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="stateAlwaysHidden"
+            android:theme="@style/Translucent" />
+
+        <!-- Ledger → Settings → Connect hands the pop-up a sign-in token here -->
+        <activity
+            android:name=".LinkActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Translucent">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ledger" android:host="link" />
             </intent-filter>
         </activity>
 

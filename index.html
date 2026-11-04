@@ -538,9 +538,10 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v12';
+const APP_VERSION = 'v13';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
+  bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
   pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
   mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',
@@ -772,6 +773,7 @@ async function commit(recs){
   for (const r of recs) S.all.set(r.id, r);
   refreshEntries(); render();
   try { await DB.putMany(recs); } catch { toast("Couldn't save on this device. Export a backup to be safe."); }
+  scheduleQuickCfg();
   if (!persistAsked){ persistAsked = true; try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {} }
   Sync.schedule();
 }
@@ -962,7 +964,7 @@ function topBar(){
   const si = syncInfo();
   const wd = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
   return `<div class="top"><div><div class="brand"><i>₹</i>Ledger</div><button class="sync" data-act="settings">${wd}, ${d.getDate()} ${MONTH_FULL[d.getMonth()]} · <span class="sd ${si.cls}"></span>${esc(si.txt)}</button></div>
-    ${headBtns()}</div>${appUpdate ? `<a class="ubar" href="${APK_URL}" style="text-decoration:none;color:var(--ink)">${ICON.out}A new version of the app is ready<b>Download</b></a>` : ''}`;
+    ${headBtns()}</div>${appUpdate ? `<a class="ubar" href="${APK_URL}" style="text-decoration:none;color:var(--ink)">${ICON.out}A new version of the app is ready<b>Download</b></a>` : ''}${apkVersion() >= 2 && Sync.user && !quickLinked() ? `<button class="ubar" data-act="qlink">${ICON.bolt}Make the widget's Quick add instant<b>Connect</b></button>` : ''}`;
 }
 function viewHome(){
   if (S.loading) return topBar() + `<p class="muted" style="padding:40px 4px;text-align:center">Opening Ledger…</p>`;
@@ -1643,9 +1645,34 @@ async function checkAppUpdate(){
   } catch {}
 }
 function reminderState(){ try { return JSON.parse(lsGet('ledger-rem') || 'null') || {on: false, time: '21:00'}; } catch { return {on: false, time: '21:00'}; } }
-function openNative(query){
-  // hands over to the app's own reminder screen, which closes itself and comes back here
-  location.href = `intent://reminder?${query}#Intent;scheme=ledger;package=${APK_PKG};end`;
+function openNative(query, host = 'reminder'){
+  // hands over to one of the app's own small screens, which closes itself and comes back here
+  location.href = `intent://${host}?${query}#Intent;scheme=ledger;package=${APK_PKG};end`;
+}
+/* the app's Quick add pop-up saves straight to the cloud once it holds this account's sign-in */
+const quickLinked = () => !!(Sync.user && lsGet('ledger-qlink') === Sync.user.uid);
+function quickCats(){
+  const ps = privateSet(), cnt = {};
+  for (const e of S.everything) if (e.cat && e.type === 'spent') cnt[lc(e.cat)] = (cnt[lc(e.cat)] || 0) + 1;
+  return allCats().filter(c => !ps.has(lc(c))).sort((a, b) => (cnt[lc(b)] || 0) - (cnt[lc(a)] || 0)).slice(0, 9);
+}
+let quickCfgTimer = null;
+function scheduleQuickCfg(now){
+  clearTimeout(quickCfgTimer);
+  quickCfgTimer = setTimeout(() => {
+    if (!Sync.user) return;
+    const cur = S.all.get('cfg-quick') || {}, cats = quickCats(), mode = lsGet(LS_MODE) || 'UPI';
+    if (JSON.stringify(cur.cats) === JSON.stringify(cats) && cur.mode === mode && !cur.deleted) return;
+    store.put({id: 'cfg-quick', cats, mode});
+  }, now ? 50 : 4000);
+}
+function quickSection(){
+  if (!apkVersion()) return '';
+  let body;
+  if (!Sync.user) body = `<p class="muted" style="margin:0">Sign in with Google above first. Then connect, and the widget's Quick add saves without opening Ledger.</p>`;
+  else if (quickLinked()) body = `<p class="muted" style="margin:0 0 10px">Connected. The widget, the Quick Settings tile, the reminder and the icon shortcut open a small pop-up that saves straight to your account.</p><button class="btn" data-act="qlink">Reconnect</button>`;
+  else body = `<p class="muted" style="margin:0 0 10px">Connect once so the widget's Quick add pops up over your home screen and saves without opening Ledger.</p><button class="btn primary" data-act="qlink">Connect Quick add</button>`;
+  return `<div class="card" style="margin:0"><h3>Quick add pop-up</h3>${body}</div>`;
 }
 function appSection(){
   const v = apkVersion();
@@ -1702,6 +1729,7 @@ function renderPanel(){
     <div class="status"><i class="${si.cls === 'ok' ? '' : 'local'}"></i>${esc(si.txt)}</div>
     ${sync}
     ${appSection()}
+    ${quickSection()}
     <div class="card" style="margin:0"><h3>Quick add</h3>
       <label class="switch"><span>Open Ledger straight into Quick add</span><input type="checkbox" data-act="qkstart" ${lsGet(QUICK_START) === '1' ? 'checked' : ''}></label>
       <p class="muted" style="margin:8px 0 0;font-size:13px">Then set a button on your phone to open Ledger, and logging is: press the button, type the amount, tap a category. On Samsung: Settings → Advanced features → Side button → Double press → Open app → Ledger.</p>
@@ -1825,6 +1853,13 @@ document.addEventListener('click', ev => {
     }
     case 'remoff': { const r = reminderState(); lsSet('ledger-rem', JSON.stringify({on: false, time: r.time})); renderPanel(); openNative('on=0'); break; }
     case 'remtest': openNative('test=1'); break;
+    case 'qlink': {
+      const u = Sync.user;
+      if (!u || !u.refreshToken){ toast('Sign in with Google first, in Settings.'); break; }
+      lsSet('ledger-qlink', u.uid); scheduleQuickCfg(true); ui();
+      openNative(`uid=${encodeURIComponent(u.uid)}&rt=${encodeURIComponent(u.refreshToken)}&email=${encodeURIComponent(u.email || '')}`, 'link');
+      break;
+    }
     case 'padtoggle': setPad($('#sheet').classList.contains('padoff')); break;
     case 'save': saveEntry(); break;
     case 'delete': deleteEntry(); break;
@@ -2417,6 +2452,15 @@ async function boot(){
   const qp = new URLSearchParams(location.search);
   if (qp.get('src') === 'apk'){ try { sessionStorage.setItem('ledger-apk', qp.get('apkv') || '1'); } catch {} }
   if ([...qp.keys()].length){ try { history.replaceState(null, '', location.pathname); } catch {} }
+  const inbox = qp.get('inbox');
+  if (inbox){
+    try {
+      const b64 = inbox.replace(/-/g, '+').replace(/_/g, '/'), pad = '='.repeat((4 - b64.length % 4) % 4);
+      const json = new TextDecoder().decode(Uint8Array.from(atob(b64 + pad), ch => ch.charCodeAt(0)));
+      const list = JSON.parse(json).filter(e => e && typeof e.id === 'string' && (e.deleted || validEntry(e)));
+      if (list.length){ await store.putMany(list); const n = list.filter(e => !e.deleted).length; if (n) toast(`Added ${n} from Quick add`); }
+    } catch {}
+  }
   if (qp.has('quick')) openQuick();
   else if (qp.has('add') || qp.has('voice')){ openEntry({}); if (qp.has('voice')) startVoice(); }
   else if (lsGet(QUICK_START) === '1' && !qp.has('app')) openQuick();

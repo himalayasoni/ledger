@@ -22,8 +22,8 @@ public class ReminderReceiver extends BroadcastReceiver {
                     .setColor(c.getColor(R.color.accent))
                     .setContentTitle("Anything to log today?")
                     .setContentText("Add it in two taps: amount, then category.")
-                    .setContentIntent(Links.pending(c, 10, "quick=1"))
-                    .addAction(0, "Quick add", Links.pending(c, 12, "quick=1"))
+                    .setContentIntent(Links.quickPending(c, 10))
+                    .addAction(0, "Quick add", Links.quickPending(c, 12))
                     .addAction(0, "Say it", Links.pending(c, 11, "voice=1"))
                     .setAutoCancel(true)
                     .setPriority(NotificationCompat.PRIORITY_DEFAULT);

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="q_surface">#151F1C</color>
+    <color name="q_ink">#E6EFEB</color>
+    <color name="q_ink2">#97A9A2</color>
+    <color name="q_key">#1E2A26</color>
+    <color name="q_line">#283632</color>
+</resources>
