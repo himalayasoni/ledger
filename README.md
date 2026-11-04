@@ -1,5 +1,26 @@
 # Ledger
 
+A personal money diary: expenses, lending, shared bills and insights, with an
+offline-first **native Android app** (Kotlin, Jetpack Compose) and a **web app**,
+synced through Firebase.
+
+- **Architecture:** [docs/architecture.md](docs/architecture.md)
+- **Decisions:** [docs/decisions/](docs/decisions/)
+- **Current phase:** [docs/phase-1-walkthrough.md](docs/phase-1-walkthrough.md)
+
+| Part | Tech | Where |
+|---|---|---|
+| Android app | Kotlin · Compose · Room · Koin · Coroutines/Flow | `androidApp/` |
+| Web app | HTML/JS · IndexedDB · service worker | repo root |
+| Backend | Firebase Auth · Firestore · security rules | Firebase project |
+| CI/CD | GitHub Actions: tests, size budget, signed releases | `.github/workflows/` |
+
+---
+
+## Web app notes
+
+# Ledger
+
 A personal money diary: expenses, lending and borrowing, and spending shared with people.
 
 - Installs on your phone from the browser (Add to Home screen) and works offline.
