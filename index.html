@@ -75,6 +75,31 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
 .icon-btn svg{width:20px;height:20px}
 .hbtns{display:flex;gap:8px}
+/* quick add popup */
+.qscrim{position:fixed;inset:0;z-index:70;background:var(--scrim)}
+.quick{position:fixed;z-index:75;left:50%;top:50%;transform:translate(-50%,-50%);width:min(400px, calc(100vw - 24px));max-height:calc(100vh - 24px);overflow-y:auto;
+  background:var(--surface);border-radius:24px;box-shadow:0 24px 60px -18px rgba(0,0,0,.45);padding:16px;display:grid;gap:12px;animation:qin .18s ease-out}
+@keyframes qin{from{opacity:0;transform:translate(-50%,-46%) scale(.97)}}
+.qk-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.qk-head h2{margin:0;font-family:var(--f-display);font-size:17px;display:flex;align-items:center;gap:6px}
+.qk-head h2 svg{width:18px;height:18px;color:var(--accent)}
+.qk-amt{display:flex;align-items:baseline;justify-content:center;gap:4px;font-family:var(--f-display);font-weight:800}
+.qk-amt .cur{font-size:26px;color:var(--ink-2)}
+.qk-amt #qk-val{font-size:48px;letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums}
+.qk-amt.zero #qk-val{color:var(--ink-2);opacity:.45}
+.qk-amt.bump #qk-val{animation:bump .14s ease}
+.qk-cats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.qk-cats button{height:42px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:5px;padding:0 6px;min-width:0}
+.qk-cats button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qk-cats button i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:0 0 auto}
+.qk-cats button:active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.qk-hint{text-align:center;font-size:12px;color:var(--ink-2);margin:-4px 0 0}
+.quick .pad{border-top:0;padding-top:0}
+.quick .pad button{height:46px}
+.qk-foot{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.qk-foot .link{font-size:13px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600}
+.switch input{width:22px;height:22px;accent-color:var(--accent);flex:0 0 auto}
 .ask{background:var(--accent-soft);border-radius:12px;padding:12px;display:grid;gap:10px;margin-top:8px}
 .ask p{margin:0;font-size:14px;color:var(--ink)}
 /* keypad bar */
@@ -478,6 +503,16 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
 <div class="pin" id="pin" hidden role="dialog" aria-modal="true" aria-labelledby="pin-title">
   <div class="pin-card" id="pin-card"></div>
 </div>
+<div class="qscrim" id="qscrim" hidden></div>
+<section class="quick" id="quickbox" hidden role="dialog" aria-modal="true" aria-labelledby="qk-title">
+  <div class="qk-head"><h2 id="qk-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>Quick add</h2>
+    <button class="icon-btn" data-act="qkclose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="qk-amt zero" id="qk-amt"><span class="cur">₹</span><span id="qk-val">0</span></div>
+  <div class="qk-cats" id="qk-cats"></div>
+  <p class="qk-hint" id="qk-hint">Type the amount, then tap a category to save</p>
+  <div class="pad" id="qk-pad"></div>
+  <div class="qk-foot"><button class="link" data-act="qkmore">More details</button><button class="link" data-act="qksay">Say it instead</button></div>
+</section>
 <div class="toast" id="toast" role="status"><span id="toast-msg"></span><button id="toast-act" hidden></button></div>
 <input type="file" id="import-file" accept=".json,application/json" hidden>
 
@@ -503,8 +538,8 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v9';
-window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden;
+const APP_VERSION = 'v10';
+window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>',
   mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
@@ -765,7 +800,7 @@ function syncError(code){
 }
 function syncInfo(){
   const s = Sync.state;
-  if (s === 'off') return {cls:'', txt:'Saved on this device'};
+  if (s === 'off') return {cls:'', txt:'On this device'};
   if (s === 'loading') return {cls:'busy', txt:'Connecting…'};
   if (s === 'signedout') return {cls:'warn', txt:'Not backed up · sign in'};
   if (s === 'syncing') return {cls:'busy', txt:'Syncing…'};
@@ -1315,17 +1350,19 @@ function toast(msg, actLabel, act){
 function hideToast(){ $('#toast').classList.remove('show'); }
 
 /* ---------- back button: each open layer owns one history entry ---------- */
-const layers = []; let skipPops = 0;
-function pushLayer(type, data){ layers.push({type, data}); try { history.pushState({ledger: layers.length}, ''); } catch {} }
+const layers = []; let skipPops = 0, pendingPush = 0;
+// a back-step we started is still in flight: hold new entries until it lands, so history stays in order
+function pushLayer(type, data){ layers.push({type, data}); if (skipPops > 0){ pendingPush++; return; } try { history.pushState({ledger: layers.length}, ''); } catch {} }
 function dropLayers(n){ if (n <= 0) return; layers.length -= n; skipPops++; try { history.go(-n); } catch { skipPops--; } }
 function popLayer(type){ const top = layers[layers.length - 1]; if (top && top.type === type) dropLayers(1); }
 window.addEventListener('popstate', () => {
-  if (skipPops > 0){ skipPops--; return; }
+  if (skipPops > 0){ skipPops--; if (!skipPops) while (pendingPush > 0){ pendingPush--; try { history.pushState({ledger: layers.length}, ''); } catch {} } return; }
   const top = layers.pop(); if (!top) return;
   if (top.type === 'pin'){ if (Pin.mode === 'code'){ pushLayer('pin'); return; } pinDone(false, true); }
   else if (top.type === 'sheet') closeSheet(true);
   else if (top.type === 'person'){ S.person = null; go(top.data || 'people', true); }
   else if (top.type === 'view') go('home', true);
+  else if (top.type === 'quick') closeQuick(true);
 });
 
 /* ---------- sheet ---------- */
@@ -1531,6 +1568,55 @@ async function saveEntry(){
     toast(!S.unlocked && isPrivate(e) ? 'Saved privately' : prev ? 'Entry updated' : `Logged ${rupee(amount)}${e.desc ? ' · '+e.desc : ''}${e.with ? ' · with ' + e.with.length + (e.with.length===1 ? ' person' : ' people') : ''}`);
   }, 650);
 }
+/* ---------- quick add: amount, then one tap on a category saves ---------- */
+let QK = '';
+const quickOpen = () => !$('#quickbox').hidden;
+function openQuick(){
+  if (quickOpen()) return;
+  if (openEl) closeSheet();
+  QK = ''; qkSync(); $('#qk-hint').textContent = 'Type the amount, then tap a category to save';
+  const cats = catOrder().slice(0, 9);
+  $('#qk-cats').innerHTML = cats.map(c => `<button data-act="qkcat" data-c="${esc(c)}" style="--c:${catColor(c)}"><i></i><span>${esc(c)}</span></button>`).join('');
+  $('#qscrim').hidden = false; $('#quickbox').hidden = false;
+  pushLayer('quick');
+  document.body.style.overflow = 'hidden';
+}
+function closeQuick(fromBack){
+  if (!quickOpen()) return;
+  if (!fromBack) popLayer('quick');
+  $('#qscrim').hidden = true; $('#quickbox').hidden = true; document.body.style.overflow = '';
+}
+function qkSync(bump){
+  const a = $('#qk-amt'); $('#qk-val').textContent = fmtAmtStr(QK);
+  a.classList.toggle('zero', !(parseFloat(QK) > 0));
+  if (bump){ a.classList.remove('bump'); void a.offsetWidth; a.classList.add('bump'); }
+}
+function qkKey(k){
+  let s = QK;
+  if (k === 'del') s = s.slice(0, -1);
+  else if (k === '.'){ if (!s.includes('.')) s = (s || '0') + '.'; }
+  else { if (s.includes('.')){ if (s.split('.')[1].length >= 2) return; } else if (s.replace(/^0+/, '').length >= 9) return; s = s === '0' ? k : s + k; }
+  QK = s; qkSync(true);
+}
+async function qkSave(cat){
+  const amount = Math.round(parseFloat(QK) * 100) / 100;
+  if (!(amount > 0)){ shake($('#qk-amt')); $('#qk-hint').textContent = 'Type the amount first'; buzz(); return; }
+  const e = {id: uid(), type: 'spent', amount, desc: '', person: '', cat, mode: lsGet(LS_MODE) || 'UPI', date: todayKey(), note: '', createdAt: Date.now(), updatedAt: Date.now()};
+  closeQuick(); buzz();
+  await store.put(e);
+  toast(!S.unlocked && isPrivate(e) ? 'Saved privately' : `Logged ${rupee(amount)} · ${cat}`, 'Undo', () => store.remove(e.id));
+}
+const qkPad = $('#qk-pad');
+qkPad.innerHTML = ['1','2','3','4','5','6','7','8','9','.','0','del'].map(k => `<button data-act="qkkey" data-k="${k}" aria-label="${k === 'del' ? 'Delete digit' : k}">${k === 'del' ? ICON.del : k}</button>`).join('');
+$('#qscrim').addEventListener('click', () => closeQuick());
+const QUICK_START = 'ledger-quickstart';
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden'){ hiddenAt = Date.now(); return; }
+  // opened again from a phone shortcut after a while: go straight to quick add
+  if (lsGet(QUICK_START) === '1' && hiddenAt && Date.now() - hiddenAt > 20000 && !openEl && !quickOpen() && $('#pin').hidden) openQuick();
+});
+
 async function deleteEntry(){
   const e = S.entries.find(x=>x.id===D.editId); if (!e) return;
   closeSheet();
@@ -1560,6 +1646,10 @@ function renderPanel(){
   $('#pn-body').innerHTML = `<div class="stack">
     <div class="status"><i class="${si.cls === 'ok' ? '' : 'local'}"></i>${esc(si.txt)}</div>
     ${sync}
+    <div class="card" style="margin:0"><h3>Quick add</h3>
+      <label class="switch"><span>Open Ledger straight into Quick add</span><input type="checkbox" data-act="qkstart" ${lsGet(QUICK_START) === '1' ? 'checked' : ''}></label>
+      <p class="muted" style="margin:8px 0 0;font-size:13px">Then set a button on your phone to open Ledger, and logging is: press the button, type the amount, tap a category. On Samsung: Settings → Advanced features → Side button → Double press → Open app → Ledger.</p>
+      <p class="muted" style="margin:6px 0 0;font-size:13px">You can also long-press the Ledger icon → Quick add.</p></div>
     ${privateSection()}
     ${categoriesSection()}
     ${install}
@@ -1666,6 +1756,13 @@ document.addEventListener('click', ev => {
       D.priorAsked = true; $('#person-hint').innerHTML = ''; saveEntry(); break;
     }
     case 'fixprior': fixOldLoan(el.dataset.n, el.dataset.t); break;
+    case 'quick': openQuick(); break;
+    case 'qkclose': closeQuick(); break;
+    case 'qkkey': qkKey(el.dataset.k); break;
+    case 'qkcat': qkSave(el.dataset.c); break;
+    case 'qkmore': { const a = QK; closeQuick(); openEntry({amount: parseFloat(a) > 0 ? a : undefined}); break; }
+    case 'qksay': closeQuick(); openEntry({}); startVoice(); break;
+    case 'qkstart': lsSet(QUICK_START, el.checked ? '1' : '0'); toast(el.checked ? 'Ledger will open straight into Quick add' : 'Ledger will open on Home'); break;
     case 'padtoggle': setPad($('#sheet').classList.contains('padoff')); break;
     case 'save': saveEntry(); break;
     case 'delete': deleteEntry(); break;
@@ -1833,6 +1930,11 @@ document.addEventListener('keydown', e => {
     else if (e.key === 'Escape' && Pin.mode !== 'code') pinDone(false);
     e.preventDefault(); return;
   }
+  if (quickOpen()){
+    if (/^[0-9]$/.test(e.key)) qkKey(e.key); else if (e.key === '.') qkKey('.'); else if (e.key === 'Backspace') qkKey('del'); else if (e.key === 'Escape') closeQuick(); else return;
+    e.preventDefault(); return;
+  }
+  if (!openEl && (e.key === 'q' || e.key === 'Q') && !e.target.matches('input,textarea,select') && !e.metaKey && !e.ctrlKey){ e.preventDefault(); openQuick(); return; }
   if (e.key === 'Escape' && openEl){ closeSheet(); return; }
   if (openEl !== sheet || !D) {
     if (!openEl && e.key === 'n' && !e.target.matches('input,textarea,select') && !e.metaKey && !e.ctrlKey){ e.preventDefault(); openEntry(); }
@@ -2251,11 +2353,11 @@ async function boot(){
   Sync.init();
   try { if (sessionStorage.getItem('ledger-updated')){ sessionStorage.removeItem('ledger-updated'); setTimeout(() => toast('Ledger updated to the latest version'), 600); } } catch {}
   const qp = new URLSearchParams(location.search);
-  if (qp.has('add') || qp.has('voice')){
+  if (qp.has('add') || qp.has('voice') || qp.has('quick')){
     try { history.replaceState(null, '', location.pathname); } catch {}
-    openEntry({});
-    if (qp.has('voice')) startVoice();
-  }
+    if (qp.has('quick')) openQuick();
+    else { openEntry({}); if (qp.has('voice')) startVoice(); }
+  } else if (lsGet(QUICK_START) === '1') openQuick();
 }
 boot();
 })();

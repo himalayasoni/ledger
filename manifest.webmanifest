@@ -31,6 +31,18 @@
   ],
   "shortcuts": [
     {
+      "name": "Quick add",
+      "short_name": "Quick add",
+      "url": "./?quick=1",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
       "name": "Say an entry",
       "short_name": "Say it",
       "url": "./?voice=1",
