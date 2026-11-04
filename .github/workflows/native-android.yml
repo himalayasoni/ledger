@@ -1,0 +1,90 @@
+name: Native Android app
+on:
+  push:
+    branches: [main]
+    paths: ['androidApp/**', '.github/workflows/native-android.yml']
+  pull_request:
+    paths: ['androidApp/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # "Lightweight" as a number: the build fails if the app grows past this.
+  APK_SIZE_BUDGET_MB: 10
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: androidApp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests (core rules + screen state)
+        run: ./gradlew :core:test :app:testDebugUnitTest --no-daemon 2>&1 | tee ../native-build.log; exit ${PIPESTATUS[0]}
+
+      - name: Unlock signing key
+        if: github.event_name != 'pull_request'
+        env:
+          LEDGER_KEY_PASS: ${{ secrets.LEDGER_KEY_PASS }}
+        run: openssl enc -d -aes-256-cbc -pbkdf2 -in ../android/ledger.p12.enc -out app/ledger.p12 -pass env:LEDGER_KEY_PASS
+
+      - name: Build release APK
+        env:
+          LEDGER_KEY_PASS: ${{ secrets.LEDGER_KEY_PASS }}
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee -a ../native-build.log; exit ${PIPESTATUS[0]}
+
+      - name: Check size budget
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          BYTES=$(stat -c%s "$APK"); MB=$(awk "BEGIN {printf \"%.2f\", $BYTES/1048576}")
+          echo "APK size: ${MB} MB (budget ${APK_SIZE_BUDGET_MB} MB)" | tee -a ../native-build.log
+          echo "### APK size: ${MB} MB (budget ${APK_SIZE_BUDGET_MB} MB)" >> "$GITHUB_STEP_SUMMARY"
+          awk "BEGIN {exit !($BYTES <= $APK_SIZE_BUDGET_MB*1048576)}" || { echo "Over the size budget" | tee -a ../native-build.log; exit 1; }
+          cp "$APK" ../ledger-beta.apk
+
+      - name: Read version
+        id: v
+        run: echo "code=$(grep -oP 'versionCode = \K[0-9]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish preview release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: native-v${{ steps.v.outputs.code }}
+          name: Ledger β (native preview) v${{ steps.v.outputs.code }}
+          body: Native Kotlin app preview. Installs next to your current Ledger as "Ledger β".
+          files: ledger-beta.apk
+          prerelease: true
+          make_latest: false
+
+      - name: Write build report
+        if: always()
+        working-directory: .
+        run: |
+          {
+            echo "status=${{ job.status }}"
+            echo "run=${{ github.run_id }}"
+            echo "commit=${{ github.sha }}"
+            echo "---- problems ----"
+            grep -E "^e: |error:|FAILED|What went wrong|Unresolved|tests completed|APK size|Over the size" native-build.log 2>/dev/null | head -n 80
+            echo "---- tail ----"
+            tail -n 80 native-build.log 2>/dev/null
+          } > report.txt
+          git config user.name "ledger-ci"
+          git config user.email "ledger-ci@users.noreply.github.com"
+          git checkout --orphan ci-log-native
+          git rm -rq --cached .
+          git add report.txt
+          git commit -qm "Native build report ${{ github.run_id }}"
+          git push -fq origin ci-log-native

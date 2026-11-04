@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon version (Android 13+): the rupee mark centred in the 108dp icon canvas -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:drawable="@drawable/ic_stat" android:inset="34dp" />
