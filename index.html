@@ -75,6 +75,9 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
 .icon-btn svg{width:20px;height:20px}
 .hbtns{display:flex;gap:8px}
+.trend .tp{fill:var(--ink-2);opacity:.35}
+.trend .tb.on .tv{stroke:var(--ink);stroke-width:1.5}
+.trend .tb.on .xl{fill:var(--ink);font-weight:700}
 /* quick add popup */
 .qscrim{position:fixed;inset:0;z-index:70;background:var(--scrim)}
 .quick{position:fixed;z-index:75;left:50%;top:50%;transform:translate(-50%,-50%);width:min(400px, calc(100vw - 24px));max-height:calc(100vh - 24px);overflow-y:auto;
@@ -460,6 +463,7 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
         <div class="chips" id="with-chips"></div>
         <label class="check" style="margin-top:10px"><input type="checkbox" id="f-incme" checked> I had a share too</label>
         <div class="hint" id="with-hint"></div>
+        <div id="paid-back"></div>
       </div>
       <div class="chips" id="person-sugg" style="margin-top:8px"></div>
       <div id="person-hint"></div>
@@ -538,7 +542,7 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v13';
+const APP_VERSION = 'v14';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
@@ -601,6 +605,10 @@ const byRecent = (a,b) => (b.date.localeCompare(a.date)) || ((b.createdAt||0)-(a
 /* ---------- derived data ---------- */
 /* people on a shared expense: e.with (new) or the old single person on a spent entry */
 function withOf(e){ return (e.with && e.with.length) ? e.with : (e.type === 'spent' && e.person ? [e.person] : []); }
+/* money people paid you back for their share of a shared expense, by lowercase name */
+function repaidOf(e, name){ const pb = e.paidBack || {}; return name == null ? Object.values(pb).reduce((s, v) => s + (+v || 0), 0) : (+pb[lc(name)] || 0); }
+/* what an entry really cost you: a shared bill minus what people paid back */
+function cost(e){ return e.type === 'spent' ? Math.max(0, e.amount - repaidOf(e)) : e.amount; }
 function shareOf(e){ const w = withOf(e); return e.amount / Math.max(1, w.length + (e.incMe === false ? 0 : 1)); }
 function involves(e, name){ const n = name.toLowerCase(); return (e.type !== 'spent' && (e.person||'').toLowerCase() === n) || withOf(e).some(x => x.toLowerCase() === n); }
 function peopleIndex(){
@@ -618,7 +626,7 @@ function peopleIndex(){
       if (t.kind === 'debt'){ p.debt = true; p.bal += t.bal * (e.amount - (e.prior || 0)); }
     }
     const w = withOf(e);
-    if (w.length){ const sh = shareOf(e); for (const n of w){ const p = get(n, e.date); p.treat += sh; p.treats++; } }
+    if (w.length){ const sh = shareOf(e); for (const n of w){ const p = get(n, e.date), back = Math.min(sh, repaidOf(e, n)); p.treat += sh - back; p.treats++; p.repaid = (p.repaid || 0) + back; if (sh - back > 0.5) p.unsettled = (p.unsettled || 0) + 1; } }
   }
   for (const p of m.values()){ p.bal = Math.round(p.bal*100)/100; p.treat = Math.round(p.treat*100)/100; }
   return m;
@@ -714,7 +722,7 @@ function categoriesSection(){
 function monthSum(y, m, type, uptoDay){
   const pre = `${y}-${pad2(m+1)}`;
   let s = 0;
-  for (const e of S.entries) if (e.type === type && e.date.startsWith(pre) && (!uptoDay || Number(e.date.slice(8)) <= uptoDay)) s += e.amount;
+  for (const e of S.entries) if (e.type === type && e.date.startsWith(pre) && (!uptoDay || Number(e.date.slice(8)) <= uptoDay)) s += cost(e);
   return s;
 }
 function loggedDays(){ const s = new Set(); for (const e of S.everything) if (e.createdAt) s.add(keyOf(new Date(e.createdAt))); return s; }
@@ -932,7 +940,8 @@ function rowHtml(e, opts={}){
   if (w.length) meta.push('with ' + esc(w.slice(0,2).join(', ')) + (w.length > 2 ? ` +${w.length-2}` : ''));
   else if (e.person && !(isDebt && !e.desc)) meta.push(esc(e.person));
   if (e.prior > 0) meta.push(e.prior >= e.amount ? 'loan from before Ledger' : rupee(e.prior) + ' from before Ledger');
-  const theirs = (opts.who && w.some(x => x.toLowerCase() === opts.who)) ? rupee(shareOf(e)) + ' theirs' : '';
+  const theirs = (opts.who && w.some(x => x.toLowerCase() === opts.who)) ? (repaidOf(e, opts.who) >= shareOf(e) - 0.5 ? 'paid back' : rupee(shareOf(e)) + ' theirs') : '';
+  if (repaidOf(e) > 0 && !opts.who) meta.push(rupee(repaidOf(e)) + ' paid back');
   if (e.cat && !isDebt) meta.push(esc(e.cat));
   if (e.mode) meta.push(esc(e.mode));
   if (opts.showDate) meta.push(esc(fmtDate(e.date)));
@@ -951,7 +960,7 @@ function groupedList(list, opts={}){
   for (const e of list){ if (!groups.has(e.date)) groups.set(e.date, []); groups.get(e.date).push(e); }
   let h = '';
   for (const [k, items] of groups){
-    const spent = items.filter(e=>e.type==='spent').reduce((s,e)=>s+e.amount,0);
+    const spent = items.filter(e=>e.type==='spent').reduce((s,e)=>s+cost(e),0);
     h += `<div class="day"><div class="day-h"><span>${esc(dayLabel(k))}</span><span class="num">${spent?'Spent '+rupee(spent):''}</span></div>
       <div class="list">${items.map(e=>rowHtml(e,opts)).join('')}</div></div>`;
   }
@@ -1048,8 +1057,9 @@ function viewPerson(){
     const extra = Math.min(-p.bal, Math.max(0, sumT('gotback') - sumT('lent')));
     if (extra > 0) fix = `<div class="ask" style="margin-top:12px"><p>${rupee(extra)} of this comes from ${esc(p.name)} returning money with no matching loan in Ledger. If you lent it before you started using Ledger, it shouldn't count.</p><div><button class="btn primary" data-act="fixprior" data-t="gotback" data-n="${esc(p.name)}">It was from before. Fix it</button></div></div>`;
   }
-  const treat = p.treat ? `<div class="sub">Spent on ${esc(p.name)}: <b class="num">${rupee(p.treat)}</b> across ${p.treats} shared expense${p.treats===1?'':'s'}</div>` : '';
+  const treat = (p.treat || p.repaid) ? `<div class="sub">Spent on ${esc(p.name)}: <b class="num">${rupee(p.treat)}</b> across ${p.treats} shared expense${p.treats===1?'':'s'}${p.repaid ? ` · paid you back ${rupee(p.repaid)}` : ''}</div>` : '';
   const btns = [];
+  if (p.unsettled) btns.push(`<button class="btn primary" data-act="sharepaid" data-n="${esc(p.name)}">${esc(p.name)} paid their share</button>`);
   if (p.bal > 0) btns.push(`<button class="btn primary" data-act="add" data-type="gotback" data-person="${esc(p.name)}" data-amount="${p.bal}">Got it back</button>`);
   if (p.bal < 0) btns.push(`<button class="btn primary" data-act="add" data-type="paidback" data-person="${esc(p.name)}" data-amount="${-p.bal}">I paid back</button>`);
   btns.push(`<button class="btn" data-act="add" data-type="spent" data-person="${esc(p.name)}">Spent with</button>`);
@@ -1125,7 +1135,7 @@ function anyFilter(){ const f=S.f, d=freshFilters(); return Object.keys(d).some(
 function refreshResults(){
   const r = filtered();
   let out=0, inn=0;
-  for (const e of r){ if (TYPES[e.type].sign<0) out+=e.amount; else inn+=e.amount; }
+  for (const e of r){ if (TYPES[e.type].sign<0) out+=cost(e); else inn+=e.amount; }
   $('#resbar').innerHTML = `<div><b class="num">${r.length} entr${r.length===1?'y':'ies'}</b></div>
     <span class="num">Out ${rupee(out)} · In ${rupee(inn)}</span>${anyFilter()?'<button class="clr" data-act="fclear">Clear filters</button>':''}`;
   const byDate = S.f.sort.startsWith('date');
@@ -1134,15 +1144,15 @@ function refreshResults(){
 }
 function niceMax(v){ if (v <= 0) return 100; const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
 const spentOf = list => list.filter(e => e.type === 'spent');
-const sumOf = list => list.reduce((s, e) => s + e.amount, 0);
-function catSum(c, y, m){ const pre = `${y}-${pad2(m+1)}`; let s = 0; for (const e of S.entries) if (e.type === 'spent' && (e.cat || 'Other') === c && e.date.startsWith(pre)) s += e.amount; return s; }
+const sumOf = list => list.reduce((s, e) => s + cost(e), 0);
+function catSum(c, y, m){ const pre = `${y}-${pad2(m+1)}`; let s = 0; for (const e of S.entries) if (e.type === 'spent' && (e.cat || 'Other') === c && e.date.startsWith(pre)) s += cost(e); return s; }
 
 /* cumulative spending this month vs last month */
 function paceChart(y, m){
   const now = new Date(), isCur = y === now.getFullYear() && m === now.getMonth();
   const days = new Date(y, m+1, 0).getDate(), pdt = new Date(y, m, 0), py = pdt.getFullYear(), pm = pdt.getMonth(), pdays = pdt.getDate();
   const cumul = (yy, mm, n) => { const a = new Array(n + 1).fill(0), pre = `${yy}-${pad2(mm+1)}-`;
-    for (const e of S.entries) if (e.type === 'spent' && e.date.startsWith(pre)) a[+e.date.slice(8)] += e.amount;
+    for (const e of S.entries) if (e.type === 'spent' && e.date.startsWith(pre)) a[+e.date.slice(8)] += cost(e);
     for (let i = 1; i <= n; i++) a[i] += a[i-1]; return a; };
   const cur = cumul(y, m, days), prev = cumul(py, pm, pdays), upto = isCur ? now.getDate() : days;
   if (!cur[upto] && !prev[pdays]) return '';
@@ -1169,7 +1179,7 @@ function paceChart(y, m){
     <p class="cap" style="margin-top:2px;min-height:0">Touch or drag across the chart to compare any day.</p></div>`;
 }
 function onPace(ev){
-  const svg = ev.target.closest && ev.target.closest('svg.pace'); if (!svg) return;
+  const svg = ev.target.closest && ev.target.closest('svg.pace'); if (!svg || !svg.dataset.cur) return;
   const r = svg.getBoundingClientRect(), d = svg.dataset, W = +d.w, L = +d.l, R = +d.r, X = +d.x;
   const x = (ev.clientX - r.left) / r.width * W;
   const day = Math.max(1, Math.min(X, Math.round(1 + (x - L) / (W - L - R) * (X - 1))));
@@ -1186,7 +1196,7 @@ document.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' ||
 function heatmap(y, m){
   const days = new Date(y, m+1, 0).getDate(), pre = `${y}-${pad2(m+1)}-`, t = todayKey();
   const per = new Array(days + 1).fill(0);
-  for (const e of S.entries) if (e.type === 'spent' && e.date.startsWith(pre)) per[+e.date.slice(8)] += e.amount;
+  for (const e of S.entries) if (e.type === 'spent' && e.date.startsWith(pre)) per[+e.date.slice(8)] += cost(e);
   const mx = Math.max(...per);
   const lvl = v => !v || !mx ? 0 : Math.max(1, Math.ceil(Math.sqrt(v / mx) * 4));
   const lead = (new Date(y, m, 1).getDay() + 6) % 7;
@@ -1207,7 +1217,7 @@ function heatmap(y, m){
 
 /* categories, each one expandable into its own trend and top items */
 function catBreakdown(list, total, scope){
-  const byCat = {}; for (const e of list){ const c = e.cat || 'Other'; byCat[c] = (byCat[c] || 0) + e.amount; }
+  const byCat = {}; for (const e of list){ const c = e.cat || 'Other'; byCat[c] = (byCat[c] || 0) + cost(e); }
   const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
   if (!cats.length) return `<div class="card"><h3>Where it went</h3><p class="muted" style="margin:0">Nothing spent in this period yet.</p></div>`;
   return `<div class="card"><h3>Where it went</h3><div class="bars">${cats.map(([c, v]) => {
@@ -1223,7 +1233,7 @@ function catDetail(c, items, scope){
   if (scope.kind === 'month') for (let i = 5; i >= 0; i--){ const d = new Date(scope.y, scope.m - i, 1); pts.push({lab: MON[d.getMonth()], v: catSum(c, d.getFullYear(), d.getMonth()), cur: i === 0}); }
   else for (let i = 0; i < 12; i++) pts.push({lab: MON[i].charAt(0), v: catSum(c, scope.y, i), cur: false});
   const mx = Math.max(1, ...pts.map(p => p.v));
-  const groups = {}; for (const e of items){ const k = e.desc || 'No description'; const g = groups[k] || (groups[k] = {n: 0, v: 0}); g.n++; g.v += e.amount; }
+  const groups = {}; for (const e of items){ const k = e.desc || 'No description'; const g = groups[k] || (groups[k] = {n: 0, v: 0}); g.n++; g.v += cost(e); }
   const top = Object.entries(groups).sort((a, b) => b[1].v - a[1].v).slice(0, 4), tot = sumOf(items);
   return `<div class="cat-detail">
     <div class="mini-cols" style="grid-template-columns:repeat(${pts.length},1fr)">${pts.map(p => `<div class="mc${p.cur ? ' cur' : ''}" title="${p.lab}: ${rupee(p.v)}"><span class="b" style="height:${Math.max(2, p.v / mx * 56).toFixed(0)}px;--c:${catColor(c)}"></span><span class="x">${p.lab}</span></div>`).join('')}</div>
@@ -1232,7 +1242,7 @@ function catDetail(c, items, scope){
     <button class="link" data-act="fcat" data-cat="${esc(c)}" style="margin-top:8px">See all ${esc(c)} entries</button></div>`;
 }
 function regulars(list){
-  const g = {}; for (const e of list){ if (!e.desc) continue; const k = e.desc.trim().toLowerCase(); const r = g[k] || (g[k] = {name: e.desc.trim(), n: 0, v: 0}); r.n++; r.v += e.amount; }
+  const g = {}; for (const e of list){ if (!e.desc) continue; const k = e.desc.trim().toLowerCase(); const r = g[k] || (g[k] = {name: e.desc.trim(), n: 0, v: 0}); r.n++; r.v += cost(e); }
   const top = Object.values(g).filter(r => r.n >= 2).sort((a, b) => (b.n - a.n) || (b.v - a.v)).slice(0, 5);
   if (!top.length) return '';
   return `<div class="card"><h3>Your regulars</h3>${top.map(r => `<div class="kv"><span>${esc(r.name)} <span class="muted">· ${r.n} times · avg ${rupee(Math.round(r.v / r.n))}</span></span><b>${rupee(r.v)}</b></div>`).join('')}</div>`;
@@ -1240,7 +1250,7 @@ function regulars(list){
 function weekdays(endKey){
   const sums = new Array(7).fill(0), cnt = new Array(7).fill(0), start = addDays(endKey, -83);
   for (let i = 0; i < 84; i++) cnt[(parseKey(addDays(endKey, -i)).getDay() + 6) % 7]++;
-  for (const e of S.entries) if (e.type === 'spent' && e.date >= start && e.date <= endKey) sums[(parseKey(e.date).getDay() + 6) % 7] += e.amount;
+  for (const e of S.entries) if (e.type === 'spent' && e.date >= start && e.date <= endKey) sums[(parseKey(e.date).getDay() + 6) % 7] += cost(e);
   const avg = sums.map((v, i) => v / cnt[i]), mx = Math.max(...avg);
   if (!mx) return '';
   const top = avg.indexOf(mx), names = ['Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays','Sundays'];
@@ -1250,7 +1260,7 @@ function weekdays(endKey){
 function othersCard(spentL){
   const others = new Map(); let total = 0;
   for (const e of spentL){ const w = withOf(e); if (!w.length) continue; const sh = shareOf(e);
-    for (const n of w){ const k = n.toLowerCase(); const o = others.get(k) || {name: n, v: 0}; o.v += sh; others.set(k, o); total += sh; } }
+    for (const n of w){ const k = n.toLowerCase(), v = Math.max(0, sh - repaidOf(e, n)); if (!v) continue; const o = others.get(k) || {name: n, v: 0}; o.v += v; others.set(k, o); total += v; } }
   const top = [...others.values()].sort((a, b) => b.v - a.v).slice(0, 5);
   return top.length ? `<div class="card"><h3>Spent on others · ${rupee(total)}</h3>${top.map(o => `<button class="kv" data-act="person" data-name="${esc(o.name)}" style="width:100%"><span>${esc(o.name)}</span><b>${rupee(o.v)}</b></button>`).join('')}</div>` : '';
 }
@@ -1259,11 +1269,65 @@ function biggest(spentL){
   return top.length ? `<div class="card"><h3>Biggest spends</h3><div class="list">${top.map(e => rowHtml(e, {showDate: true})).join('')}</div></div>` : '';
 }
 function paidWith(spentL, total){
-  const by = {}; for (const e of spentL){ const k = e.mode || 'Other'; by[k] = (by[k] || 0) + e.amount; }
+  const by = {}; for (const e of spentL){ const k = e.mode || 'Other'; by[k] = (by[k] || 0) + cost(e); }
   const rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
   return rows.length ? `<div class="card"><h3>Paid with</h3>${rows.map(([k, v]) => `<div class="kv"><span>${esc(k)} <span class="muted">· ${Math.round(v / total * 100)}%</span></span><b>${rupee(v)}</b></div>`).join('')}</div>` : '';
 }
 const fitR = v => { const f = (v < 0 ? '−' : '') + rupee(v); return f.length > 7 ? (v < 0 ? '−' : '') + short(v) : f; };
+/* pick any category (or all spending) and compare months, or years */
+function trendCard(endY, endM){
+  const spentAll = S.entries.filter(e => e.type === 'spent');
+  const tot = {}; for (const e of spentAll){ const c = e.cat || 'Other'; tot[c] = (tot[c] || 0) + cost(e); }
+  const cats = Object.keys(tot).sort((a, b) => tot[b] - tot[a]);
+  if (!cats.length) return '';
+  const sel = S.tcat && cats.includes(S.tcat) ? S.tcat : '';
+  const mode = S.tmode === 'years' ? 'years' : 'months';
+  const match = e => !sel || (e.cat || 'Other') === sel;
+  const sumWhere = f => spentAll.filter(e => match(e) && f(e)).reduce((s, e) => s + cost(e), 0);
+  const color = sel ? catColor(sel) : 'var(--c-cur)';
+  let groups, title, legend;
+  if (mode === 'months'){
+    groups = [];
+    for (let i = 11; i >= 0; i--){
+      const d = new Date(endY, endM - i, 1), y = d.getFullYear(), m = d.getMonth(), pre = `${y}-${pad2(m+1)}`, prePrev = `${y-1}-${pad2(m+1)}`;
+      groups.push({lab: MON[m], full: `${MONTH_FULL[m]} ${y}`, v: sumWhere(e => e.date.startsWith(pre)), p: sumWhere(e => e.date.startsWith(prePrev)), pl: `${MON[m]} ${y-1}`});
+    }
+    legend = `<span><i class="lg" style="border-top-color:${color};border-top-width:6px"></i>Last 12 months</span><span><i class="lg prev" style="border-top-style:solid;border-top-width:6px;opacity:.5"></i>Same month a year before</span>`;
+  } else {
+    const years = [...new Set(spentAll.map(e => +e.date.slice(0, 4)))].sort().slice(-6);
+    const nowY = new Date().getFullYear(), md = todayKey().slice(5);
+    groups = years.map(y => ({lab: String(y), full: y === nowY ? `${y} so far` : String(y), v: sumWhere(e => e.date.startsWith(y + '-')),
+      p: y === nowY ? sumWhere(e => e.date.startsWith((y - 1) + '-') && e.date.slice(5) <= md) : null, pl: `${y - 1} by the same date`}));
+    legend = `<span><i class="lg" style="border-top-color:${color};border-top-width:6px"></i>Year total</span>${groups.some(g => g.p != null) ? '<span><i class="lg prev" style="border-top-style:solid;border-top-width:6px;opacity:.5"></i>Last year to the same date</span>' : ''}`;
+  }
+  const W = 340, H = 180, L = 40, R = 6, T = 14, B = 24, n = groups.length, gw = (W - L - R) / n;
+  const ymax = niceMax(Math.max(1, ...groups.map(g => Math.max(g.v, g.p || 0))));
+  const sy = v => T + (1 - v / ymax) * (H - T - B), base = H - B;
+  const grid = [0, ymax / 2, ymax].map(t => `<line x1="${L}" x2="${W - R}" y1="${sy(t).toFixed(1)}" y2="${sy(t).toFixed(1)}" class="gl"/><text x="${L - 6}" y="${(sy(t) + 3.5).toFixed(1)}" class="yl">${t ? short(t) : '₹0'}</text>`).join('');
+  const selI = S.tsel != null && S.tsel < n ? S.tsel : n - 1;
+  const bars = groups.map((g, i) => {
+    const x = L + i * gw, bw = Math.min(26, gw * (g.p != null ? 0.46 : 0.6)), pw = Math.min(10, gw * 0.2);
+    const cx = x + gw / 2, bx = g.p != null ? cx - (bw + pw + 2) / 2 : cx - bw / 2;
+    const h = Math.max(g.v ? 2 : 0, base - sy(g.v)), ph = g.p != null ? Math.max(g.p ? 2 : 0, base - sy(g.p)) : 0;
+    return `<g class="tb${i === selI ? ' on' : ''}">
+      ${g.p != null ? `<rect x="${(bx + bw + 2).toFixed(1)}" y="${(base - ph).toFixed(1)}" width="${pw.toFixed(1)}" height="${ph.toFixed(1)}" rx="2" class="tp"/>` : ''}
+      <rect x="${bx.toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" style="fill:${color}" class="tv"/>
+      <text x="${cx.toFixed(1)}" y="${H - 7}" class="xl">${g.lab}</text>
+      <rect x="${x.toFixed(1)}" y="${T}" width="${gw.toFixed(1)}" height="${H - T}" fill="transparent" data-act="tbar" data-i="${i}" style="cursor:pointer"><title>${g.full}: ${rupee(g.v)}</title></rect></g>`;
+  }).join('');
+  const g = groups[selI], prevG = groups[selI - 1];
+  const pct = (a, b) => b > 0 ? ` (${a - b <= 0 ? '−' : '+'}${Math.round(Math.abs(a - b) / b * 100)}%)` : '';
+  let cap = `<b>${g.full}: ${rupee(g.v)}</b>`;
+  if (prevG) cap += ` · ${prevG.full}: ${rupee(prevG.v)}${pct(g.v, prevG.v)}`;
+  if (g.p != null) cap += ` · ${g.pl}: ${rupee(g.p)}${pct(g.v, g.p)}`;
+  const chips = ['', ...cats].map(c => `<button class="chip${c === sel ? ' on' : ''}" data-act="tcat" data-c="${esc(c)}">${c ? `<span class="sw" style="--c:${catColor(c)}"></span>${esc(c)}` : 'All spending'}</button>`).join('');
+  return `<div class="card"><h3>Category trends</h3>
+    <div class="chips scroll" style="margin-bottom:10px">${chips}</div>
+    <div class="seg" style="margin:0 0 10px"><button class="${mode === 'months' ? 'on' : ''}" data-act="tmode" data-m="months">Months</button><button class="${mode === 'years' ? 'on' : ''}" data-act="tmode" data-m="years">Years</button></div>
+    <div class="legend">${legend}</div>
+    <svg class="pace trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(sel || 'All spending')} by ${mode === 'months' ? 'month' : 'year'}">${grid}${bars}</svg>
+    <p class="cap">${cap}</p><p class="cap" style="margin-top:2px;min-height:0">Tap a bar to compare it.</p></div>`;
+}
 function heroCard(label, spent, cmp, minis){
   return `<section class="hero" style="margin-top:12px"><div class="lbl">${label}</div><div class="big num">${rupee(spent)}</div><div class="cmp">${cmp}</div>
     <div class="minis">${minis.map(([k, v]) => `<div class="mini"><span>${k}</span><b class="num">${v}</b></div>`).join('')}</div></section>`;
@@ -1290,6 +1354,7 @@ function viewInsights(){
       <div class="card"><h3>Month by month</h3><div class="cols y12" style="grid-template-columns:repeat(12,1fr)">${ms.map((v, i) => `<button class="col${i === topM && v ? ' cur' : ''}" data-act="imonth" data-y="${y}" data-m="${i}" aria-label="${MONTH_FULL[i]}: ${rupee(v)}"><span class="v">${i === topM && v ? short(v) : ''}</span><span class="b" style="height:${(v / mx * 120).toFixed(0)}px"></span><span class="x">${MON[i]}</span></button>`).join('')}</div>
         <p class="cap">${ms[topM] ? `Highest: <b>${MONTH_FULL[topM]}</b> (${rupee(ms[topM])}). ` : ''}Tap a month to open it.</p></div>
       ${catBreakdown(spentL, spent, {kind: 'year', y})}
+      ${trendCard(y, isCur ? now.getMonth() : 11)}
       ${weekdays(isCur ? todayKey() : `${y}-12-31`)}${regulars(spentL)}${othersCard(spentL)}${biggest(spentL)}${paidWith(spentL, spent)}`;
   }
 
@@ -1307,6 +1372,7 @@ function viewInsights(){
     ${paceChart(y, m)}
     ${spentL.length ? heatmap(y, m) : ''}
     ${catBreakdown(spentL, spent, {kind: 'month', y, m})}
+    ${trendCard(y, m)}
     <div class="card"><h3>Last 6 months</h3><div class="cols">${six.map(x => `<button class="col${x.y === y && x.m === m ? ' cur' : ''}" data-act="imonth" data-y="${x.y}" data-m="${x.m}" aria-label="${MONTH_FULL[x.m]} ${x.y}: ${rupee(x.v)}"><span class="v">${x.v ? short(x.v) : ''}</span><span class="b" style="height:${(x.v / mx * 120).toFixed(0)}px"></span><span class="x">${MON[x.m]}</span></button>`).join('')}</div></div>
     ${weekdays(isCur ? todayKey() : keyOf(new Date(y, m+1, 0)))}
     ${regulars(spentL)}${othersCard(spentL)}${biggest(spentL)}${paidWith(spentL, spent)}`;
@@ -1390,9 +1456,9 @@ function openEntry(pref = {}, editId = null){
   const e = editId ? S.entries.find(x=>x.id===editId) : null;
   const multi0 = (pref.type || 'spent') === 'spent';
   D = e ? {...e, amountStr: trimAmt(e.amount), editId, catTouched:true, typeTouched:true, prior: e.prior || 0, priorAsked: !!e.prior, priorShown: !!e.prior,
-           with: withOf(e).slice(), incMe: e.incMe !== false, person: e.type === 'spent' ? '' : (e.person || '')}
+           with: withOf(e).slice(), incMe: e.incMe !== false, paidBack: {...(e.paidBack || {})}, person: e.type === 'spent' ? '' : (e.person || '')}
         : {type: pref.type || 'spent', amountStr: pref.amount ? trimAmt(+pref.amount) : '', desc:'',
-           person: multi0 ? '' : (pref.person || ''), with: (multi0 && pref.person) ? [pref.person] : [], incMe:true, cat:'',
+           person: multi0 ? '' : (pref.person || ''), with: (multi0 && pref.person) ? [pref.person] : [], incMe:true, paidBack:{}, cat:'',
            mode: lsGet(LS_MODE) || 'UPI', date: todayKey(), note:'', catTouched:false, typeTouched:!!pref.type, prior: 0, priorAsked: false, priorShown: false};
   $('#f-desc').value = D.desc || ''; $('#f-person').value = D.person || ''; $('#f-note').value = D.note || ''; $('#f-date').value = D.date;
   $('#desc-sugg').innerHTML = ''; $('#sh-title').textContent = e ? 'Edit entry' : 'New entry';
@@ -1489,6 +1555,15 @@ function renderWith(){
   $('#with-hint').innerHTML = !(amt > 0) ? 'Enter the full bill. Each share is worked out for you.'
     : D.incMe ? `${ways} people including you, <b>${rupee(each)}</b> each. <b>${rupee(each*n)}</b> of this was on ${n===1 ? esc(D.with[0]) : 'them'}.`
     : (n === 1 ? `All <b>${rupee(amt)}</b> was on ${esc(D.with[0])}.` : `<b>${rupee(each)}</b> on each of them.`);
+  // who has paid their share back (only once the bill is saved, so it's a later step, not part of logging)
+  const pbBox = $('#paid-back');
+  if (!D.editId || !(amt > 0)){ pbBox.innerHTML = ''; return; }
+  pbBox.innerHTML = `<div class="quick-h" style="margin-top:12px">Paid you back</div><div class="clist">${D.with.map(name => {
+    const got = +(D.paidBack || {})[lc(name)] || 0;
+    return `<div class="crow"><span class="cn">${esc(name)} <span class="muted" style="font-weight:500">· share ${rupee(each)}</span></span>
+      ${got ? `<span class="pill owe-you">paid ${rupee(got)}</span><button class="link" data-act="pbclear" data-p="${esc(name)}">Undo</button>`
+            : `<button class="btn" data-act="pbmark" data-p="${esc(name)}" data-v="${Math.round(each * 100) / 100}">Paid back</button>`}</div>`;
+  }).join('')}</div>`;
 }
 function addWithName(n){ n = canonPerson(n); if (n && !D.with.some(x => x.toLowerCase() === n.toLowerCase())) D.with.push(n); }
 function addWith(n){ addWithName(n); const i = $('#f-person'); i.value = ''; D.person = ''; i.placeholder = 'Add another name'; renderWith(); renderPersonSugg(); }
@@ -1553,7 +1628,11 @@ async function saveEntry(){
     note: $('#f-note').value.trim(), createdAt: prev?.createdAt || Date.now(), updatedAt: Date.now(),
   };
   if (prev?.sample) e.sample = true;
-  if (multi && D.with.length){ e.with = [...D.with]; e.incMe = !!D.incMe; }
+  if (multi && D.with.length){
+    e.with = [...D.with]; e.incMe = !!D.incMe;
+    const pb = {}; for (const n of D.with){ const v = +(D.paidBack || {})[lc(n)] || 0; if (v > 0) pb[lc(n)] = v; }
+    if (Object.keys(pb).length) e.paidBack = pb;
+  }
   if (D.prior > 0) e.prior = Math.min(D.prior, amount);
   saving = true;
   try { await store.put(e); }
@@ -1616,7 +1695,7 @@ let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden'){ hiddenAt = Date.now(); return; }
   // opened again from a phone shortcut after a while: go straight to quick add
-  if (lsGet(QUICK_START) === '1' && hiddenAt && Date.now() - hiddenAt > 20000 && !openEl && !quickOpen() && $('#pin').hidden) openQuick();
+  if (!apkVersion() && lsGet(QUICK_START) === '1' && hiddenAt && Date.now() - hiddenAt > 20000 && !openEl && !quickOpen() && $('#pin').hidden) openQuick();
 });
 
 /* ---------- the Android app (a shell around this page) ---------- */
@@ -1730,10 +1809,10 @@ function renderPanel(){
     ${sync}
     ${appSection()}
     ${quickSection()}
-    <div class="card" style="margin:0"><h3>Quick add</h3>
+    ${apkVersion() ? '' : `<div class="card" style="margin:0"><h3>Quick add</h3>
       <label class="switch"><span>Open Ledger straight into Quick add</span><input type="checkbox" data-act="qkstart" ${lsGet(QUICK_START) === '1' ? 'checked' : ''}></label>
       <p class="muted" style="margin:8px 0 0;font-size:13px">Then set a button on your phone to open Ledger, and logging is: press the button, type the amount, tap a category. On Samsung: Settings → Advanced features → Side button → Double press → Open app → Ledger.</p>
-      <p class="muted" style="margin:6px 0 0;font-size:13px">You can also long-press the Ledger icon → Quick add.</p></div>
+      <p class="muted" style="margin:6px 0 0;font-size:13px">You can also long-press the Ledger icon → Quick add.</p></div>`}
     ${privateSection()}
     ${categoriesSection()}
     ${install}
@@ -1860,6 +1939,12 @@ document.addEventListener('click', ev => {
       openNative(`uid=${encodeURIComponent(u.uid)}&rt=${encodeURIComponent(u.refreshToken)}&email=${encodeURIComponent(u.email || '')}`, 'link');
       break;
     }
+    case 'pbmark': D.paidBack = {...(D.paidBack || {}), [lc(el.dataset.p)]: +el.dataset.v}; renderWith(); break;
+    case 'pbclear': { const pb = {...(D.paidBack || {})}; delete pb[lc(el.dataset.p)]; D.paidBack = pb; renderWith(); break; }
+    case 'sharepaid': markSharesPaid(el.dataset.n); break;
+    case 'tcat': S.tcat = el.dataset.c; S.tsel = null; render(); break;
+    case 'tmode': S.tmode = el.dataset.m; S.tsel = null; render(); break;
+    case 'tbar': S.tsel = +el.dataset.i; render(); break;
     case 'padtoggle': setPad($('#sheet').classList.contains('padoff')); break;
     case 'save': saveEntry(); break;
     case 'delete': deleteEntry(); break;
@@ -2367,6 +2452,7 @@ function micUI(){
 }
 function stopVoice(){ if (rec && listening){ try { rec.abort(); } catch {} } listening = false; if ($('#mic-btn')) micUI(); }
 function startVoice(){
+  if (apkVersion() >= 3){ openNative('from=app', 'voice'); return; }
   if (!SpeechRec){ $('#f-say').focus(); toast("Voice isn't available in this browser. Type it in the box instead."); return; }
   if (listening){ try { rec.stop(); } catch {} return; }
   rec = new SpeechRec(); rec.lang = 'en-IN'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
@@ -2424,6 +2510,22 @@ function oldLoanCard(){
   return `<div class="ask" style="margin-top:14px"><p><b>Check ${list.length === 1 ? 'this balance' : 'these balances'}.</b> A repayment here has no matching loan in Ledger. If the loan was from before you started using Ledger, tap Fix so it doesn't count.</p>
     ${list.map(i => `<div class="sugg-row"><span>${esc(i.name)} · ${i.type === 'paidback' ? `you paid back ${rupee(i.extra)}` : `returned ${rupee(i.extra)} to you`}</span><button class="btn primary" data-act="fixprior" data-t="${i.type}" data-n="${esc(i.name)}">Fix</button></div>`).join('')}</div>`;
 }
+/* person page: "Rahul paid their share" settles every open share of theirs in one tap */
+async function markSharesPaid(name){
+  const n = lc(name), now = Date.now(), before = [], recs = [];
+  let total = 0;
+  for (const e of S.everything){
+    if (e.type !== 'spent' || !withOf(e).some(x => lc(x) === n)) continue;
+    const sh = Math.round(shareOf(e) * 100) / 100, got = repaidOf(e, n);
+    if (sh - got <= 0.5) continue;
+    before.push(cleanRec(e));
+    recs.push({...cleanRec(e), with: withOf(e).slice(), paidBack: {...(e.paidBack || {}), [n]: sh}, updatedAt: now, _dirty: 1});
+    total += sh - got;
+  }
+  if (!recs.length) return;
+  await commit(recs);
+  toast(`${name} paid back ${rupee(total)}`, 'Undo', () => store.putMany(before.map(r => ({...r, updatedAt: Date.now()}))));
+}
 async function fixOldLoan(name, type){
   const n = lc(name), p = peopleIndex().get(n); if (!p) return;
   const sumT = t => S.everything.filter(e => e.type === t && lc(e.person) === n).reduce((s, e) => s + e.amount - (e.prior || 0), 0);
@@ -2462,8 +2564,9 @@ async function boot(){
     } catch {}
   }
   if (qp.has('quick')) openQuick();
+  else if (qp.has('say')){ openEntry({}); runLine(qp.get('say')); }
   else if (qp.has('add') || qp.has('voice')){ openEntry({}); if (qp.has('voice')) startVoice(); }
-  else if (lsGet(QUICK_START) === '1' && !qp.has('app')) openQuick();
+  else if (!apkVersion() && lsGet(QUICK_START) === '1' && !qp.has('app')) openQuick();
   checkAppUpdate();
 }
 boot();

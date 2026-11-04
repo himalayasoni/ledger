@@ -12,7 +12,7 @@ public class QuickWidget extends AppWidgetProvider {
         for (int id : ids) {
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_quick);
             v.setOnClickPendingIntent(R.id.w_open, Links.pending(c, 22, "app=1"));
-            v.setOnClickPendingIntent(R.id.w_say, Links.pending(c, 21, "voice=1"));
+            v.setOnClickPendingIntent(R.id.w_say, Links.voicePending(c, 21));
             v.setOnClickPendingIntent(R.id.w_quick, Links.quickPending(c, 20));
             mgr.updateAppWidget(id, v);
         }

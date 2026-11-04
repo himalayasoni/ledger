@@ -24,7 +24,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                     .setContentText("Add it in two taps: amount, then category.")
                     .setContentIntent(Links.quickPending(c, 10))
                     .addAction(0, "Quick add", Links.quickPending(c, 12))
-                    .addAction(0, "Say it", Links.pending(c, 11, "voice=1"))
+                    .addAction(0, "Say it", Links.voicePending(c, 11))
                     .setAutoCancel(true)
                     .setPriority(NotificationCompat.PRIORITY_DEFAULT);
             try { NotificationManagerCompat.from(c).notify(1, b.build()); } catch (SecurityException ignored) {}

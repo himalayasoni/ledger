@@ -27,6 +27,13 @@ final class Links {
         return PendingIntent.getActivity(c, requestCode, quick(c), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
+    /** Android's voice typing, then the words go to Ledger's entry form. */
+    static PendingIntent voicePending(Context c, int requestCode) {
+        Intent i = new Intent(c, VoiceActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        return PendingIntent.getActivity(c, requestCode, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
     static PendingIntent pending(Context c, int requestCode, String query) {
         return PendingIntent.getActivity(c, requestCode, open(c, query),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

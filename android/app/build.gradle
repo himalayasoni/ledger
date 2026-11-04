@@ -3,7 +3,7 @@ plugins {
 }
 
 // Bump this for every native release. The website reads it to offer updates.
-def vc = 2
+def vc = 3
 def siteUrl = 'https://himalayasoni.github.io/ledger/'
 
 android {

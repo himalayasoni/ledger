@@ -10,6 +10,9 @@
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
     </queries>
 
     <application
@@ -81,6 +84,21 @@
             android:launchMode="singleTask"
             android:windowSoftInputMode="stateAlwaysHidden"
             android:theme="@style/Translucent" />
+
+        <!-- "Say it" through Android's voice typing; also opened from Ledger as ledger://voice -->
+        <activity
+            android:name=".VoiceActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=".voice"
+            android:theme="@style/Translucent">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ledger" android:host="voice" />
+            </intent-filter>
+        </activity>
 
         <!-- Ledger → Settings → Connect hands the pop-up a sign-in token here -->
         <activity
