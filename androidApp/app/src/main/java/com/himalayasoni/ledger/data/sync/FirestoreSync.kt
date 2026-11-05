@@ -88,7 +88,7 @@ class FirestoreSync(
         scope.launch { upload(collection(uid)) }
     }
 
-    private suspend fun runFor(uid: String) = coroutineScope {
+    private suspend fun runFor(uid: String): Unit = coroutineScope {
         if (prefs.uid() != uid) {
             prefs.switchAccount(uid)
             dao.markAllDirty() // anything already on the phone joins this account
