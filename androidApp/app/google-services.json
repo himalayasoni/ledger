@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "528328487417",
+    "project_id": "ledger-b8b51",
+    "storage_bucket": "ledger-b8b51.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:528328487417:android:69bbe8a9cbcbe89eee4d28",
+        "android_client_info": {
+          "package_name": "com.himalayasoni.ledger"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "528328487417-j7tah6o74ko7kni7vq7sprbn8vidcun3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC14xvMDO2x5tz1HiikeexyCy8dqFRR_o4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "528328487417-j7tah6o74ko7kni7vq7sprbn8vidcun3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:528328487417:android:090f242a8ba98a73ee4d28",
+        "android_client_info": {
+          "package_name": "com.himalayasoni.ledger.beta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "528328487417-j7tah6o74ko7kni7vq7sprbn8vidcun3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC14xvMDO2x5tz1HiikeexyCy8dqFRR_o4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "528328487417-j7tah6o74ko7kni7vq7sprbn8vidcun3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
