@@ -62,5 +62,4 @@ GitHub builds it on every change: **Releases → "Ledger β (native preview)" �
 
 ## What's next (Phase 2)
 
-Google sign-in and Firestore sync: your existing entries appear in Ledger β, and changes
-flow both ways between the app, the web app and the laptop.
+Google sign-in and Firestore sync. See [the Phase 2 walkthrough](phase-2-walkthrough.md).

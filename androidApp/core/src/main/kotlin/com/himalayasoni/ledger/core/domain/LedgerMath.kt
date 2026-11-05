@@ -74,3 +74,10 @@ fun List<Entry>.balances(): Map<String, PersonBalance> {
         PersonBalance(a.name, Math.round(a.balance * 100) / 100.0, Math.round(a.spent * 100) / 100.0, a.count, a.loans)
     }
 }
+
+/** Hides entries in private categories (loans have no category, so they always show). */
+fun List<Entry>.withoutPrivate(privateCategories: Set<String>): List<Entry> {
+    if (privateCategories.isEmpty()) return this
+    val hidden = privateCategories.map { it.lowercase() }.toSet()
+    return filterNot { !it.type.isDebt && it.category.lowercase() in hidden }
+}

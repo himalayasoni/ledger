@@ -1,8 +1,40 @@
+import groovy.json.JsonSlurper
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+val appPackage = "com.himalayasoni.ledger.beta"
+
+/**
+ * Firebase settings come from google-services.json (downloaded from the Firebase console).
+ * We read the few values we need here instead of using the google-services plugin, so the
+ * build still works without the file (sync is then simply switched off).
+ */
+@Suppress("UNCHECKED_CAST")
+val firebase: Map<String, String> = run {
+    val f = file("google-services.json")
+    if (!f.exists()) return@run emptyMap()
+    val json = JsonSlurper().parse(f) as Map<String, Any?>
+    val project = json["project_info"] as Map<String, Any?>
+    val clients = json["client"] as List<Map<String, Any?>>
+    fun info(c: Map<String, Any?>) = c["client_info"] as Map<String, Any?>
+    val client = clients.firstOrNull { (info(it)["android_client_info"] as Map<String, Any?>)["package_name"] == appPackage }
+        ?: return@run emptyMap()
+    val oauth = clients.flatMap { c ->
+        (c["oauth_client"] as? List<Map<String, Any?>>).orEmpty() +
+            ((((c["services"] as? Map<String, Any?>)?.get("appinvite_service") as? Map<String, Any?>)
+                ?.get("other_platform_oauth_client")) as? List<Map<String, Any?>>).orEmpty()
+    }
+    mapOf(
+        "projectId" to (project["project_id"] as String),
+        "apiKey" to (((client["api_key"] as List<Map<String, Any?>>).first())["current_key"] as String),
+        "appId" to (info(client)["mobilesdk_app_id"] as String),
+        "webClientId" to ((oauth.firstOrNull { (it["client_type"] as Number).toInt() == 3 }?.get("client_id") as String?) ?: ""),
+    )
 }
 
 android {
@@ -11,11 +43,15 @@ android {
 
     defaultConfig {
         // ".beta" lets the new app install next to the current one until it can replace it
-        applicationId = "com.himalayasoni.ledger.beta"
+        applicationId = appPackage
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebase["projectId"] ?: ""}\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${firebase["apiKey"] ?: ""}\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"${firebase["appId"] ?: ""}\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${firebase["webClientId"] ?: ""}\"")
     }
 
     signingConfigs {
@@ -43,7 +79,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 }
 
 ksp {
@@ -66,6 +102,15 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
+    implementation(libs.datastore.preferences)
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

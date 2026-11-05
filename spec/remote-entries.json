@@ -1,0 +1,53 @@
+{
+  "about": "Contract between the web app and the Android app: real Firestore documents (users/{uid}/entries/{id}) as the web app writes them, and what each must mean. Both apps' tests read this file.",
+  "cases": [
+    {
+      "name": "simple expense",
+      "id": "m3k9a1b2c3",
+      "remote": {"id": "m3k9a1b2c3", "type": "spent", "amount": 20, "desc": "Chai", "person": "", "cat": "Food", "mode": "UPI", "date": "2026-11-04", "note": "", "createdAt": 1793785200000, "updatedAt": 1793785200000},
+      "expect": {"kind": "entry", "type": "spent", "amount": 20, "date": "2026-11-04", "description": "Chai", "category": "Food", "mode": "UPI", "cost": 20}
+    },
+    {
+      "name": "shared dinner, one person paid back their share",
+      "id": "m3k9d4e5f6",
+      "remote": {"id": "m3k9d4e5f6", "type": "spent", "amount": 1200.0, "desc": "Dinner", "person": "", "cat": "Food", "mode": "Card", "date": "2026-11-03", "note": "Birthday", "with": ["Rahul", "Amit"], "incMe": true, "paidBack": {"rahul": 400}, "createdAt": 1793698800000, "updatedAt": 1793790000000},
+      "expect": {"kind": "entry", "type": "spent", "amount": 1200, "people": ["Rahul", "Amit"], "includesMe": true, "share": 400, "cost": 800, "note": "Birthday"}
+    },
+    {
+      "name": "older shared expense stored the person instead of a list",
+      "id": "m1aaaa0001",
+      "remote": {"id": "m1aaaa0001", "type": "spent", "amount": 600, "desc": "Movie", "person": "Priya", "cat": "Fun", "mode": "UPI", "date": "2026-10-20", "note": "", "createdAt": 1792400000000, "updatedAt": 1792400000000},
+      "expect": {"kind": "entry", "type": "spent", "people": ["Priya"], "share": 300}
+    },
+    {
+      "name": "repayment of a loan from before Ledger",
+      "id": "m3k9g7h8i9",
+      "remote": {"id": "m3k9g7h8i9", "type": "paidback", "amount": 700, "desc": "", "person": "Kanika", "cat": "", "mode": "UPI", "date": "2026-10-30", "note": "", "prior": 700, "createdAt": 1793300000000, "updatedAt": 1793300000000},
+      "expect": {"kind": "entry", "type": "paidback", "person": "Kanika", "prior": 700}
+    },
+    {
+      "name": "deleted entry (tombstone)",
+      "id": "m3k9zzzz01",
+      "remote": {"id": "m3k9zzzz01", "deleted": true, "updatedAt": 1793800000000},
+      "expect": {"kind": "tombstone", "updatedAt": 1793800000000}
+    },
+    {
+      "name": "private categories setting",
+      "id": "cfg-private",
+      "remote": {"id": "cfg-private", "privateCats": ["Sutta", "Beer"], "pinHash": "ab12", "salt": "cd34", "pinLen": 4, "updatedAt": 1793700000000},
+      "expect": {"kind": "privacy", "privateCategories": ["Sutta", "Beer"]}
+    },
+    {
+      "name": "other settings documents are not entries",
+      "id": "cfg-quick",
+      "remote": {"id": "cfg-quick", "cats": ["Food", "Transport"], "mode": "UPI", "updatedAt": 1793700000000},
+      "expect": {"kind": "other"}
+    },
+    {
+      "name": "unknown type is ignored rather than crashing",
+      "id": "m9future01",
+      "remote": {"id": "m9future01", "type": "invested", "amount": 5000, "date": "2026-11-01", "createdAt": 1, "updatedAt": 1},
+      "expect": {"kind": "other"}
+    }
+  ]
+}

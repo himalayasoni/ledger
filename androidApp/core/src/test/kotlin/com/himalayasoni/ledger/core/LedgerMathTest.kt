@@ -4,6 +4,7 @@ import com.himalayasoni.ledger.core.domain.balances
 import com.himalayasoni.ledger.core.domain.cost
 import com.himalayasoni.ledger.core.domain.share
 import com.himalayasoni.ledger.core.domain.spentIn
+import com.himalayasoni.ledger.core.domain.withoutPrivate
 import com.himalayasoni.ledger.core.model.Entry
 import com.himalayasoni.ledger.core.model.EntryType
 import org.junit.Assert.assertEquals
@@ -50,5 +51,14 @@ class LedgerMathTest {
     @Test fun `other months don't count`() {
         val old = entry(EntryType.SPENT, 500.0, date = LocalDate.of(2026, 10, 31))
         assertEquals(0.0, listOf(old).spentIn(YearMonth.of(2026, 11)), 0.001)
+    }
+
+    @Test fun `private categories are hidden, whatever their capitalisation`() {
+        val list = listOf(
+            entry(EntryType.SPENT, 20.0).copy(id = "a", category = "sutta"),
+            entry(EntryType.SPENT, 50.0).copy(id = "b", category = "Food"),
+            entry(EntryType.LENT, 100.0, "Ravi").copy(id = "c"),
+        )
+        assertEquals(listOf("b", "c"), list.withoutPrivate(setOf("Sutta")).map { it.id })
     }
 }

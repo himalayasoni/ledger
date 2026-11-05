@@ -40,6 +40,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material3.IconButton
+import com.himalayasoni.ledger.ui.account.AccountSheet
+import com.himalayasoni.ledger.ui.account.AccountUiState
+import com.himalayasoni.ledger.ui.account.AccountViewModel
 import com.himalayasoni.ledger.ui.add.AddEntrySheet
 import com.himalayasoni.ledger.ui.theme.LocalLedgerColors
 import com.himalayasoni.ledger.ui.theme.categoryColor
@@ -48,9 +53,11 @@ import org.koin.androidx.compose.koinViewModel
 /** The Home screen. Stateless pieces below take plain data, which makes them easy to preview. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
+fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), accountViewModel: AccountViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val account by accountViewModel.state.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
+    var showAccount by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -65,20 +72,29 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
     ) { padding ->
         when (val s = state) {
             HomeUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { CircularProgressIndicator() }
-            is HomeUiState.Ready -> HomeContent(s, PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = 96.dp))
+            is HomeUiState.Ready -> HomeContent(s, account, onAccount = { showAccount = true }, PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = 96.dp))
         }
     }
     if (adding) AddEntrySheet(onDismiss = { adding = false })
+    if (showAccount) AccountSheet(account, onSignIn = accountViewModel::signIn, onSignOut = accountViewModel::signOut, onDismiss = { showAccount = false })
 }
 
 @Composable
-private fun HomeContent(s: HomeUiState.Ready, contentPadding: PaddingValues) {
+private fun HomeContent(s: HomeUiState.Ready, account: AccountUiState, onAccount: () -> Unit, contentPadding: PaddingValues) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = contentPadding.calculateTopPadding(), bottom = contentPadding.calculateBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Text("Ledger", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground) }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Ledger", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground)
+                    Text(account.statusLine, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = onAccount) { Icon(Icons.Filled.AccountCircle, contentDescription = "Account and sync") }
+            }
+        }
         item { MonthCard(s) }
         if (s.days.isEmpty()) item {
             Text("Nothing logged yet. Tap + to add your first entry.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 24.dp))

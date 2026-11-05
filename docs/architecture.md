@@ -63,12 +63,15 @@ app/src/main/java/com/himalayasoni/ledger/
 - **Pure functions where possible.** `buildHomeState()` turns entries into screen state with
   no Android code, so it's unit-tested like the core rules.
 
-### Storage and sync (Phase 2 plan)
+### Storage and sync
 
-- Every local change is marked `dirty`. Deletions are kept as `deleted` markers (tombstones),
-  so they can sync to other devices.
-- Sync uploads dirty rows to Firestore and listens for remote changes. On conflicts, the
-  newer `updatedAt` wins (same rule as the web app).
+See [ADR 0002](decisions/0002-offline-first-sync.md).
+
+- Room is the source of truth. Every local change is marked `dirty`. Deletions are kept as
+  tombstones so they reach other devices.
+- `FirestoreSync` uploads dirty rows in batches and listens only for documents newer than the
+  last server timestamp it has seen. On conflicts, the newer `updatedAt` wins (same as the web).
+- The document format is shared with the web app and pinned by `spec/remote-entries.json`.
 
 ## Web app (repo root)
 
