@@ -155,6 +155,25 @@ class FirestoreSync(
         }
     }
 
+    /**
+     * Changes which categories are private: on this phone straight away, and in your account so the
+     * web app follows. It merges into the web's settings record, so the web PIN fields are untouched.
+     */
+    fun savePrivacy(categories: Set<String>) {
+        scope.launch {
+            prefs.setPrivateCategories(categories)
+            val uid = auth.account.value?.uid ?: return@launch
+            try {
+                collection(uid).document("cfg-private").set(
+                    mapOf("id" to "cfg-private", "privateCats" to categories.sorted(), "updatedAt" to clock(), "srv" to FieldValue.serverTimestamp()),
+                    com.google.firebase.firestore.SetOptions.merge(),
+                ).await()
+            } catch (e: Exception) {
+                _status.value = SyncStatus.Problem(friendly(e))
+            }
+        }
+    }
+
     private fun collection(uid: String) =
         FirebaseFirestore.getInstance().collection("users").document(uid).collection("entries")
 

@@ -117,5 +117,10 @@ fun AppShell(
         ) { toast?.let { ToastBar(it) { toast = null } } }
     }
     adding?.let { req -> AddEntrySheet(req, onDismiss = { adding = null }, onSaved = say) }
-    if (showAccount) AccountSheet(accountState, onSignIn = account::signIn, onSignOut = account::signOut, onDismiss = { showAccount = false })
+    val privacyState by account.privacy.collectAsStateWithLifecycle()
+    if (showAccount) AccountSheet(
+        accountState, onSignIn = account::signIn, onSignOut = account::signOut, onDismiss = { showAccount = false },
+        privacy = privacyState, onTogglePrivate = account::togglePrivate,
+        onShowPrivate = { show -> account.setShowPrivate(show); toast = ToastMessage(if (show) "Private expenses are showing" else "Private expenses hidden") },
+    )
 }

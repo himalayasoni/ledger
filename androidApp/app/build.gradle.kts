@@ -47,8 +47,8 @@ android {
         applicationId = appPackage
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.4.0"
+        versionCode = 7
+        versionName = "0.5.0"
         buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebase["projectId"] ?: ""}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${firebase["apiKey"] ?: ""}\"")
         buildConfigField("String", "FIREBASE_APP_ID", "\"${firebase["appId"] ?: ""}\"")
@@ -112,6 +112,7 @@ dependencies {
     implementation(libs.credentials.play.services)
     implementation(libs.googleid)
     implementation(libs.datastore.preferences)
+    implementation(libs.biometric) // fingerprint / phone lock to show private entries
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
