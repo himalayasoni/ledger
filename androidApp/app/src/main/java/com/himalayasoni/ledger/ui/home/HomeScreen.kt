@@ -67,6 +67,8 @@ import com.himalayasoni.ledger.ui.account.AccountViewModel
 import com.himalayasoni.ledger.ui.add.AddEntrySheet
 import com.himalayasoni.ledger.ui.add.AddRequest
 import com.himalayasoni.ledger.ui.components.Hairline
+import com.himalayasoni.ledger.ui.components.SectionHeader
+import com.himalayasoni.ledger.ui.components.DaySection
 import com.himalayasoni.ledger.ui.components.IconTile
 import com.himalayasoni.ledger.ui.components.LedgerCard
 import com.himalayasoni.ledger.ui.components.LedgerIcons
