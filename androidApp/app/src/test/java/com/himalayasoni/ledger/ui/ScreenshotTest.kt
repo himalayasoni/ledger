@@ -128,6 +128,37 @@ class ScreenshotTest {
         com.himalayasoni.ledger.ui.search.SearchTab(com.himalayasoni.ledger.ui.search.buildSearchState(entries, f, today), {}, {}, {}, {})
     }
 
+    private object NoInsights : com.himalayasoni.ledger.ui.insights.InsightsActions {
+        override fun yearView(on: Boolean) {}
+        override fun step(by: Int) {}
+        override fun openMonth(m: java.time.YearMonth) {}
+        override fun pickDay(d: LocalDate) {}
+        override fun toggleCategory(c: String) {}
+        override fun trendCategory(c: String) {}
+        override fun trendYears(on: Boolean) {}
+        override fun trendBar(i: Int) {}
+    }
+
+    private fun insights(name: String, sel: com.himalayasoni.ledger.ui.insights.InsightsSelection) {
+        // a tall screen so the whole page is in one picture
+        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_6.copy(screenHeight = 9000))
+        paparazzi.snapshot(name) {
+            LedgerTheme(dark = false) {
+                Box(Modifier.fillMaxSize().background(LocalLedgerColors.current.bg)) {
+                    com.himalayasoni.ledger.ui.insights.InsightsTab(
+                        com.himalayasoni.ledger.ui.insights.buildInsights(entries, sel, today), NoInsights, {}, {}, {}, {},
+                    )
+                }
+            }
+        }
+    }
+
+    @Test fun insights_month() = insights("month", com.himalayasoni.ledger.ui.insights.InsightsSelection(
+        month = java.time.YearMonth.of(2026, 11), openCategory = "Food"))
+
+    @Test fun insights_year() = insights("year", com.himalayasoni.ledger.ui.insights.InsightsSelection(
+        yearView = true, year = 2026, month = java.time.YearMonth.of(2026, 11), trendYears = true))
+
     // a repayment with no loan in Ledger, to show the "Check this balance" card
     private val kanika = e("17", 4, EntryType.PAID_BACK, 700.0, person = "Kanika")
 

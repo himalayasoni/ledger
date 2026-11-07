@@ -34,5 +34,6 @@ val appModule = module {
     viewModel { com.himalayasoni.ledger.ui.people.PeopleViewModel(get(), get()) }
     viewModel { AccountViewModel(get(), get()) }
     viewModel { com.himalayasoni.ledger.ui.search.SearchViewModel(get()) }
+    viewModel { com.himalayasoni.ledger.ui.insights.InsightsViewModel(get()) }
     viewModel { AddEntryViewModel(get(), get(), get()) }
 }
