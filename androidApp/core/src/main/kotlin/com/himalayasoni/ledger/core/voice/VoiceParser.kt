@@ -146,7 +146,8 @@ internal fun jsNumberToString(v: Double): String {
     }
 }
 
-private fun titleCase(s: String): String = js("\\b[a-z]").replace(s) { it.value.uppercase() }
+private val WORD_START = js("""\b[a-z]""")
+private fun titleCase(s: String): String = WORD_START.replace(s) { it.value.uppercase() }
 
 /** Edit distance: how many letters to add, remove or change to turn [a] into [b]. */
 private fun levenshtein(a: String, b: String): Int {
@@ -313,11 +314,13 @@ fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
         val name = js("^ $NAME (?:$verbs)\\b").find(t)?.groupValues?.get(1) ?: return ""
         return if (name.split(" ")[0] in NAME_STOP) "" else name
     }
-    var who: String
+    val returnedBy = subject(THEY_RETURNED) // "Rahul returned 300"
+    val lentMeBy = subject(THEY_LENT_ME) // "Rahul gave me 2000"
+    // The order matters: the first rule that fits decides the type.
     if (GOT_BACK.containsMatchIn(t)) { type = EntryType.GOT_BACK; person = after("from") }
-    else if (subject(THEY_RETURNED).also { who = it }.isNotEmpty()) { type = EntryType.GOT_BACK; person = who }
+    else if (returnedBy.isNotEmpty()) { type = EntryType.GOT_BACK; person = returnedBy }
     else if (PAID_BACK.containsMatchIn(t)) { type = EntryType.PAID_BACK; person = after("to") }
-    else if (subject(THEY_LENT_ME).also { who = it }.isNotEmpty()) { type = EntryType.BORROWED; person = who }
+    else if (lentMeBy.isNotEmpty()) { type = EntryType.BORROWED; person = lentMeBy }
     else if (BORROWED.containsMatchIn(t) || (TOOK.containsMatchIn(t) && FROM.containsMatchIn(t))) { type = EntryType.BORROWED; person = after("from") }
     else if (LENT.containsMatchIn(t) || (DIYE.containsMatchIn(t) && TO.containsMatchIn(t))) {
         type = EntryType.LENT

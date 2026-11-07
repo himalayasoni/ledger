@@ -37,7 +37,7 @@ fun AccountSheet(state: AccountUiState, onSignIn: (Activity) -> Unit, onSignOut:
     val context = LocalContext.current
     val c = LocalLedgerColors.current
     ModalBottomSheet(
-        onDismissRequest = onDismiss, containerColor = c.surface, scrimColor = c.scrim,
+        onDismissRequest = onDismiss, containerColor = c.surface, scrimColor = c.scrim, tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = { Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(40.dp, 4.dp).clip(RoundedCornerShape(4.dp)).background(c.line)) },
     ) {

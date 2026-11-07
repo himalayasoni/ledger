@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -88,28 +89,26 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, modifier: Modifier) {
     val c = LocalLedgerColors.current
-    Column(modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).background(c.surface)) {
-                Hairline()
-                Row(
-                    Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    TabButton("Home", LedgerIcons.Home, tab == Tab.HOME, Modifier.weight(1f)) { onTab(Tab.HOME) }
-                    TabButton("People", LedgerIcons.People, tab == Tab.PEOPLE, Modifier.weight(1f)) { onTab(Tab.PEOPLE) }
-                    Spacer(Modifier.weight(1f))
-                    TabButton("Search", LedgerIcons.Search, tab == Tab.SEARCH, Modifier.weight(1f)) { onTab(Tab.SEARCH) }
-                    TabButton("Insights", LedgerIcons.Insights, tab == Tab.INSIGHTS, Modifier.weight(1f)) { onTab(Tab.INSIGHTS) }
-                }
+    Column(modifier.fillMaxWidth().background(c.surface)) {
+        Hairline()
+        Row(
+            Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TabButton("Home", LedgerIcons.Home, tab == Tab.HOME, Modifier.weight(1f)) { onTab(Tab.HOME) }
+            TabButton("People", LedgerIcons.People, tab == Tab.PEOPLE, Modifier.weight(1f)) { onTab(Tab.PEOPLE) }
+            // The raised marigold add key (web: .fab). It sits in the same row as the tabs, centred on
+            // them, and rises above the bar without making the bar taller.
+            Box(Modifier.weight(1f).height(48.dp), Alignment.Center) {
+                Box(
+                    Modifier.wrapContentHeight(unbounded = true).offset(y = (-14).dp)
+                        .shadow(6.dp, RoundedCornerShape(20.dp), ambientColor = c.accent, spotColor = c.accent)
+                        .size(60.dp).clip(RoundedCornerShape(20.dp)).background(c.accent).pressable(onClick = onAdd),
+                    Alignment.Center,
+                ) { Icon(LedgerIcons.Plus, "Add entry", tint = c.accentInk, modifier = Modifier.size(26.dp)) }
             }
-            // the raised marigold add key (web: .fab, margin-top:-26px)
-            Box(
-                Modifier.align(Alignment.TopCenter).offset(y = (-20).dp)
-                    .shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = c.accent, spotColor = c.accent)
-                    .size(62.dp).clip(RoundedCornerShape(20.dp)).background(c.accent).pressable(onClick = onAdd),
-                Alignment.Center,
-            ) { Icon(LedgerIcons.Plus, "Add entry", tint = c.accentInk, modifier = Modifier.size(26.dp)) }
+            TabButton("Search", LedgerIcons.Search, tab == Tab.SEARCH, Modifier.weight(1f)) { onTab(Tab.SEARCH) }
+            TabButton("Insights", LedgerIcons.Insights, tab == Tab.INSIGHTS, Modifier.weight(1f)) { onTab(Tab.INSIGHTS) }
         }
     }
 }

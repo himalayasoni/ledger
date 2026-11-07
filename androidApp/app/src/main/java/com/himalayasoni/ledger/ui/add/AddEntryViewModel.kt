@@ -22,7 +22,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.himalayasoni.ledger.core.domain.peopleIndex
+import com.himalayasoni.ledger.core.voice.VoiceContext
+import com.himalayasoni.ledger.core.voice.parseLine
 import java.time.LocalDate
+
+/** Everything the sheet derives from your history, recomputed when entries change. */
+private data class VoiceInputs(
+    val usuals: List<Usual>, val recent: List<String>, val cats: List<String>,
+    val people: List<String>, val voiceCats: List<String>,
+)
 
 /** How the sheet was opened: plain +, a quick action (type preset), or tapping an entry (edit). */
 data class AddRequest(
@@ -31,6 +40,7 @@ data class AddRequest(
     val edit: Entry? = null,
     val person: String? = null,   // from a person's page: "Lend" to Rahul
     val amount: Double? = null,   // "Got it back": the full balance
+    val listen: Boolean = false,  // "Say it": start voice input straight away
 )
 
 /** What the add sheet is showing right now. Immutable: every change makes a new copy. */
@@ -50,6 +60,10 @@ data class AddEntryState(
     val keypadOn: Boolean = true,
     val error: String? = null,
     val done: String? = null,                // set after saving/deleting: the sheet closes and shows this
+    val heard: String? = null,               // the last thing said or typed in the say bar
+    val heardNote: String? = null,           // "tap in the amount", "add who it was with"…
+    val voicePeople: List<String> = emptyList(),
+    val voiceCategories: List<String> = DEFAULT_CATEGORIES,
     // from your history
     val allUsuals: List<Usual> = emptyList(),
     val recentPeople: List<String> = emptyList(),
@@ -96,6 +110,8 @@ interface AddEntryActions {
     fun setKeypad(on: Boolean)
     fun save()
     fun delete()
+    /** A line from the say bar or the microphone: "lent 200 to Ashish". */
+    fun applySaid(text: String)
 }
 
 /**
@@ -117,9 +133,14 @@ class AddEntryViewModel(
                 val hidden = if (show) emptySet() else private.map { it.lowercase() }.toSet()
                 val used = visible.filter { !it.type.isDebt && it.category.isNotBlank() }.map { it.category }
                 val cats = (DEFAULT_CATEGORIES + used).distinctBy { it.lowercase() }.filter { it.lowercase() !in hidden }
-                Triple(visible.usuals(), visible.recentPeople(), cats)
-            }.collect { (u, p, cats) ->
-                _state.update { it.copy(allUsuals = u, recentPeople = p, categories = cats) }
+                // what the voice parser knows about you: same rules as the web (allPeople(), allCats())
+                val names = visible.peopleIndex().values.sortedByDescending { it.lastDate }.map { it.name }
+                val voiceCats = (used + (if (show) emptySet() else private) + DEFAULT_CATEGORIES).distinctBy { it.lowercase() }
+                VoiceInputs(visible.usuals(), visible.recentPeople(), cats, names, voiceCats)
+            }.collect { v ->
+                _state.update {
+                    it.copy(allUsuals = v.usuals, recentPeople = v.recent, categories = v.cats, voicePeople = v.people, voiceCategories = v.voiceCats)
+                }
             }
         }
     }
@@ -224,6 +245,33 @@ class AddEntryViewModel(
         viewModelScope.launch {
             repository.save(entry)
             _state.update { it.copy(done = if (base != null) "Changes saved" else "Logged ${formatRupees(entry.amount)}") }
+        }
+    }
+
+    /** Same as the web's applyParsed(): fill the form from what was heard, then say what's missing. */
+    override fun applySaid(text: String) {
+        val line = text.trim()
+        if (line.isEmpty()) return
+        _state.update { s ->
+            val r = parseLine(line, VoiceContext(s.voicePeople, s.voiceCategories, s.allUsuals))
+            val notes = buildList {
+                if (r.amount <= 0) add("tap in the amount")
+                if (r.type.isDebt && r.person.isBlank()) add("add who it was with")
+            }
+            s.copy(
+                type = r.type, typeTouched = true,
+                amountText = if (r.amount > 0) plain(r.amount) else s.amountText,
+                description = r.description,
+                withPeople = if (r.type == EntryType.SPENT) r.withPeople else emptyList(),
+                person = if (r.type == EntryType.SPENT) "" else r.person,
+                category = r.category.ifBlank { s.category },
+                mode = r.mode.ifBlank { s.mode },
+                date = r.date(LocalDate.now()),
+                keypadOn = r.amount <= 0,
+                heard = line,
+                heardNote = if (notes.isEmpty()) "Check it and tap Save." else notes.joinToString(" · "),
+                error = null,
+            )
         }
     }
 

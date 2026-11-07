@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -54,11 +55,12 @@ import com.himalayasoni.ledger.ui.theme.LocalLedgerColors
 
 /** A press that shrinks slightly, like the web's :active styles. Ripple-free on purpose. */
 @Composable
-fun Modifier.pressable(enabled: Boolean = true, role: Role = Role.Button, onClick: () -> Unit): Modifier {
+fun Modifier.pressable(enabled: Boolean = true, role: Role = Role.Button, shrink: Boolean = true, onClick: () -> Unit): Modifier {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     return this
-        .scale(if (pressed) 0.97f else 1f)
+        // Scaling re-rasterises text, which looks soft on chips; those dim slightly instead.
+        .then(if (shrink) Modifier.scale(if (pressed) 0.97f else 1f) else Modifier.alpha(if (pressed) 0.85f else 1f))
         .clickable(interactionSource = source, indication = null, enabled = enabled, role = role, onClick = onClick)
 }
 
@@ -81,7 +83,7 @@ fun LedgerChip(
             .clip(CircleShape)
             .background(bg)
             .then(if (selected || soft) Modifier else Modifier.border(1.dp, c.line, CircleShape))
-            .pressable(onClick = onClick)
+            .pressable(shrink = false, onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -144,7 +146,8 @@ fun LedgerTextField(
             Box(
                 Modifier.fillMaxWidth().defaultMinSize(minHeight = 44.dp).clip(RoundedCornerShape(12.dp)).background(c.bg)
                     .border(1.dp, c.line, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 11.dp),
-                Alignment.CenterStart,
+                // multi-line boxes start at the top, so the hint sits where the cursor is
+                if (singleLine) Alignment.CenterStart else Alignment.TopStart,
             ) {
                 if (value.isEmpty()) Text(placeholder, style = LedgerType.body.copy(fontSize = 16.sp), color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 inner()

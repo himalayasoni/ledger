@@ -110,7 +110,7 @@ fun HomeTab(
         item { StreakCard(s) }
         item {
             QuickActions(
-                onSay = { onSoon("Voice entry is coming in a later update") },
+                onSay = { onAdd(AddRequest(listen = true)) },
                 onWith = { onAdd(AddRequest(type = EntryType.SPENT, withPeople = true)) },
                 onLent = { onAdd(AddRequest(type = EntryType.LENT)) },
                 onBorrowed = { onAdd(AddRequest(type = EntryType.BORROWED)) },

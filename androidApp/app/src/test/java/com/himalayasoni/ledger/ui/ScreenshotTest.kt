@@ -92,6 +92,7 @@ class ScreenshotTest {
         override fun setKeypad(on: Boolean) {}
         override fun save() {}
         override fun delete() {}
+        override fun applySaid(text: String) {}
     }
 
     /** A tab inside the app frame (background + bottom bar), like AppShell draws it. */
@@ -134,5 +135,7 @@ class ScreenshotTest {
     @Test fun add_light() = sheet(false, fresh)
     @Test fun add_dark() = sheet(true, fresh)
     @Test fun add_typed() = sheet(false, fresh.copy(amountText = "1200", description = "Dinner", withPeople = listOf("Rahul", "Amit"), category = "Food"))
+    @Test fun add_heard() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "200", person = "Ashish",
+        heard = "lent 200 to ashish", heardNote = "Check it and tap Save.", keypadOn = false))
     @Test fun add_lent() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "500", person = "", keypadOn = false))
 }

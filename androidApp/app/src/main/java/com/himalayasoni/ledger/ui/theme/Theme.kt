@@ -100,6 +100,7 @@ fun LedgerTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -
         surfaceContainerLowest = c.surface, surfaceContainerHighest = c.surface2,
         outline = c.line, outlineVariant = c.line,
         error = c.spent, scrim = c.scrim,
+        surfaceTint = c.surface, // no Material tint: sheets and cards stay exactly the web's colours
     )
     val base = Typography()
     val typography = Typography(

@@ -50,6 +50,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -105,10 +106,30 @@ fun AddEntrySheet(
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     var typing by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Voice: Android's own speech screen (Google voice typing). No microphone permission needed,
+    // and nothing is recorded by Ledger; we only receive the text.
+    val speech = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let(viewModel::applySaid)
+    }
+    val listen: () -> Unit = {
+        focus.clearFocus(); keyboard?.hide()
+        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
+            .putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Say it like: lent 200 to Ashish")
+        try { speech.launch(intent) } catch (e: android.content.ActivityNotFoundException) {
+            android.widget.Toast.makeText(context, "Voice typing isn't available on this phone", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // start fresh, then wait for "saved" or "deleted" and close (one effect, so the order is guaranteed)
     LaunchedEffect(request) {
         viewModel.start(request)
+        if (request.listen) listen()
         val msg = viewModel.state.mapNotNull { it.done }.first()
         sheetState.hide(); onSaved(msg); onDismiss()
     }
@@ -125,10 +146,16 @@ fun AddEntrySheet(
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = { Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(40.dp, 4.dp).clip(RoundedCornerShape(4.dp)).background(c.line)) },
         contentWindowInsets = { WindowInsets(0) },
+        tonalElevation = 0.dp,
+        // Like the web: the sheet doesn't close when you scroll or drag inside it.
+        // Close it with ✕, Back, or by tapping outside.
+        sheetGesturesEnabled = false,
     ) {
+        // Back lowers the keypad first (like a phone keyboard); a second Back closes the sheet
+        androidx.activity.compose.BackHandler(enabled = s.keypadOn && !typing) { viewModel.setKeypad(false) }
         AddEntryContent(
             s, viewModel, typing,
-            onFocus = onFocus, onClose = ::close, onShowKeypad = ::showKeypad,
+            onFocus = onFocus, onClose = ::close, onShowKeypad = ::showKeypad, onMic = listen,
             modifier = Modifier.fillMaxHeight(0.94f).windowInsetsPadding(WindowInsets.navigationBars).imePadding(),
             onSave = { focus.clearFocus(); viewModel.save() },
         )
@@ -146,6 +173,7 @@ internal fun AddEntryContent(
     onShowKeypad: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
+    onMic: () -> Unit = {},
 ) {
     val c = LocalLedgerColors.current
     Column(modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
@@ -154,6 +182,8 @@ internal fun AddEntryContent(
             Text(if (s.editing != null) "Edit entry" else "New entry", style = LedgerType.title, color = c.ink, modifier = Modifier.weight(1f))
             SquareIconButton(LedgerIcons.Close, "Close") { onClose() }
         }
+        if (s.editing == null) SayBar(actions, onMic, onFocus)
+        s.heard?.let { Heard(it, s.heardNote) }
         TypeGrid(s.type, actions::onType)
         AmountDisplay(s.amountText, onTap = onShowKeypad)
 
@@ -185,6 +215,42 @@ internal fun AddEntryContent(
 }
 
 
+/* ---------- say bar (web: .say) ---------- */
+
+@Composable
+private fun SayBar(actions: AddEntryActions, onMic: () -> Unit, onFocus: (Boolean) -> Unit) {
+    val c = LocalLedgerColors.current
+    var text by remember { mutableStateOf("") }
+    Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        LedgerTextField(
+            text, { text = it }, placeholder = "Say or type: lent 200 to Ashish",
+            imeAction = ImeAction.Go, onDone = { actions.applySaid(text); text = "" },
+            modifier = Modifier.weight(1f).onFocusChanged { onFocus(it.isFocused) },
+        )
+        Spacer(Modifier.width(8.dp))
+        Box(
+            Modifier.size(46.dp).clip(RoundedCornerShape(12.dp)).background(c.deep).pressable(onClick = onMic),
+            Alignment.Center,
+        ) { Icon(LedgerIcons.Mic, "Speak an entry", tint = c.accent, modifier = Modifier.size(22.dp)) }
+    }
+}
+
+/** "Heard “lent 200 to Ashish”. Check it and tap Save." */
+@Composable
+private fun Heard(heard: String, note: String?) {
+    val c = LocalLedgerColors.current
+    Text(
+        androidx.compose.ui.text.buildAnnotatedString {
+            append("Heard ")
+            withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)) { append("“$heard”") }
+            note?.let { append(if (it.startsWith("Check")) ". $it" else " · $it") }
+        },
+        style = LedgerType.small, color = c.ink2,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(10.dp)).background(c.accentSoft)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    )
+}
+
 /* ---------- type buttons (web: .types / .tbtn) ---------- */
 
 @Composable
@@ -205,7 +271,7 @@ private fun TypeButton(t: EntryType, on: Boolean, modifier: Modifier, onClick: (
         modifier.clip(RoundedCornerShape(12.dp))
             .background(if (on) c.ink else c.surface)
             .border(1.dp, if (on) c.ink else c.line, RoundedCornerShape(12.dp))
-            .pressable(onClick = onClick)
+            .pressable(shrink = false, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
     ) {
         Text(t.label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = if (on) c.bg else c.ink, style = LedgerType.body, maxLines = 1)
