@@ -124,6 +124,16 @@ private fun jsRound(x: Double): Double {
     return if (x - down >= 0.5) down + 1 else down
 }
 
+/** The decimal with the fewest significant digits that converts back to exactly [v]. */
+private fun shortestDecimal(v: Double): BigDecimal {
+    val full = BigDecimal(v)
+    for (p in 1..17) {
+        val r = full.round(java.math.MathContext(p, java.math.RoundingMode.HALF_EVEN))
+        if (r.toDouble() == v) return r.stripTrailingZeros()
+    }
+    return full.stripTrailingZeros()
+}
+
 /**
  * JavaScript's String(number): "200" not "200.0", "1.5", and "1e+23" for very big numbers.
  * The result goes back into the text, so it has to look exactly like the web's.
@@ -131,7 +141,9 @@ private fun jsRound(x: Double): Double {
 internal fun jsNumberToString(v: Double): String {
     if (v == 0.0) return "0"
     if (v < 0) return "-" + jsNumberToString(-v)
-    val exact = BigDecimal.valueOf(v).stripTrailingZeros() // shortest digits, like JS
+    // Shortest digits that still read back as the same number, like JS. Worked out here rather than
+    // with Double.toString, whose output changed in Java 19 (and Android follows the older rules).
+    val exact = shortestDecimal(v)
     val digits = exact.unscaledValue().toString()
     val n = digits.length - exact.scale() // where the decimal point goes
     return when {
