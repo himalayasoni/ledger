@@ -20,7 +20,7 @@ class HomeStateTest {
         assertEquals("₹1,470", s.spent)
         assertEquals("₹500", s.owedToYou)
         assertEquals(listOf("Today", "Yesterday"), s.days.map { it.label })
-        assertEquals("Lent · Ravi", s.days[0].rows[1].title)
+        assertEquals("Lent to Ravi", s.days[0].rows[1].title)
         assertEquals("−₹20", s.days[0].rows[0].amount)
     }
 }

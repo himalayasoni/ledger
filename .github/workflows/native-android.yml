@@ -33,6 +33,10 @@ jobs:
       - name: Unit tests (core rules + screen state)
         run: ./gradlew :core:test :app:testDebugUnitTest --no-daemon 2>&1 | tee ../native-build.log; exit ${PIPESTATUS[0]}
 
+      - name: Screenshot tests (record)
+        continue-on-error: true
+        run: ./gradlew :app:recordPaparazziDebug --no-daemon 2>&1 | tee -a ../native-build.log; exit ${PIPESTATUS[0]}
+
       - name: Unlock signing key
         if: github.event_name != 'pull_request'
         env:
@@ -85,6 +89,8 @@ jobs:
           git config user.email "ledger-ci@users.noreply.github.com"
           git checkout --orphan ci-log-native
           git rm -rq --cached .
-          git add report.txt
+          echo "shots are copied below"
+          mkdir -p shots && cp androidApp/app/src/test/snapshots/images/*.png shots/ 2>/dev/null || true
+          git add report.txt shots 2>/dev/null || git add report.txt
           git commit -qm "Native build report ${{ github.run_id }}"
           git push -fq origin ci-log-native

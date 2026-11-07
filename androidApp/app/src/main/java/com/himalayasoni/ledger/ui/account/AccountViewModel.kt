@@ -25,12 +25,19 @@ data class AccountUiState(
     val busy: Boolean = false,
     val message: String? = null,
 ) {
+    /** For the account sheet: "Last synced 8:45 pm". */
+    val detailLine: String get() = when (val s = status) {
+        is SyncStatus.Synced -> "Last synced " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.at))
+        is SyncStatus.Problem -> s.message
+        else -> statusLine
+    }
+
     /** One short line for the Home header. */
     val statusLine: String get() = when (val s = status) {
         SyncStatus.NotConfigured -> "On this phone"
-        SyncStatus.SignedOut -> "Not backed up · sign in"
+        SyncStatus.SignedOut -> "Not backed up"
         SyncStatus.Syncing -> "Syncing…"
-        is SyncStatus.Synced -> "Synced " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.at))
+        is SyncStatus.Synced -> "Synced"
         is SyncStatus.Problem -> "Sync problem"
     }
 }

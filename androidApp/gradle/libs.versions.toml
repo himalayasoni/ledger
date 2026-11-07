@@ -1,5 +1,6 @@
 # One place for every library version (Gradle "version catalog").
 [versions]
+paparazzi = "1.3.5"
 agp = "8.5.2"
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.27"
@@ -48,6 +49,7 @@ gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 
 [plugins]
+paparazzi = { id = "app.cash.paparazzi", version.ref = "paparazzi" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

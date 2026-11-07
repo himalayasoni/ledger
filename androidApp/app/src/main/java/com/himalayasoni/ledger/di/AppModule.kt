@@ -31,5 +31,5 @@ val appModule = module {
 
     viewModel { HomeViewModel(get(), get()) }
     viewModel { AccountViewModel(get(), get()) }
-    viewModel { AddEntryViewModel(get()) }
+    viewModel { AddEntryViewModel(get(), get()) }
 }

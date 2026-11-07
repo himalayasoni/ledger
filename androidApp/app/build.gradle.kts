@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.paparazzi) // screenshot tests: renders screens to PNG on the JVM, no phone needed
 }
 
 val appPackage = "com.himalayasoni.ledger.beta"
@@ -46,8 +47,8 @@ android {
         applicationId = appPackage
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.3.0"
         buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebase["projectId"] ?: ""}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${firebase["apiKey"] ?: ""}\"")
         buildConfigField("String", "FIREBASE_APP_ID", "\"${firebase["appId"] ?: ""}\"")
