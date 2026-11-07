@@ -1,6 +1,7 @@
 package com.himalayasoni.ledger.data.prefs
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -23,10 +24,15 @@ class SyncPrefs(private val context: Context) : SettingsRepository {
         val lastServerTime = longPreferencesKey("lastServerTime")
         val lastSyncAt = longPreferencesKey("lastSyncAt")
         val privateCategories = stringSetPreferencesKey("privateCategories")
+        val showPrivate = booleanPreferencesKey("showPrivate")
     }
 
     override val privateCategories: Flow<Set<String>> =
         context.syncStore.data.map { it[Keys.privateCategories] ?: emptySet() }
+
+    override val showPrivate: Flow<Boolean> = context.syncStore.data.map { it[Keys.showPrivate] ?: false }
+
+    override suspend fun setShowPrivate(show: Boolean) { context.syncStore.edit { it[Keys.showPrivate] = show } }
 
     val lastSyncAt: Flow<Long> = context.syncStore.data.map { it[Keys.lastSyncAt] ?: 0L }
 

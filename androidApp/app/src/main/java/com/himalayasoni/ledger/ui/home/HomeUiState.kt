@@ -6,6 +6,7 @@ import com.himalayasoni.ledger.core.domain.loggedDays
 import com.himalayasoni.ledger.core.domain.people
 import com.himalayasoni.ledger.core.domain.receivedIn
 import com.himalayasoni.ledger.core.domain.repaid
+import com.himalayasoni.ledger.core.domain.share
 import com.himalayasoni.ledger.core.domain.spentIn
 import com.himalayasoni.ledger.core.domain.spentInUntil
 import com.himalayasoni.ledger.core.domain.streak
@@ -85,16 +86,7 @@ fun buildHomeState(entries: List<Entry>, today: LocalDate, zone: ZoneId = ZoneId
         DayDot(d.dayOfWeek.getDisplayName(TextStyle.NARROW, ENGLISH), d in logged, i == 0)
     }
 
-    val dayFmt = DateTimeFormatter.ofPattern("EEE, d MMM", ENGLISH)
-    val days = entries.take(30).groupBy { it.date }.map { (date, list) ->
-        val label = when (date) {
-            today -> "Today"
-            today.minusDays(1) -> "Yesterday"
-            else -> date.format(dayFmt)
-        }
-        val daySpent = list.filter { it.type == EntryType.SPENT }.sumOf { it.cost() }
-        DayGroup(label, if (daySpent > 0) "Spent ${formatRupees(daySpent)}" else null, list.map(::toRow))
-    }
+    val days = dayGroups(entries.take(30), today)
 
     return HomeUiState.Ready(
         dateLine = today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", ENGLISH)),
@@ -114,8 +106,23 @@ fun buildHomeState(entries: List<Entry>, today: LocalDate, zone: ZoneId = ZoneId
     )
 }
 
+/** Entries grouped under "Today", "Yesterday", "Wed, 4 Nov"… with each day's spending. [who] shows that person's share on shared rows. */
+fun dayGroups(entries: List<Entry>, today: LocalDate, who: String? = null): List<DayGroup> {
+    val dayFmt = DateTimeFormatter.ofPattern("EEE, d MMM", ENGLISH)
+    val yearFmt = DateTimeFormatter.ofPattern("EEE, d MMM yyyy", ENGLISH)
+    return entries.groupBy { it.date }.map { (date, list) ->
+        val label = when (date) {
+            today -> "Today"
+            today.minusDays(1) -> "Yesterday"
+            else -> date.format(if (date.year == today.year) dayFmt else yearFmt)
+        }
+        val daySpent = list.filter { it.type == EntryType.SPENT }.sumOf { it.cost() }
+        DayGroup(label, if (daySpent > 0) "Spent ${formatRupees(daySpent)}" else null, list.map { entryRow(it, who) })
+    }
+}
+
 /** Same title and details line as the web app's rowHtml(). */
-private fun toRow(e: Entry): EntryRow {
+fun entryRow(e: Entry, who: String? = null): EntryRow {
     val title = e.description.ifBlank {
         if (e.type.isDebt) (if (e.person.isNotBlank()) "${e.type.personLabel} ${e.person}" else e.type.label)
         else e.category.ifBlank { e.type.label }
@@ -138,7 +145,12 @@ private fun toRow(e: Entry): EntryRow {
         id = e.id, title = title, subtitle = parts.joinToString(" · "), note = e.note.trim(),
         amount = (if (e.type.sign < 0) "−" else "+") + formatRupees(e.amount),
         kind = kind,
-        badge = if (kind == RowKind.OUT) null else e.type.label,
+        badge = when {
+            who != null && e.type == EntryType.SPENT && e.people().any { it.equals(who, true) } ->
+                formatRupees(maxOf(0.0, e.share() - e.repaid(who))) + " theirs"
+            kind == RowKind.OUT -> null
+            else -> e.type.label
+        },
         category = e.category,
         initial = (e.category.ifBlank { e.description }.trim().ifBlank { "?" }).take(1).uppercase(),
     )

@@ -29,6 +29,8 @@ data class AddRequest(
     val type: EntryType? = null,
     val withPeople: Boolean = false,
     val edit: Entry? = null,
+    val person: String? = null,   // from a person's page: "Lend" to Rahul
+    val amount: Double? = null,   // "Got it back": the full balance
 )
 
 /** What the add sheet is showing right now. Immutable: every change makes a new copy. */
@@ -103,6 +105,7 @@ interface AddEntryActions {
 class AddEntryViewModel(
     private val repository: EntryRepository,
     settings: SettingsRepository,
+    visible: com.himalayasoni.ledger.data.VisibleEntries,
 ) : ViewModel(), AddEntryActions {
     private val _state = MutableStateFlow(AddEntryState())
     val state: StateFlow<AddEntryState> = _state.asStateFlow()
@@ -110,9 +113,8 @@ class AddEntryViewModel(
     init {
         // keep usuals, names and categories in step with your entries (private ones left out)
         viewModelScope.launch {
-            combine(repository.observeEntries(), settings.privateCategories) { all, private ->
-                val visible = all.withoutPrivate(private)
-                val hidden = private.map { it.lowercase() }.toSet()
+            combine(visible.entries, settings.privateCategories, settings.showPrivate) { visible, private, show ->
+                val hidden = if (show) emptySet() else private.map { it.lowercase() }.toSet()
                 val used = visible.filter { !it.type.isDebt && it.category.isNotBlank() }.map { it.category }
                 val cats = (DEFAULT_CATEGORIES + used).distinctBy { it.lowercase() }.filter { it.lowercase() !in hidden }
                 Triple(visible.usuals(), visible.recentPeople(), cats)
@@ -132,7 +134,12 @@ class AddEntryViewModel(
                 withPeople = e.people(), includesMe = e.includesMe, category = e.category,
                 mode = e.mode.ifBlank { "UPI" }, date = e.date, note = e.note, keypadOn = false,
             )
-            req.type != null -> fresh.copy(type = req.type, typeTouched = true)
+            req.type != null -> fresh.copy(
+                type = req.type, typeTouched = true,
+                person = if (req.type == EntryType.SPENT) "" else req.person.orEmpty(),
+                withPeople = if (req.type == EntryType.SPENT) listOfNotNull(req.person) else emptyList(),
+                amountText = req.amount?.let { plain(Math.abs(it)) }.orEmpty(),
+            )
             else -> fresh
         }
     }

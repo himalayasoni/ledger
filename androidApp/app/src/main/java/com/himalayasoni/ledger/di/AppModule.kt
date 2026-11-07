@@ -28,8 +28,10 @@ val appModule = module {
     single { SyncPrefs(androidContext()) } bind SettingsRepository::class
     single<AuthRepository> { FirebaseAuthRepository() }
     single { FirestoreSync(get(), get(), get()) }
+    single { com.himalayasoni.ledger.data.VisibleEntries(get(), get()) }
 
-    viewModel { HomeViewModel(get(), get()) }
+    viewModel { HomeViewModel(get()) }
+    viewModel { com.himalayasoni.ledger.ui.people.PeopleViewModel(get(), get()) }
     viewModel { AccountViewModel(get(), get()) }
-    viewModel { AddEntryViewModel(get(), get()) }
+    viewModel { AddEntryViewModel(get(), get(), get()) }
 }

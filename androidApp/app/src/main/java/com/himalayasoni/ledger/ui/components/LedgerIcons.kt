@@ -42,5 +42,7 @@ object LedgerIcons {
     val Backspace = icon("backspace", 2f, "M21 5H9l-6 7 6 7h12zM17 9l-6 6M11 9l6 6")
     val ChevronDown = icon("chevron-down", 2.2f, "M6 9l6 6 6-6")
     val ChevronUp = icon("chevron-up", 2.2f, "M6 15l6-6 6 6")
+    val ChevronLeft = icon("chevron-left", 2.2f, "M15 6l-6 6 6 6")
+    val ChevronRight = icon("chevron-right", 2.2f, "M9 6l6 6-6 6")
     val Check = icon("check", 2.6f, "M5 12.5l4.5 4.5L19 7.5")
 }

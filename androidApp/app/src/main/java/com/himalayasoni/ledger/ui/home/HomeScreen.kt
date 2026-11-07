@@ -81,73 +81,20 @@ import com.himalayasoni.ledger.ui.theme.categoryColor
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
+/** The Home tab. Stateless: the app shell passes the state and what to do on taps. */
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), accountViewModel: AccountViewModel = koinViewModel()) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val account by accountViewModel.state.collectAsStateWithLifecycle()
-    var adding by remember { mutableStateOf<AddRequest?>(null) }
-    var showAccount by remember { mutableStateOf(false) }
-    var toast by remember { mutableStateOf<String?>(null) }
-    val c = LocalLedgerColors.current
-
-    LaunchedEffect(toast) { if (toast != null) { delay(2400); toast = null } }
-
-    HomeLayout(
-        state, account, toast,
-        onSettings = { showAccount = true },
-        onAdd = { adding = it },
-        onOpen = { id -> viewModel.entry(id)?.let { adding = AddRequest(edit = it) } },
-        onSoon = { toast = it },
-    )
-    adding?.let { req -> AddEntrySheet(req, onDismiss = { adding = null }, onSaved = { toast = it }) }
-    if (showAccount) AccountSheet(account, onSignIn = accountViewModel::signIn, onSignOut = accountViewModel::signOut, onDismiss = { showAccount = false })
-}
-
-/** The whole Home screen from plain values: no ViewModels, so screenshot tests can render it. */
-@Composable
-internal fun HomeLayout(
+fun HomeTab(
     state: HomeUiState,
     account: AccountUiState,
-    toast: String?,
     onSettings: () -> Unit,
     onAdd: (AddRequest) -> Unit,
     onOpen: (String) -> Unit,
     onSoon: (String) -> Unit,
+    onSeeAll: () -> Unit,
 ) {
-    val c = LocalLedgerColors.current
-    Box(Modifier.fillMaxSize().background(c.bg)) {
-        when (val s = state) {
-            HomeUiState.Loading -> Text(
-                "Opening Ledger…", color = c.ink2, style = LedgerType.body,
-                modifier = Modifier.align(Alignment.Center),
-            )
-            is HomeUiState.Ready -> HomeContent(
-                s, account,
-                onSettings = onSettings, onAdd = onAdd, onOpen = onOpen, onSoon = onSoon,
-            )
-        }
-        BottomBar(
-            onAdd = { onAdd(AddRequest()) },
-            onSoon = { onSoon("$it is coming in the next update") },
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
-        AnimatedVisibility(
-            visible = toast != null,
-            enter = fadeIn() + slideInVertically { it / 2 }, exit = fadeOut() + slideOutVertically { it / 2 },
-            modifier = Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars).padding(bottom = 96.dp, start = 16.dp, end = 16.dp),
-        ) { Toast(toast.orEmpty()) }
+    val s = state as? HomeUiState.Ready ?: return Box(Modifier.fillMaxSize()) {
+        Text("Opening Ledger…", color = LocalLedgerColors.current.ink2, style = LedgerType.body, modifier = Modifier.align(Alignment.Center))
     }
-}
-
-@Composable
-private fun HomeContent(
-    s: HomeUiState.Ready,
-    account: AccountUiState,
-    onSettings: () -> Unit,
-    onAdd: (AddRequest) -> Unit,
-    onOpen: (String) -> Unit,
-    onSoon: (String) -> Unit,
-) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 140.dp),
@@ -167,7 +114,7 @@ private fun HomeContent(
                 onBorrowed = { onAdd(AddRequest(type = EntryType.BORROWED)) },
             )
         }
-        item { SectionHeader("Recent", "See all ${s.totalCount}") { onSoon("Search is coming in the next update") } }
+        item { SectionHeader("Recent", "See all ${s.totalCount}") { onSeeAll() } }
         items(s.days, key = { it.label }) { day -> DaySection(day, onOpen) }
     }
 }
@@ -320,71 +267,6 @@ private fun QuickAction(label: String, icon: ImageVector, tint: Color, onClick: 
     }
 }
 
-/* ---------- list ---------- */
-
-@Composable
-private fun SectionHeader(title: String, link: String?, onLink: () -> Unit) {
-    val c = LocalLedgerColors.current
-    Row(Modifier.fillMaxWidth().padding(start = 2.dp, end = 2.dp, top = 22.dp, bottom = 0.dp), verticalAlignment = Alignment.Bottom) {
-        Text(title, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = c.ink, modifier = Modifier.weight(1f))
-        if (link != null) Text(
-            link, style = LedgerType.small, fontWeight = FontWeight.SemiBold, color = c.ink2,
-            textDecoration = TextDecoration.Underline, modifier = Modifier.pressable(onClick = onLink),
-        )
-    }
-}
-
-@Composable
-private fun DaySection(day: DayGroup, onOpen: (String) -> Unit) {
-    val c = LocalLedgerColors.current
-    Column(Modifier.padding(top = 14.dp)) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, bottom = 6.dp)) {
-            Text(day.label.uppercase(), style = LedgerType.label.copy(letterSpacing = 0.06.em), color = c.ink2, modifier = Modifier.weight(1f))
-            day.spent?.let { Text(it.uppercase(), style = LedgerType.label.copy(letterSpacing = 0.06.em, fontFeatureSettings = "tnum"), color = c.ink2) }
-        }
-        LedgerCard {
-            Column {
-                day.rows.forEachIndexed { i, row ->
-                    if (i > 0) Hairline()
-                    EntryRowItem(row) { onOpen(row.id) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EntryRowItem(row: EntryRow, onClick: () -> Unit) {
-    val c = LocalLedgerColors.current
-    val tint = when (row.kind) {
-        RowKind.LOAN_OUT, RowKind.LOAN_IN -> c.loan
-        RowKind.IN -> c.income
-        RowKind.OUT -> categoryColor(row.category)
-    }
-    Row(
-        Modifier.fillMaxWidth().pressable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        when (row.kind) {
-            RowKind.LOAN_OUT -> IconTile(tint, icon = LedgerIcons.Out)
-            RowKind.LOAN_IN -> IconTile(tint, icon = LedgerIcons.In)
-            else -> IconTile(tint, letter = row.initial)
-        }
-        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(row.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = c.ink, style = LedgerType.body)
-            if (row.subtitle.isNotBlank()) Text(row.subtitle, style = LedgerType.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (row.note.isNotBlank()) Text("“${row.note}”", style = LedgerType.small, fontStyle = FontStyle.Italic, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                row.amount, style = LedgerType.amount,
-                color = when (row.kind) { RowKind.IN -> c.income; RowKind.LOAN_IN, RowKind.LOAN_OUT -> c.loan; else -> c.ink },
-            )
-            row.badge?.let { Text(it.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.05.em, color = c.ink2, style = LedgerType.small) }
-        }
-    }
-}
-
 /* ---------- empty ---------- */
 
 @Composable
@@ -412,57 +294,6 @@ private fun EmptyState(onAdd: () -> Unit) {
             modifier = Modifier.padding(bottom = 18.dp),
         )
         PrimaryButton("Add first entry", Modifier.width(200.dp), height = 44.dp, onClick = onAdd)
-    }
-}
-
-/* ---------- bottom bar ---------- */
-
-@Composable
-private fun BottomBar(onAdd: () -> Unit, onSoon: (String) -> Unit, modifier: Modifier) {
-    val c = LocalLedgerColors.current
-    Column(modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).background(c.surface)) {
-                Hairline()
-                Row(
-                    Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Tab("Home", LedgerIcons.Home, true, Modifier.weight(1f)) {}
-                    Tab("People", LedgerIcons.People, false, Modifier.weight(1f)) { onSoon("People") }
-                    Spacer(Modifier.weight(1f))
-                    Tab("Search", LedgerIcons.Search, false, Modifier.weight(1f)) { onSoon("Search") }
-                    Tab("Insights", LedgerIcons.Insights, false, Modifier.weight(1f)) { onSoon("Insights") }
-                }
-            }
-            // the raised marigold add key (web: .fab, margin-top:-26px)
-            Box(
-                Modifier.align(Alignment.TopCenter).offset(y = (-20).dp)
-                    .shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = c.accent, spotColor = c.accent)
-                    .size(62.dp).clip(RoundedCornerShape(20.dp)).background(c.accent).pressable(onClick = onAdd),
-                Alignment.Center,
-            ) { Icon(LedgerIcons.Plus, "Add entry", tint = c.accentInk, modifier = Modifier.size(26.dp)) }
-        }
-    }
-}
-
-@Composable
-private fun Tab(label: String, icon: ImageVector, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val c = LocalLedgerColors.current
-    Column(
-        modifier.clip(RoundedCornerShape(12.dp)).pressable(onClick = onClick).padding(vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Icon(icon, null, tint = if (on) c.accent else c.ink2, modifier = Modifier.size(22.dp))
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (on) c.ink else c.ink2, style = LedgerType.small)
-    }
-}
-
-@Composable
-private fun Toast(text: String) {
-    val c = LocalLedgerColors.current
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.ink).padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text(text, color = c.bg, style = LedgerType.body, fontWeight = FontWeight.SemiBold)
     }
 }
 

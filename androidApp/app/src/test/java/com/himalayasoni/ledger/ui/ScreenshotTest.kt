@@ -12,7 +12,18 @@ import com.himalayasoni.ledger.ui.account.AccountUiState
 import com.himalayasoni.ledger.ui.add.AddEntryActions
 import com.himalayasoni.ledger.ui.add.AddEntryContent
 import com.himalayasoni.ledger.ui.add.AddEntryState
-import com.himalayasoni.ledger.ui.home.HomeLayout
+import com.himalayasoni.ledger.ui.home.HomeTab
+import com.himalayasoni.ledger.ui.components.BottomBar
+import com.himalayasoni.ledger.ui.components.Tab
+import com.himalayasoni.ledger.ui.people.PeopleTab
+import com.himalayasoni.ledger.ui.people.PersonPage
+import com.himalayasoni.ledger.ui.people.buildPeopleState
+import com.himalayasoni.ledger.ui.people.buildPersonState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import com.himalayasoni.ledger.ui.theme.LocalLedgerColors
 import com.himalayasoni.ledger.ui.home.buildHomeState
 import com.himalayasoni.ledger.ui.theme.LedgerTheme
 import androidx.compose.foundation.background
@@ -83,11 +94,30 @@ class ScreenshotTest {
         override fun delete() {}
     }
 
-    private fun home(dark: Boolean) = paparazzi.snapshot {
+    /** A tab inside the app frame (background + bottom bar), like AppShell draws it. */
+    private fun framed(dark: Boolean, tab: Tab, content: @androidx.compose.runtime.Composable () -> Unit) = paparazzi.snapshot {
         LedgerTheme(dark = dark) {
-            HomeLayout(buildHomeState(entries, today, ZoneOffset.UTC), account, null, {}, {}, {}, {})
+            Box(Modifier.fillMaxSize().background(LocalLedgerColors.current.bg)) {
+                content()
+                BottomBar(tab, {}, {}, Modifier.align(Alignment.BottomCenter))
+            }
         }
     }
+
+    private fun home(dark: Boolean) = framed(dark, Tab.HOME) {
+        HomeTab(buildHomeState(entries, today, ZoneOffset.UTC), account, {}, {}, {}, {}, {})
+    }
+
+    @Test fun people() = framed(false, Tab.PEOPLE) {
+        PeopleTab(buildPeopleState(entries + kanika, entries + kanika, today), {}, {}, {}, {})
+    }
+
+    @Test fun person() = framed(false, Tab.PEOPLE) {
+        PersonPage(buildPersonState("Rahul", entries, entries, today), {}, {}, {}, {}, {})
+    }
+
+    // a repayment with no loan in Ledger, to show the "Check this balance" card
+    private val kanika = e("17", 4, EntryType.PAID_BACK, 700.0, person = "Kanika")
 
     private fun sheet(dark: Boolean, s: AddEntryState) = paparazzi.snapshot {
         LedgerTheme(dark = dark) {
