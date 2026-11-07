@@ -47,6 +47,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -147,16 +150,14 @@ fun AddEntrySheet(
         dragHandle = { Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(40.dp, 4.dp).clip(RoundedCornerShape(4.dp)).background(c.line)) },
         contentWindowInsets = { WindowInsets(0) },
         tonalElevation = 0.dp,
-        // Like the web: the sheet doesn't close when you scroll or drag inside it.
-        // Close it with ✕, Back, or by tapping outside.
-        sheetGesturesEnabled = false,
     ) {
         // Back lowers the keypad first (like a phone keyboard); a second Back closes the sheet
         androidx.activity.compose.BackHandler(enabled = s.keypadOn && !typing) { viewModel.setKeypad(false) }
         AddEntryContent(
             s, viewModel, typing,
             onFocus = onFocus, onClose = ::close, onShowKeypad = ::showKeypad, onMic = listen,
-            modifier = Modifier.fillMaxHeight(0.94f).windowInsetsPadding(WindowInsets.navigationBars).imePadding(),
+            modifier = Modifier.fillMaxHeight(0.94f).windowInsetsPadding(WindowInsets.navigationBars).imePadding()
+                .keepSheetOpen(),
             onSave = { focus.clearFocus(); viewModel.save() },
         )
     }
@@ -214,6 +215,18 @@ internal fun AddEntryContent(
     }
 }
 
+
+/**
+ * Like the web: scrolling or dragging inside the sheet never pulls it closed. Leftover scroll
+ * from the details list is absorbed here instead of reaching the sheet, and drags on the fixed
+ * parts (amount, keypad) are claimed here too. Only the grab handle at the top moves the sheet.
+ */
+private fun Modifier.keepSheetOpen(): Modifier = this
+    .nestedScroll(object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+        override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) = available
+        override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity) = available
+    })
+    .pointerInput(Unit) { detectVerticalDragGestures { change, _ -> change.consume() } }
 
 /* ---------- say bar (web: .say) ---------- */
 
