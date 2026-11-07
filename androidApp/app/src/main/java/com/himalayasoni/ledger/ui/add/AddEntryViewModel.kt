@@ -79,21 +79,21 @@ data class AddEntryState(
 
 /** Everything the add sheet can ask for. The sheet depends on this, not on the ViewModel, so it can be previewed and screenshot-tested with a no-op. */
 interface AddEntryActions {
-    override fun onType(t: EntryType)
-    override fun onKey(key: String)
-    override fun onDescription(v: String)
-    override fun pickUsual(u: Usual)
-    override fun onPerson(v: String)
+    fun onType(t: EntryType)
+    fun onKey(key: String)
+    fun onDescription(v: String)
+    fun pickUsual(u: Usual)
+    fun onPerson(v: String)
     fun addPerson(name: String)
-    override fun removePerson(name: String)
-    override fun onIncludesMe(v: Boolean)
-    override fun onCategory(c: String)
-    override fun onMode(m: String)
-    override fun onDate(d: LocalDate)
-    override fun onNote(v: String)
-    override fun setKeypad(on: Boolean)
-    override fun save()
-    override fun delete()
+    fun removePerson(name: String)
+    fun onIncludesMe(v: Boolean)
+    fun onCategory(c: String)
+    fun onMode(m: String)
+    fun onDate(d: LocalDate)
+    fun onNote(v: String)
+    fun setKeypad(on: Boolean)
+    fun save()
+    fun delete()
 }
 
 /**
@@ -137,17 +137,17 @@ class AddEntryViewModel(
         }
     }
 
-    fun onType(t: EntryType) = _state.update { it.copy(type = t, typeTouched = true, error = null) }
-    fun onCategory(c: String) = _state.update { it.copy(category = if (it.category == c) "" else c) }
-    fun onDescription(v: String) = _state.update { it.copy(description = v) }
-    fun onMode(m: String) = _state.update { it.copy(mode = m) }
-    fun onDate(d: LocalDate) = _state.update { it.copy(date = d) }
-    fun onNote(v: String) = _state.update { it.copy(note = v) }
-    fun onIncludesMe(v: Boolean) = _state.update { it.copy(includesMe = v) }
-    fun setKeypad(on: Boolean) = _state.update { it.copy(keypadOn = on) }
+    override fun onType(t: EntryType) = _state.update { it.copy(type = t, typeTouched = true, error = null) }
+    override fun onCategory(c: String) = _state.update { it.copy(category = if (it.category == c) "" else c) }
+    override fun onDescription(v: String) = _state.update { it.copy(description = v) }
+    override fun onMode(m: String) = _state.update { it.copy(mode = m) }
+    override fun onDate(d: LocalDate) = _state.update { it.copy(date = d) }
+    override fun onNote(v: String) = _state.update { it.copy(note = v) }
+    override fun onIncludesMe(v: Boolean) = _state.update { it.copy(includesMe = v) }
+    override fun setKeypad(on: Boolean) = _state.update { it.copy(keypadOn = on) }
 
     /** For a shared expense, a comma finishes a name; otherwise it's the one person. */
-    fun onPerson(v: String) = _state.update { s ->
+    override fun onPerson(v: String) = _state.update { s ->
         if (s.type == EntryType.SPENT && v.contains(',')) {
             val names = v.split(',')
             val done = names.dropLast(1).map { it.trim() }.filter { it.isNotEmpty() }
@@ -165,10 +165,10 @@ class AddEntryViewModel(
         }
     }
 
-    fun removePerson(name: String) = _state.update { s -> s.copy(withPeople = s.withPeople - name) }
+    override fun removePerson(name: String) = _state.update { s -> s.copy(withPeople = s.withPeople - name) }
 
     /** One tap on a usual fills in everything from the last time. */
-    fun pickUsual(u: Usual) = _state.update { s ->
+    override fun pickUsual(u: Usual) = _state.update { s ->
         s.copy(
             type = u.type, typeTouched = true, amountText = plain(u.amount), description = u.description,
             category = u.category, mode = u.mode.ifBlank { s.mode },
@@ -179,7 +179,7 @@ class AddEntryViewModel(
     }
 
     /** Same keypad rules as the web app: max 2 decimals, max 9 digits. */
-    fun onKey(key: String) = _state.update { s ->
+    override fun onKey(key: String) = _state.update { s ->
         val t = s.amountText
         val next = when (key) {
             "del" -> t.dropLast(1)
@@ -194,7 +194,7 @@ class AddEntryViewModel(
         s.copy(amountText = next, error = null)
     }
 
-    fun save() {
+    override fun save() {
         val s = _state.value
         val withPeople = if (s.type == EntryType.SPENT) (s.withPeople + s.person.trim()).filter { it.isNotBlank() }.distinctBy { it.lowercase() } else emptyList()
         when {
@@ -220,7 +220,7 @@ class AddEntryViewModel(
         }
     }
 
-    fun delete() {
+    override fun delete() {
         val id = _state.value.editing?.id ?: return
         viewModelScope.launch {
             repository.delete(id)
