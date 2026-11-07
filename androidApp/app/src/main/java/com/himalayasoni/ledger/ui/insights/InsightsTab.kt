@@ -87,9 +87,11 @@ fun InsightsTab(
     onOpen: (String) -> Unit,
     onPerson: (String) -> Unit,
     onSeeCategory: (String) -> Unit,
+    listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState(),
 ) {
     LazyColumn(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars),
+        state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

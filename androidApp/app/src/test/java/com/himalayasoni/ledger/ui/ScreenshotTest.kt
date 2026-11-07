@@ -139,25 +139,25 @@ class ScreenshotTest {
         override fun trendBar(i: Int) {}
     }
 
-    private fun insights(name: String, sel: com.himalayasoni.ledger.ui.insights.InsightsSelection) {
-        // a tall screen so the whole page is in one picture
-        paparazzi.unsafeUpdateConfig(deviceConfig = DeviceConfig.PIXEL_6.copy(screenHeight = 9000))
-        paparazzi.snapshot(name) {
+    /** Insights is long, so it's captured as several screens, each scrolled to a different card. */
+    private fun insights(sel: com.himalayasoni.ledger.ui.insights.InsightsSelection, vararg firstItems: Int) {
+        for (first in firstItems) paparazzi.snapshot("from$first") {
             LedgerTheme(dark = false) {
                 Box(Modifier.fillMaxSize().background(LocalLedgerColors.current.bg)) {
                     com.himalayasoni.ledger.ui.insights.InsightsTab(
                         com.himalayasoni.ledger.ui.insights.buildInsights(entries, sel, today), NoInsights, {}, {}, {}, {},
+                        listState = androidx.compose.foundation.lazy.rememberLazyListState(first),
                     )
                 }
             }
         }
     }
 
-    @Test fun insights_month() = insights("month", com.himalayasoni.ledger.ui.insights.InsightsSelection(
-        month = java.time.YearMonth.of(2026, 11), openCategory = "Food"))
+    @Test fun insights_month() = insights(com.himalayasoni.ledger.ui.insights.InsightsSelection(
+        month = java.time.YearMonth.of(2026, 11), openCategory = "Food"), 0, 4, 5, 6, 7, 9)
 
-    @Test fun insights_year() = insights("year", com.himalayasoni.ledger.ui.insights.InsightsSelection(
-        yearView = true, year = 2026, month = java.time.YearMonth.of(2026, 11), trendYears = true))
+    @Test fun insights_year() = insights(com.himalayasoni.ledger.ui.insights.InsightsSelection(
+        yearView = true, year = 2026, month = java.time.YearMonth.of(2026, 11), trendYears = true), 0, 5)
 
     // a repayment with no loan in Ledger, to show the "Check this balance" card
     private val kanika = e("17", 4, EntryType.PAID_BACK, 700.0, person = "Kanika")
