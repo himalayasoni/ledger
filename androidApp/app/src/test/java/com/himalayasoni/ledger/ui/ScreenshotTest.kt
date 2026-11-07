@@ -117,6 +117,17 @@ class ScreenshotTest {
         PersonPage(buildPersonState("Rahul", entries, entries, today), {}, {}, {}, {}, {})
     }
 
+    @Test fun search() = framed(false, Tab.SEARCH) {
+        com.himalayasoni.ledger.ui.search.SearchTab(
+            com.himalayasoni.ledger.ui.search.buildSearchState(entries, com.himalayasoni.ledger.core.domain.Filters(), today), {}, {}, {}, {},
+        )
+    }
+
+    @Test fun search_filtered() = framed(false, Tab.SEARCH) {
+        val f = com.himalayasoni.ledger.core.domain.Filters(query = "dinner", person = "Rahul", sort = com.himalayasoni.ledger.core.domain.SortBy.BIGGEST)
+        com.himalayasoni.ledger.ui.search.SearchTab(com.himalayasoni.ledger.ui.search.buildSearchState(entries, f, today), {}, {}, {}, {})
+    }
+
     // a repayment with no loan in Ledger, to show the "Check this balance" card
     private val kanika = e("17", 4, EntryType.PAID_BACK, 700.0, person = "Kanika")
 

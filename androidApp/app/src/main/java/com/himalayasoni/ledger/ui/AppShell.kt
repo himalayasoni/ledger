@@ -52,6 +52,7 @@ fun AppShell(
     home: HomeViewModel = koinViewModel(),
     people: PeopleViewModel = koinViewModel(),
     account: AccountViewModel = koinViewModel(),
+    search: com.himalayasoni.ledger.ui.search.SearchViewModel = koinViewModel(),
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     var personName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -64,6 +65,7 @@ fun AppShell(
     val accountState by account.state.collectAsStateWithLifecycle()
     val peopleState by people.people.collectAsStateWithLifecycle()
     val personState by people.person.collectAsStateWithLifecycle()
+    val searchState by search.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(toast) { if (toast != null) { delay(if (toast?.action != null) 5000 else 2400); toast = null } }
     LaunchedEffect(personName) { personName?.let(people::open) }
@@ -91,6 +93,9 @@ fun AppShell(
             tab == Tab.PEOPLE -> PeopleTab(
                 peopleState, onSettings = { showAccount = true }, onPerson = { personName = it },
                 onFix = { people.fixOldLoan(it, undoable) }, onAdd = { adding = it },
+            )
+            tab == Tab.SEARCH -> com.himalayasoni.ledger.ui.search.SearchTab(
+                searchState, onSettings = { showAccount = true }, onFilters = search::update, onClear = search::clear, onOpen = openEntry,
             )
             else -> ComingSoon(tab, onSettings = { showAccount = true })
         }

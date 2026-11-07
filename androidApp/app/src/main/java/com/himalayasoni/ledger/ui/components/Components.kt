@@ -130,6 +130,8 @@ fun LedgerTextField(
     minLines: Int = 1,
     imeAction: ImeAction = ImeAction.Next,
     onDone: () -> Unit = {},
+    keyboardType: androidx.compose.ui.text.input.KeyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val c = LocalLedgerColors.current
     BasicTextField(
@@ -139,7 +141,7 @@ fun LedgerTextField(
         minLines = minLines,
         textStyle = LedgerType.body.copy(fontSize = 16.sp, color = c.ink),
         cursorBrush = SolidColor(c.accent),
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = imeAction),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = imeAction, keyboardType = keyboardType),
         keyboardActions = KeyboardActions(onDone = { onDone() }, onGo = { onDone() }),
         modifier = modifier.fillMaxWidth(),
         decorationBox = { inner ->
@@ -149,8 +151,13 @@ fun LedgerTextField(
                 // multi-line boxes start at the top, so the hint sits where the cursor is
                 if (singleLine) Alignment.CenterStart else Alignment.TopStart,
             ) {
-                if (value.isEmpty()) Text(placeholder, style = LedgerType.body.copy(fontSize = 16.sp), color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                inner()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (leading != null) { leading(); Spacer(Modifier.width(10.dp)) }
+                    Box(Modifier.weight(1f)) {
+                        if (value.isEmpty()) Text(placeholder, style = LedgerType.body.copy(fontSize = 16.sp), color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        inner()
+                    }
+                }
             }
         },
     )
