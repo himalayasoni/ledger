@@ -542,7 +542,7 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v14';
+const APP_VERSION = 'v15';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
@@ -1427,6 +1427,7 @@ window.addEventListener('popstate', () => {
   if (skipPops > 0){ skipPops--; if (!skipPops) while (pendingPush > 0){ pendingPush--; try { history.pushState({ledger: layers.length}, ''); } catch {} } return; }
   const top = layers.pop(); if (!top) return;
   if (top.type === 'pin'){ if (Pin.mode === 'code'){ pushLayer('pin'); return; } pinDone(false, true); }
+  else if (top.type === 'pad') setPad(false);
   else if (top.type === 'sheet') closeSheet(true);
   else if (top.type === 'person'){ S.person = null; go(top.data || 'people', true); }
   else if (top.type === 'view') go('home', true);
@@ -1444,7 +1445,8 @@ function showSheet(el){
 }
 function closeSheet(fromBack){
   if (!openEl) return;
-  if (!fromBack) popLayer('sheet');
+  if (!fromBack){ const top = layers[layers.length - 1]; if (top && top.type === 'pad') dropLayers(2); else popLayer('sheet'); }
+  else if (layers.length && layers[layers.length - 1].type === 'pad') layers.pop();
   stopVoice();
   const el = openEl, sc = $('#scrim'); openEl = null;
   el.classList.remove('open','typing'); sc.classList.remove('open');
@@ -1473,6 +1475,10 @@ function openEntry(pref = {}, editId = null){
 const CHEV = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${d ? 'M6 9l6 6 6-6' : 'M6 15l6-6 6 6'}"/></svg>`;
 function setPad(on){
   $('#sheet').classList.toggle('padoff', !on);
+  /* Back lowers the keypad first (like a phone keyboard), then closes the sheet */
+  const top = layers[layers.length - 1];
+  if (on && openEl === $('#sheet') && top && top.type === 'sheet') pushLayer('pad');
+  else if (!on && top && top.type === 'pad') popLayer('pad');
   $('#padbar-btn').innerHTML = on ? 'Hide keypad ' + CHEV(true) : 'Show keypad ' + CHEV(false);
   $('#padbar-hint').textContent = on ? '' : 'Or tap the amount';
 }
