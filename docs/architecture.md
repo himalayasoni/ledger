@@ -73,6 +73,16 @@ See [ADR 0002](decisions/0002-offline-first-sync.md).
   last server timestamp it has seen. On conflicts, the newer `updatedAt` wins (same as the web).
 - The document format is shared with the web app and pinned by `spec/remote-entries.json`.
 
+### Look and feel (one design, two apps)
+
+- `ui/theme/Theme.kt` holds the same design tokens as the web app's CSS variables
+  (colours, Figtree for text, Bricolage Grotesque for headings and numbers).
+- `ui/components/` mirrors the web's CSS classes (`.chip`, `.ic`, `.inp`, `.save`…), and
+  `LedgerIcons` draws the web's SVG icons from the same path data.
+- Screens are split into a stateful wrapper (talks to ViewModels) and a stateless layout
+  (`HomeLayout`, `AddEntryContent`) that takes plain values. Screenshot tests (Paparazzi)
+  render the stateless layouts on the JVM, light and dark, on every build.
+
 ## Web app (repo root)
 
 `index.html` (+ `sw.js`, `manifest.webmanifest`, `config.js`). Stores entries in IndexedDB,

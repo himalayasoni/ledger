@@ -422,7 +422,7 @@ private fun BottomBar(onAdd: () -> Unit, onSoon: (String) -> Unit, modifier: Mod
     val c = LocalLedgerColors.current
     Column(modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).background(c.surface.copy(alpha = 0.96f))) {
+            Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).background(c.surface)) {
                 Hairline()
                 Row(
                     Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 16.dp, vertical = 6.dp),
