@@ -61,6 +61,7 @@ data class AddRequest(
     val amount: Double? = null,   // "Got it back": the full balance
     val listen: Boolean = false,  // "Say it": start voice input straight away
     val card: String? = null,     // "Log a bill payment" on a card page
+    val said: String? = null,     // a notification reply that needs finishing: fill the form from it
 )
 
 /** What the add sheet is showing right now. Immutable: every change makes a new copy. */
@@ -173,6 +174,10 @@ class AddEntryViewModel(
     private val _state = MutableStateFlow(AddEntryState())
     @Volatile private var latest: List<Entry> = emptyList()
     val state: StateFlow<AddEntryState> = _state.asStateFlow()
+    private val historyLoaded = kotlinx.coroutines.CompletableDeferred<Unit>()
+
+    /** Waits (up to 2 s) until usuals, names and categories have loaded, so a line can be parsed with them. */
+    suspend fun awaitHistory() { kotlinx.coroutines.withTimeoutOrNull(2_000) { historyLoaded.await() } }
 
     init {
         // what Ledger thinks each card's next bill is (shown when you log a card bill)
@@ -215,6 +220,7 @@ class AddEntryViewModel(
                     it.copy(allUsuals = v.usuals, recentPeople = v.recent, categories = v.cats, voicePeople = v.people, voiceCategories = v.voiceCats,
                         cards = (v.cards + it.cards).distinctBy { c -> c.lowercase() })
                 }
+                historyLoaded.complete(Unit)
             }
         }
     }

@@ -104,6 +104,7 @@ fun AddEntrySheet(
     onDismiss: () -> Unit,
     onSaved: (String) -> Unit,
     viewModel: AddEntryViewModel = koinViewModel(),
+    heightFraction: Float = 0.94f,   // the quick add pop-up is a little shorter, so the home screen shows above it
 ) {
     val s by viewModel.state.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -135,6 +136,8 @@ fun AddEntrySheet(
     // start fresh, then wait for "saved" or "deleted" and close (one effect, so the order is guaranteed)
     LaunchedEffect(request) {
         viewModel.start(request)
+        // a line from a notification reply that needs finishing: wait for your history, then fill the form from it
+        request.said?.let { viewModel.awaitHistory(); viewModel.applySaid(it) }
         if (request.listen) listen()
         val msg = viewModel.state.mapNotNull { it.done }.first()
         sheetState.hide(); onSaved(msg); onDismiss()
@@ -176,7 +179,7 @@ fun AddEntrySheet(
         AddEntryContent(
             s, viewModel, typing,
             onFocus = onFocus, onClose = ::close, onShowKeypad = ::showKeypad, onMic = listen,
-            modifier = Modifier.fillMaxHeight(0.94f).windowInsetsPadding(WindowInsets.navigationBars).imePadding()
+            modifier = Modifier.fillMaxHeight(heightFraction).windowInsetsPadding(WindowInsets.navigationBars).imePadding()
                 .keepSheetOpen(),
             onSave = { focus.clearFocus(); viewModel.save() },
         )

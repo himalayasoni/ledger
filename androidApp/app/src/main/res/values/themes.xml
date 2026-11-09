@@ -4,6 +4,16 @@
     <style name="Theme.Ledger" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/window</item>
     </style>
+    <!-- The quick add pop-up: a see-through window, so the sheet floats over the home screen.
+         The sheet draws its own dim behind itself. -->
+    <style name="Theme.Ledger.QuickAdd" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
     <color name="window">#ECF1EE</color>
     <color name="icon_bg">#0E3A33</color>
 </resources>

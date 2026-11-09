@@ -55,6 +55,8 @@ fun AppShell(
     search: com.himalayasoni.ledger.ui.search.SearchViewModel = koinViewModel(),
     insights: com.himalayasoni.ledger.ui.insights.InsightsViewModel = koinViewModel(),
     cards: com.himalayasoni.ledger.ui.cards.CardsViewModel = koinViewModel(),
+    openRequest: com.himalayasoni.ledger.OpenRequest? = null,   // from a reminder: open this entry or card
+    onOpened: () -> Unit = {},
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     var personName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -75,6 +77,12 @@ fun AppShell(
     LaunchedEffect(toast) { if (toast != null) { delay(if (toast?.action != null) 5000 else 2400); toast = null } }
     LaunchedEffect(personName) { personName?.let(people::open) }
     LaunchedEffect(cardName) { cardName?.let(cards::open) }
+    // a tapped reminder: the card's page, or the entry (once entries have loaded, so this re-runs as Home's state arrives)
+    LaunchedEffect(openRequest, homeState) {
+        val r = openRequest ?: return@LaunchedEffect
+        r.card?.let { personName = null; cardName = it; onOpened() }
+        r.entry?.let { id -> home.entry(id)?.let { adding = AddRequest(edit = it); onOpened() } }
+    }
 
     // Back: person page → People; any other tab → Home; Home → leave the app (system default)
     BackHandler(enabled = personName != null || cardName != null || tab != Tab.HOME) {

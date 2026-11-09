@@ -21,6 +21,11 @@ import com.himalayasoni.ledger.ui.people.buildPeopleState
 import com.himalayasoni.ledger.ui.people.buildPersonState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.himalayasoni.ledger.ui.theme.LocalLedgerColors
@@ -209,4 +214,37 @@ class ScreenshotTest {
         category = "Food", keypadOn = false, refundOn = true, refundFrom = "Dad", refundArrived = true, refundTo = "UPI",
     ))
     @Test fun add_lent() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "500", person = "", keypadOn = false))
+
+    /** The quick add pop-up as it sits over the home screen: a stand-in wallpaper, the dim, then the sheet (88% tall). */
+    private fun popup(dark: Boolean, s: AddEntryState) = paparazzi.snapshot {
+        LedgerTheme(dark = dark) {
+            val c = LocalLedgerColors.current
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(androidx.compose.ui.graphics.Color(0xFF3D6E8F), androidx.compose.ui.graphics.Color(0xFF9C7A5B))))) {
+                Box(Modifier.fillMaxSize().background(c.scrim))
+                Box(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.88f)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(c.surface),
+                ) {
+                    AddEntryContent(s, NoActions, typing = false, onFocus = {}, onClose = {}, onShowKeypad = {}, onSave = {},
+                        modifier = Modifier.padding(top = 20.dp))
+                }
+            }
+        }
+    }
+
+    @Test fun quickadd_light() = popup(false, fresh)
+    @Test fun quickadd_dark() = popup(true, fresh)
+    @Test fun quickadd_cardbill() = popup(false, fresh.copy(type = EntryType.CARD_BILL, typeTouched = true, cards = listOf("HDFC", "SBI")))
+
+    @Test fun reminders_settings() = paparazzi.snapshot {
+        LedgerTheme(dark = false) {
+            Box(Modifier.fillMaxSize().background(LocalLedgerColors.current.surface).padding(16.dp)) {
+                com.himalayasoni.ledger.ui.account.RemindersContent(
+                    com.himalayasoni.ledger.data.prefs.ReminderSettings(daily = true, weeklyPeople = true),
+                    notificationsAllowed = false, onChange = {}, onAllow = {},
+                )
+            }
+        }
+    }
 }

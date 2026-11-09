@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Long-press the app icon: these three open the quick add pop-up directly.
+  targetPackage is the applicationId (app/build.gradle.kts: appPackage), targetClass the class's full name.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add"
+        android:enabled="true"
+        android:icon="@drawable/sc_add"
+        android:shortcutShortLabel="@string/sc_add_short"
+        android:shortcutLongLabel="@string/sc_add_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.himalayasoni.ledger.beta"
+            android:targetClass="com.himalayasoni.ledger.ui.quickadd.QuickAddActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="say"
+        android:enabled="true"
+        android:icon="@drawable/sc_say"
+        android:shortcutShortLabel="@string/sc_say_short"
+        android:shortcutLongLabel="@string/sc_say_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.himalayasoni.ledger.beta"
+            android:targetClass="com.himalayasoni.ledger.ui.quickadd.QuickAddActivity">
+            <extra android:name="listen" android:value="true" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="cardbill"
+        android:enabled="true"
+        android:icon="@drawable/sc_card"
+        android:shortcutShortLabel="@string/sc_card_short"
+        android:shortcutLongLabel="@string/sc_card_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.himalayasoni.ledger.beta"
+            android:targetClass="com.himalayasoni.ledger.ui.quickadd.QuickAddActivity">
+            <extra android:name="type" android:value="cardbill" />
+        </intent>
+    </shortcut>
+</shortcuts>

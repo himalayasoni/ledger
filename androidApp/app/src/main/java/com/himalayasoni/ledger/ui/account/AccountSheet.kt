@@ -67,6 +67,7 @@ fun AccountSheet(
         ) {
             Text("Settings", fontFamily = com.himalayasoni.ledger.ui.theme.Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = c.ink)
             privacy?.let { PrivacySection(it, onTogglePrivate, onShowPrivate) }
+            RemindersSection()
             Text("Backup & sync", style = LedgerType.title, color = c.ink)
             when {
                 !state.configured -> Text("Sync isn't set up in this build yet. Entries are saved on this phone.", style = LedgerType.body, color = c.ink2)

@@ -33,7 +33,8 @@ data class LedgerColors(
     val scrim: Color,
 )
 
-private val Light = LedgerColors(
+/** The light and dark token sets. Internal so the home-screen widgets can use the same colours. */
+internal val Light = LedgerColors(
     bg = Color(0xFFECF1EE), surface = Color(0xFFFFFFFF), surface2 = Color(0xFFE1E8E4),
     ink = Color(0xFF12201B), ink2 = Color(0xFF55665F), line = Color(0xFFD2DCD7),
     accent = Color(0xFFF0A20F), accentInk = Color(0xFF2A1B00), accentSoft = Color(0xFFFBE7BD),
@@ -41,7 +42,7 @@ private val Light = LedgerColors(
     spent = Color(0xFFBF3F29), income = Color(0xFF1B8455), loan = Color(0xFF2C66AD),
     scrim = Color(0x730A1814),
 )
-private val Dark = LedgerColors(
+internal val Dark = LedgerColors(
     bg = Color(0xFF0C1412), surface = Color(0xFF151F1C), surface2 = Color(0xFF1E2A26),
     ink = Color(0xFFE6EFEB), ink2 = Color(0xFF97A9A2), line = Color(0xFF283632),
     accent = Color(0xFFF5B43A), accentInk = Color(0xFF231700), accentSoft = Color(0xFF3A2D10),

@@ -25,6 +25,8 @@ data class Usual(
     val mode: String,
     val count: Int,
     val lastUsed: Long,
+    /** Which credit card, when it was paid by card (so logging it again counts towards that card). */
+    val card: String = "",
 )
 
 /** Every description you've used, with the details from its latest use and how often you've used it. */
@@ -35,7 +37,7 @@ fun List<Entry>.usuals(): List<Usual> {
         val u = byKey[key]
         byKey[key] = u?.copy(count = u.count + 1) ?: Usual(
             key, e.description.trim(), e.amount, e.type, e.category, e.person,
-            e.people(), e.includesMe, e.mode, 1, e.createdAt,
+            e.people(), e.includesMe, e.mode, 1, e.createdAt, e.card,
         )
     }
     return byKey.values.toList()

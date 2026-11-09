@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="wp_surface">#151F1C</color>
+    <color name="wp_surface2">#1E2A26</color>
+    <color name="wp_ink">#E6EFEB</color>
+    <color name="wp_ink2">#97A9A2</color>
+    <color name="wp_accent">#F5B43A</color>
+    <color name="wp_accent_ink">#231700</color>
+    <color name="wp_deep">#113F37</color>
+</resources>

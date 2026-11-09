@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget picker previews only (the live widgets take their colours from ui/theme in code). -->
+<resources>
+    <color name="wp_surface">#FFFFFF</color>
+    <color name="wp_surface2">#E1E8E4</color>
+    <color name="wp_ink">#12201B</color>
+    <color name="wp_ink2">#55665F</color>
+    <color name="wp_accent">#F0A20F</color>
+    <color name="wp_accent_ink">#2A1B00</color>
+    <color name="wp_deep">#0E3A33</color>
+</resources>

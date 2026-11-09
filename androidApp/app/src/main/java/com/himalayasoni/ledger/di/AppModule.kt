@@ -37,4 +37,14 @@ val appModule = module {
     viewModel { com.himalayasoni.ledger.ui.insights.InsightsViewModel(get()) }
     viewModel { com.himalayasoni.ledger.ui.cards.CardsViewModel(get(), get(), get()) }
     viewModel { AddEntryViewModel(get(), get(), get(), get()) }
+
+    // Phase 5: logging from outside the app (widgets, notification replies, quick add pop-up) and reminders
+    single { com.himalayasoni.ledger.data.prefs.ReminderPrefs(androidContext()) }
+    single { com.himalayasoni.ledger.data.QuickLogger(get(), get()) }
+    single { com.himalayasoni.ledger.reminders.ReminderScheduler(androidContext(), get()) }
+    // the pop-up's add sheet never shows private categories, even if they're unlocked in the app
+    viewModel(org.koin.core.qualifier.named(com.himalayasoni.ledger.ui.quickadd.QuickAdd.VIEWMODEL)) {
+        val hidden = com.himalayasoni.ledger.data.PrivateAlwaysHidden(get())
+        AddEntryViewModel(get(), hidden, com.himalayasoni.ledger.data.VisibleEntries(get(), hidden), get())
+    }
 }
