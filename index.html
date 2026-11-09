@@ -378,6 +378,12 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
 /* add sheet, card bill: what Ledger thinks the bill is */
 .billhint{display:flex;align-items:center;gap:8px;margin-top:10px;padding:6px 6px 6px 12px;border-radius:12px;background:var(--accent-soft);font-size:13px;line-height:1.35}
 .billhint span{flex:1;min-width:0}
+/* add sheet, money in: pick the expense it was for (it saves as money back on that expense) */
+.linklist{padding:0;margin:0 0 10px;overflow:hidden}
+.linklist button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 14px;border-top:1px solid var(--line)}
+.linklist button:first-child{border-top:0}
+.linklist b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linklist span{font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums;flex:0 0 auto}
 
 /* bottom nav */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -549,6 +555,7 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
     </div>
     <div id="spend-card" hidden></div>
     <div id="refund-wrap" hidden></div>
+    <div id="link-wrap" hidden></div>
     <label class="fld"><span>Comment</span>
       <textarea class="inp" id="f-note" rows="2" placeholder="Anything you want to remember"></textarea></label>
     <button class="del" id="sh-del" data-act="delete" hidden>Delete this entry</button>
@@ -612,7 +619,7 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v18';
+const APP_VERSION = 'v19';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
@@ -636,7 +643,7 @@ const S = {
   entries: [], everything: [], all: new Map(), unlocked: false, hiddenCount: 0, view:'home', person:null, mode:'local', loading:false,
   f: freshFilters(),
   im: null,            // insights month {y,m}
-  card: null, cardPick: false, cardOpen: {},  // card page: which card, statement-day picker open, periods opened/closed
+  card: null, cardPick: false, duePick: false, cardOpen: {},  // card page: which card, statement-day / due-day picker open, periods opened/closed
   flashId: null,
 };
 function freshFilters(){ return {q:'', types:[], range:'all', from:'', to:'', person:'', cat:'', mode:'', min:'', max:'', note:false, sort:'date-desc'}; }
@@ -728,20 +735,29 @@ function cardDues(list = S.entries){
   });
 }
 /* ---------- matching bills against card spends (the same rules as Cards.kt: cardCycles, suggestedBill) ----------
-   Card settings live in one record, cfg-cards: {cards: [{name: 'HDFC', statementDay: 15}, {name: 'SBI'}]}.
-   A statement day is the day of the month the card's statement closes (1–31). */
+   Card settings live in one record, cfg-cards: {cards: [{name: 'HDFC', statementDay: 15, dueDay: 3}, {name: 'SBI'}]}.
+   A statement day is the day of the month the card's statement closes (1–31); the due day is when the bill is due. */
 const CARDS_ID = 'cfg-cards';
 function cardSettings(){ const r = S.all.get(CARDS_ID); return (r && !r.deleted && Array.isArray(r.cards)) ? r.cards.filter(c => c && c.name) : []; }
-function statementDayOf(name){
-  const c = cardSettings().find(c => lc(c.name) === lc(name)), d = c ? Math.round(+c.statementDay) : 0;
+/* one card's setting [field] ('statementDay' or 'dueDay') as a day 1–31, or null when it isn't set */
+function cardDayOf(name, field){
+  const c = cardSettings().find(c => lc(c.name) === lc(name)), d = c ? Math.round(+c[field]) : 0;
   return d >= 1 && d <= 31 ? d : null;
 }
-/* set (or clear, with null) one card's statement day; the other cards stay as they are */
-function saveCardSettings(name, statementDay){
-  const card = {name}; if (statementDay) card.statementDay = statementDay;
+const statementDayOf = name => cardDayOf(name, 'statementDay');
+const dueDayOf = name => cardDayOf(name, 'dueDay');
+/* change some of one card's settings, e.g. {dueDay: 3} (null clears one). Its other settings and the other cards stay as they are. */
+function saveCardSettings(name, patch){
   const list = cardSettings(), i = list.findIndex(c => lc(c.name) === lc(name));
+  const card = {...(i < 0 ? {name} : list[i]), ...patch};
+  for (const k of ['statementDay', 'dueDay']) if (!card[k]) delete card[k];
   const cards = i < 0 ? [...list, card] : list.map((c, j) => j === i ? card : c);
   return store.put({id: CARDS_ID, cards}); // synced like the other cfg- records
+}
+/* the next time a bill due on day [dueDay] is due: this month's (if it's today or later), else next month's */
+function nextDueDate(dueDay, today = todayKey()){
+  const [y, m] = yearMonth(today), thisMonth = closingIn(y, m, dueDay);
+  return thisMonth >= today ? thisMonth : closingIn(y, m + 1, dueDay);
 }
 /* day [day] of a month, or its last day when the month is shorter (a statement on the 31st in February).
    m is 1–12; 0 or 13 roll into the year before or after. */
@@ -1147,7 +1163,10 @@ function rowHtml(e, opts={}){
   const title = e.desc || (isBill ? (e.card ? `${e.card} card bill` : t.label) : isDebt ? (e.person ? `${t.person} ${e.person}` : t.label) : (e.cat || t.label));
   // small labels after the title
   const tags = [];
-  if (refund) tags.push(refund.status === 'awaited' ? '<span class="tag awaited">Refund awaited</span>' : '<span class="tag refunded">Refunded</span>');
+  // money back from a person (they covered it) reads differently from a shop's refund
+  const backFrom = refund && refund.from ? refund.from : '';
+  if (refund) tags.push(refund.status === 'awaited' ? `<span class="tag awaited">${backFrom ? 'Money back awaited' : 'Refund awaited'}</span>`
+    : `<span class="tag refunded">${backFrom ? 'Money back' : 'Refunded'}</span>`);
   if (isBill) tags.push('<span class="tag">Not spending</span>');
   const meta = [];
   const w = withOf(e);
@@ -1157,7 +1176,9 @@ function rowHtml(e, opts={}){
   const theirs = (opts.who && w.some(x => x.toLowerCase() === opts.who)) ? (repaidOf(e, opts.who) >= shareOf(e) - 0.5 ? 'paid back' : rupee(shareOf(e)) + ' theirs') : '';
   if (repaidOf(e) > 0 && !opts.who) meta.push(rupee(repaidOf(e)) + ' paid back');
   // a refund shows what was paid and what's coming back, so the smaller amount on the right makes sense
-  if (refund) meta.push(`${rupee(e.amount)} paid · ${rupee(refund.amount)} ${refund.status === 'awaited' ? 'refund awaited' : 'refunded'}`);
+  if (refund) meta.push(`${rupee(e.amount)} paid · ${rupee(refund.amount)} ` + (backFrom
+    ? (refund.status === 'awaited' ? 'awaited from ' : 'back from ') + esc(backFrom)
+    : (refund.status === 'awaited' ? 'refund awaited' : 'refunded')));
   if (e.cat && t.kind === 'flow') meta.push(esc(e.cat));
   if (isBill) meta.push('not spending');
   if (e.mode) meta.push(e.mode === 'Card' && e.card ? esc(e.card) + ' card' : esc(e.mode));
@@ -1214,7 +1235,7 @@ function inFlightCard(){
 }
 /* one card's page: what's due, its statement day, and each billing period's bill against what you logged */
 function viewCard(){
-  const name = S.card, day = statementDayOf(name);
+  const name = S.card, day = statementDayOf(name), dueDay = dueDayOf(name);
   const due = cardDues().find(c => lc(c.name) === lc(name)) || {due: 0, notLogged: 0};
   const cycles = cardCycles(S.entries, name, day, todayKey());
   let picker = '';
@@ -1222,6 +1243,11 @@ function viewCard(){
       <div class="daygrid">${Array.from({length: 31}, (_, i) => i + 1).map(d => `<button class="chip${d === day ? ' on' : ''}" data-act="stmtday" data-d="${d}">${d}</button>`).join('')}
         <button class="chip wide${day ? '' : ' on'}" data-act="stmtday" data-d="0">Not set</button></div>`;
   else if (!day) picker = `<p class="note">Bills are compared with everything since the previous bill. Set the statement date to compare each bill with the exact statement.</p>`;
+  // the bill's due day: the Android app uses it for a reminder 3 days before
+  const dueLine = dueDay ? `Bill due on the ${ordinal(dueDay)} · next: ${dayMon(nextDueDate(dueDay))}` : 'No due date set (for a reminder)';
+  const duePicker = !S.duePick ? '' : `<p class="note">Which day is the bill due? The Android app reminds you 3 days before.</p>
+      <div class="daygrid">${Array.from({length: 31}, (_, i) => i + 1).map(d => `<button class="chip${d === dueDay ? ' on' : ''}" data-act="dueday" data-d="${d}">${d}</button>`).join('')}
+        <button class="chip wide${dueDay ? '' : ' on'}" data-act="dueday" data-d="0">Not set</button></div>`;
   const tones = {good: 'var(--in)', more: 'var(--spent)', less: 'var(--lend)'};
   const periods = cycles.map((c, i) => {
     const w = cycleWords(c, day), k = `${c.from || ''}|${c.to}`, open = S.cardOpen[k] ?? i === 0; // the newest starts open
@@ -1244,6 +1270,9 @@ function viewCard(){
       <div class="stmt"><span>${day ? `Statement closes on the ${ordinal(day)}` : 'No statement date set'}</span>
         <button class="link" data-act="stmtpick" aria-expanded="${!!S.cardPick}">${S.cardPick ? 'Done' : day ? 'Change' : 'Set it'}</button></div>
       ${picker}
+      <div class="stmt"><span>${dueLine}</span>
+        <button class="link" data-act="duepick" aria-expanded="${!!S.duePick}">${S.duePick ? 'Done' : dueDay ? 'Change' : 'Set it'}</button></div>
+      ${duePicker}
       <div class="btns"><button class="btn primary" data-act="add" data-type="cardbill" data-card="${esc(name)}">Log a bill payment</button></div>
     </div>
     ${periods || '<p class="muted" style="margin:14px 4px">Nothing on this card yet.</p>'}`;
@@ -1395,7 +1424,7 @@ function filtered(){
     if (!isNaN(max) && e.amount > max) return false;
     if (f.note && !e.note) return false;
     if (q){
-      const hay = [e.desc,e.person,withOf(e).join(' '),e.cat,e.note,e.mode,e.card,TYPES[e.type].label,e.refund ? 'refund' : '',String(e.amount),fmtDate(e.date)].join(' ').toLowerCase();
+      const hay = [e.desc,e.person,withOf(e).join(' '),e.cat,e.note,e.mode,e.card,TYPES[e.type].label,e.refund ? 'refund money back ' + (e.refund.from || '') : '',String(e.amount),fmtDate(e.date)].join(' ').toLowerCase();
       if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
     }
     return true;
@@ -1758,7 +1787,9 @@ function openEntry(pref = {}, editId = null){
 function refundDraft(e){
   const r = e && e.type === 'spent' ? e.refund : null, t = todayKey();
   return {refundOn: !!r, refundFull: !r || r.amount >= e.amount, refundStr: r && r.amount < e.amount ? trimAmt(r.amount) : '',
-          refundArrived: !!r && r.status === 'received', refundReceived: (r && r.received) || t, refundTo: (r && r.to) || '', refundCard: (r && r.card) || ''};
+          refundArrived: !!r && r.status === 'received', refundReceived: (r && r.received) || t, refundTo: (r && r.to) || '', refundCard: (r && r.card) || '',
+          refundFrom: (r && r.from) || '', // who gave it back: '' for a shop's refund, or a person's name
+          linkTo: null, linkOpen: false};  // money in: the expense it was for (saves as money back on it)
 }
 const CHEV = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${d ? 'M6 9l6 6 6-6' : 'M6 15l6-6 6 6'}"/></svg>`;
 function setPad(on){
@@ -1820,7 +1851,7 @@ function syncSheet(){
   $('#f-date').classList.toggle('on', D.date !== tk && D.date !== addDays(tk,-1));
   $('#mode-lbl').textContent = bill ? 'Paid from' : 'Paid with';
   $('#mode-chips').innerHTML = MODES.filter(m => !(bill && m === 'Card')).map(m=>`<button class="chip${D.mode===m?' on':''}" data-act="mode" data-m="${m}">${m}</button>`).join('');
-  renderQuick(); renderPersonSugg(); renderCards(); renderRefund();
+  renderQuick(); renderPersonSugg(); renderCards(); renderRefund(); renderLink();
 }
 /* "Which card" chips: the cards you've named, plus a way to name a new one */
 const tidyCard = v => String(v || '').trim().replace(/\s+/g, ' ').slice(0, 24);
@@ -1846,26 +1877,60 @@ function refundHint(){
   if (!(amt > 0 && back > 0)) return '';
   return `Counts as ${rupee(amt - back)} spent` + (D.refundArrived ? '' : ` · ${rupee(back)} shows as awaited until it arrives`);
 }
+/* the money back has arrived; it usually comes back the way it went out */
+function setArrived(){
+  D.refundArrived = true;
+  if (!D.refundTo && ['Card', 'UPI', 'Cash'].includes(D.mode)) D.refundTo = D.mode;
+}
 function updateRefundHint(){ const h = $('#refund-hint'); if (h){ h.textContent = refundHint(); h.hidden = !h.textContent; } }
-/* a spend's refund (cancelled ticket, returned order): off is one chip; on is full or partial, awaited or arrived */
+/* Money back on a spend: a shop's refund (cancelled ticket, returned order) or a person paying you back for it
+   (Dad covered the treat). Off is one chip; on is who it's from, full or partial, awaited or arrived. */
 function renderRefund(){
   const box = $('#refund-wrap');
   box.hidden = D.type !== 'spent';
   if (box.hidden){ box.innerHTML = ''; return; }
-  const chip = (act, v, label, on) => `<button class="chip${on ? ' on' : ''}" data-act="${act}" data-v="${v}">${label}</button>`;
-  if (!D.refundOn){ box.innerHTML = `<div class="quick-h">Refund</div><div class="chips">${chip('refund', 'on', '+ Add refund (cancelled or returned)', false)}</div>`; return; }
+  const chip = (act, v, label, on) => `<button class="chip${on ? ' on' : ''}" data-act="${act}" data-v="${esc(v)}">${label}</button>`;
+  if (!D.refundOn){ box.innerHTML = `<div class="quick-h">Money back</div><div class="chips">${chip('refund', 'on', '+ Money back (refund, or someone paid you back)', false)}</div>`; return; }
+  // who it's from: people you split this with are left out (their share is "paid their share" on their page)
+  const shared = new Set(D.with.map(lc));
+  const names = uniqCI([D.refundFrom, ...allPeople()]).filter(n => !shared.has(lc(n))).slice(0, 7);
+  const from = `<div class="chips">${chip('rfrom', '', 'Shop refund', !D.refundFrom)}${names.map(n => chip('rfrom', n, esc(n), lc(n) === lc(D.refundFrom))).join('')}`
+    + `<button class="chip" data-act="rfromnew">+ Someone else</button></div>`
+    + (shared.size ? `<div class="hint" style="margin:0">Someone you split this with? Use "paid their share" on their page instead.</div>` : '');
   const tk = todayKey(), yk = addDays(tk, -1), rd = D.refundReceived, hint = refundHint();
   const arrived = !D.refundArrived ? '' : `
       <div><div class="quick-h">Arrived on</div><div class="chips">${chip('rdate', 0, 'Today', rd === tk)}${chip('rdate', 1, 'Yesterday', rd === yk)}
         <input type="date" class="date-inp${rd !== tk && rd !== yk ? ' on' : ''}" id="f-rdate" value="${esc(rd)}" aria-label="Pick the day it arrived"></div></div>
       <div><div class="quick-h">Came back to</div><div class="chips">${['Card', 'UPI', 'Bank', 'Cash'].map(m => chip('rto', m, m, D.refundTo === m)).join('')}</div></div>
       ${D.refundTo === 'Card' ? `<div>${cardPicker('Which card', 'rcard', D.refundCard || D.card)}</div>` : ''}`;
-  box.innerHTML = `<div class="quick-h">Refund</div><div class="stack">
-      <div class="chips">${chip('refund', 'full', 'Full', D.refundFull)}${chip('refund', 'partial', 'Partial', !D.refundFull)}${chip('refund', 'off', 'Remove refund', false)}</div>
+  box.innerHTML = `<div class="quick-h">Money back</div><div class="stack">
+      ${from}
+      <div class="chips">${chip('refund', 'full', 'Full', D.refundFull)}${chip('refund', 'partial', 'Partial', !D.refundFull)}${chip('refund', 'off', 'Remove', false)}</div>
       ${D.refundFull ? '' : `<input class="inp" id="f-refund" inputmode="decimal" autocomplete="off" enterkeyhint="done" aria-label="Refund amount" placeholder="How much is coming back, e.g. 1320" value="${esc(D.refundStr)}">`}
       <div class="chips">${chip('refund', 'awaited', 'Awaited', !D.refundArrived)}${chip('refund', 'arrived', 'Arrived', D.refundArrived)}</div>
       <div class="hint" id="refund-hint" style="margin:0"${hint ? '' : ' hidden'}>${esc(hint)}</div>${arrived}
       </div>`;
+}
+/* recent expenses that money in can be linked to: spent, no money back on them yet, from the last 120 days, newest first */
+function linkableExpenses(){
+  const since = addDays(todayKey(), -120);
+  return S.entries.filter(e => e.type === 'spent' && !e.deleted && !e.refund && e.date >= since).sort(byRecent).slice(0, 12)
+    .map(e => ({id: e.id, title: e.desc || e.cat || 'Expense', detail: `${rupee(e.amount)} · ${dayMon(e.date)}`}));
+}
+/* Money in that was for an expense ("Dad gave me 1,500 for the treat"). Linking saves it as money back on
+   that expense instead of as income, so the expense's month shows what it really cost. */
+function renderLink(){
+  const box = $('#link-wrap'), list = D.type === 'received' ? linkableExpenses() : [];
+  box.hidden = !list.length;
+  if (box.hidden){ box.innerHTML = ''; return; }
+  const linked = list.find(o => o.id === D.linkTo);
+  let h = '<div class="quick-h">Was this for an expense?</div>';
+  if (linked && !D.linkOpen) h += `<div class="billhint" style="margin:0"><span>Saves as money back on <b>${esc(linked.title)}</b> (${esc(linked.detail)}), not as income. That expense's month shows what it really cost.</span>
+      <button class="chip" data-act="link" data-v="">Unlink</button></div>`;
+  else if (!D.linkOpen) h += `<div class="chips"><button class="chip" data-act="linkopen">+ Link to an expense (it was money back)</button></div>`;
+  else h += `<div class="card linklist">${list.map(o => `<button data-act="link" data-v="${esc(o.id)}"><b>${esc(o.title)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div>
+      <div class="chips"><button class="chip" data-act="link" data-v="">Not for an expense</button></div>`;
+  box.innerHTML = h;
 }
 function renderQuick(){
   const q = $('#quick');
@@ -1912,7 +1977,7 @@ function renderWith(){
   }).join('')}</div>`;
 }
 function addWithName(n){ n = canonPerson(n); if (n && !D.with.some(x => x.toLowerCase() === n.toLowerCase())) D.with.push(n); }
-function addWith(n){ addWithName(n); const i = $('#f-person'); i.value = ''; D.person = ''; i.placeholder = 'Add another name'; renderWith(); renderPersonSugg(); }
+function addWith(n){ addWithName(n); const i = $('#f-person'); i.value = ''; D.person = ''; i.placeholder = 'Add another name'; renderWith(); renderPersonSugg(); renderRefund(); }
 function applyTemplate(key){
   const t = templates().find(x => x.key === key); if (!t) return;
   D.desc = t.desc; $('#f-desc').value = t.desc;
@@ -1965,6 +2030,7 @@ async function saveEntry(){
   if (bill && !D.card){ formError('#bill-card', 'Pick which card this bill is for'); return; }
   if (multi && D.refundOn && !(refundBack() > 0)){ formError('#refund-wrap', 'Type how much is coming back'); return; }
   setErr('');
+  if (D.type === 'received' && D.linkTo){ saveAsMoneyBack(amount, person); return; }
   if (D.type === 'gotback' || D.type === 'paidback'){
     if (!D.priorAsked){
       const ex = settleExcess(D.type, person, amount, D.editId);
@@ -2006,6 +2072,7 @@ async function saveEntry(){
       const rc = D.refundTo === 'Card' ? (D.refundCard || D.card) : '';
       if (rc) r.card = rc;
     }
+    if (D.refundFrom.trim()) r.from = D.refundFrom.trim(); // a person paid you back (left out for a shop's refund)
     e.refund = r;
   }
   saving = true;
@@ -2022,6 +2089,29 @@ async function saveEntry(){
     closeSheet();
     toast(!S.unlocked && isPrivate(e) ? 'Saved privately' : prev ? 'Entry updated' : `Logged ${rupee(amount)}${e.desc ? ' · '+e.desc : bill ? ` · ${e.card} card bill` : ''}${e.with ? ' · with ' + e.with.length + (e.with.length===1 ? ' person' : ' people') : ''}`);
   }, 650);
+}
+/* Money in that was for an expense ("Dad gave me 1,500 for the treat"): no Received entry is saved. Instead it
+   becomes money back on that expense, so the expense's month shows what it really cost you (the Android app does the same). */
+async function saveAsMoneyBack(amount, person){
+  const target = S.entries.find(x => x.id === D.linkTo);
+  if (!target){ D.linkTo = null; renderLink(); setErr("That expense isn't there any more. Pick another."); return; }
+  const back = Math.min(amount, target.amount), day = D.date || todayKey();
+  const refund = {amount: back, status: 'received', confirmed: day, received: day, to: D.mode === 'Card' ? 'Card' : D.mode};
+  if (person) refund.from = person;
+  const prev = D.editId ? S.entries.find(x => x.id === D.editId) : null; // a Received entry being turned into money back
+  saving = true;
+  try {
+    await store.put({...target, refund, updatedAt: Date.now()});
+    if (prev) await store.remove(prev.id); // deleted like any other entry, so other devices drop it too
+  } catch { saving = false; toast("Couldn't save. Check your connection and try again."); return; }
+  saving = false;
+  lsSet(LS_MODE, D.mode);
+  S.flashId = target.id; buzz();
+  $('#done-txt').textContent = 'Saved as money back';
+  $('#done').hidden = false;
+  render();
+  const name = target.desc || target.cat || 'the expense';
+  setTimeout(() => { closeSheet(); toast(`${rupee(back)} back on ${name} · counts as ${rupee(Math.max(0, target.amount - back))} spent`); }, 650);
 }
 /* ---------- quick add: amount, then one tap on a category saves ---------- */
 let QK = '';
@@ -2266,9 +2356,11 @@ document.addEventListener('click', ev => {
     }
     case 'card': D.card = lc(D.card) === lc(el.dataset.c) ? '' : el.dataset.c; setErr(''); renderCards(); break;
     case 'usebill': D.amountStr = trimAmt(+el.dataset.v); setErr(''); syncAmount(true); renderQuick(); break;
-    case 'cardpage': S.card = el.dataset.c; S.cardPick = false; S.cardOpen = {}; go('card'); break;
-    case 'stmtpick': S.cardPick = !S.cardPick; render(); break;
-    case 'stmtday': S.cardPick = false; saveCardSettings(S.card, +el.dataset.d || null); break;
+    case 'cardpage': S.card = el.dataset.c; S.cardPick = false; S.duePick = false; S.cardOpen = {}; go('card'); break;
+    case 'stmtpick': S.cardPick = !S.cardPick; S.duePick = false; render(); break;
+    case 'stmtday': S.cardPick = false; saveCardSettings(S.card, {statementDay: +el.dataset.d || null}); break;
+    case 'duepick': S.duePick = !S.duePick; S.cardPick = false; render(); break;
+    case 'dueday': S.duePick = false; saveCardSettings(S.card, {dueDay: +el.dataset.d || null}); break;
     case 'cyctoggle': { const k = el.dataset.k, i = +el.dataset.i; S.cardOpen[k] = !(S.cardOpen[k] ?? i === 0); render(); break; }
     case 'rcard': D.refundCard = el.dataset.c; renderRefund(); break;
     case 'newcard': { // like "+ New" category: the chip turns into a small box
@@ -2292,17 +2384,29 @@ document.addEventListener('click', ev => {
     case 'refund': {
       const v = el.dataset.v;
       if (v === 'on') D.refundOn = true;
-      else if (v === 'off'){ D.refundOn = false; D.refundStr = ''; D.refundArrived = false; }
+      else if (v === 'off'){ D.refundOn = false; D.refundStr = ''; D.refundArrived = false; D.refundFrom = ''; }
       else if (v === 'full' || v === 'partial') D.refundFull = v === 'full';
-      else {
-        D.refundArrived = v === 'arrived';
-        // money usually comes back the way it went out
-        if (D.refundArrived && !D.refundTo && ['Card', 'UPI', 'Cash'].includes(D.mode)) D.refundTo = D.mode;
-      }
+      else if (v === 'arrived') setArrived();
+      else D.refundArrived = false;
       renderRefund(); renderWith();
       if (v === 'partial' && !D.refundStr) setTimeout(() => { const i = $('#f-refund'); if (i) i.focus(); }, 30);
       break;
     }
+    case 'rfrom': // who gave it back; a person usually pays you back straight away, so it starts as Arrived
+      D.refundFrom = el.dataset.v;
+      if (D.refundFrom) setArrived();
+      renderRefund(); break;
+    case 'rfromnew': { // like "+ New card": the chip turns into a small name box
+      el.outerHTML = `<span class="newcard"><input class="date-inp" id="rfrom-new" placeholder="Their name" style="width:150px" maxlength="24" enterkeyhint="done"><button class="chip" data-act="rfromadd">Add</button></span>`;
+      const i = $('#rfrom-new'); i.focus();
+      const done = () => { const v = canonPerson(i.value); if (v){ D.refundFrom = v; setArrived(); } renderRefund(); };
+      i.addEventListener('keydown', e2 => { if (e2.key === 'Enter'){ e2.preventDefault(); i.blur(); } });
+      i.addEventListener('blur', done, {once: true}); // tapping Add also blurs the box, which saves it
+      break;
+    }
+    case 'rfromadd': { const i = $('#rfrom-new'); if (i) i.blur(); break; }
+    case 'linkopen': D.linkOpen = true; renderLink(); break;
+    case 'link': D.linkTo = el.dataset.v || null; D.linkOpen = false; setErr(''); renderLink(); break;
     case 'rdate': D.refundReceived = addDays(todayKey(), -Number(el.dataset.v)); renderRefund(); break;
     case 'rto': D.refundTo = el.dataset.v; renderRefund(); break;
     case 'cat': D.cat = D.cat === el.dataset.c ? '' : el.dataset.c; D.catTouched = true; syncSheet(); break;
@@ -2321,7 +2425,7 @@ document.addEventListener('click', ev => {
       if (D.type === 'spent') addWith(el.dataset.p);
       else { D.person = el.dataset.p; $('#f-person').value = D.person; renderPersonSugg(); }
       setErr(''); break;
-    case 'unwith': D.with = D.with.filter(x => x !== el.dataset.p); renderWith(); renderPersonSugg(); break;
+    case 'unwith': D.with = D.with.filter(x => x !== el.dataset.p); renderWith(); renderPersonSugg(); renderRefund(); break;
     case 'fullamt': D.amountStr = trimAmt(+el.dataset.v); syncAmount(true); renderPersonSugg(); break;
     case 'key': keyPress(el.dataset.k); break;
     case 'prioryes': case 'priorno': {
