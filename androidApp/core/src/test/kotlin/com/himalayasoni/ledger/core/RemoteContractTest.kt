@@ -48,6 +48,15 @@ class RemoteContractTest {
                     expect["share"]?.let { assertEquals(name, (it as Number).toDouble(), e.share(), 0.001) }
                     expect["cost"]?.let { assertEquals(name, (it as Number).toDouble(), e.cost(), 0.001) }
                     expect["prior"]?.let { assertEquals(name, (it as Number).toDouble(), e.prior, 0.001) }
+                    expect["card"]?.let { assertEquals(name, it, e.card) }
+                    expect["refundAmount"]?.let { assertEquals(name, (it as Number).toDouble(), e.refund!!.amount, 0.001) }
+                    expect["refundStatus"]?.let { assertEquals(name, it, e.refund!!.status.key) }
+                    expect["refundReceived"]?.let { assertEquals(name, it, e.refund!!.received.toString()) }
+                    expect["refundTo"]?.let { assertEquals(name, it, e.refund!!.to) }
+                    expect["refundCard"]?.let { assertEquals(name, it, e.refund!!.card) }
+                    // what the app writes back must read the same (nothing lost when the phone edits an entry)
+                    val again = (decodeRemote(e.id, e.encodeRemote()) as RemoteDoc.EntryDoc).entry
+                    assertEquals("$name (round trip)", e, again)
                 }
                 "tombstone" -> assertEquals(name, (expect["updatedAt"] as Number).toLong(), (doc as RemoteDoc.Tombstone).updatedAt)
                 "categories" -> {
@@ -72,11 +81,14 @@ class RemoteContractTest {
                 if (key == "person" && doc.entry.withPeople.isEmpty() && value != "") continue // legacy field kept as-is
                 val got = encoded[key]
                 if (value is Number) assertEquals("${case["name"]}: $key", value.toDouble(), (got as Number).toDouble(), 0.001)
-                else if (value is Map<*, *>) assertEquals("${case["name"]}: $key", value.mapValues { (it.value as Number).toDouble() }, (got as Map<*, *>).mapValues { (it.value as Number).toDouble() })
+                else if (value is Map<*, *>) assertEquals("${case["name"]}: $key", value.mapValues { norm(it.value) }, (got as Map<*, *>).mapValues { norm(it.value) })
                 else assertEquals("${case["name"]}: $key", value, got)
             }
         }
     }
+
+    /** Numbers compare as doubles (JSON has no int/double difference); anything else as is. */
+    private fun norm(v: Any?): Any? = if (v is Number) v.toDouble() else v
 
     @Test fun `the most recent edit wins`() {
         assertTrue(shouldApplyRemote(null, 5))

@@ -24,6 +24,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.himalayasoni.ledger.core.domain.peopleIndex
 import com.himalayasoni.ledger.core.domain.allCategories
+import com.himalayasoni.ledger.core.domain.cardNames
+import com.himalayasoni.ledger.core.model.Refund
+import com.himalayasoni.ledger.core.model.RefundStatus
 import com.himalayasoni.ledger.core.voice.VoiceContext
 import com.himalayasoni.ledger.core.voice.parseLine
 import java.time.LocalDate
@@ -31,7 +34,7 @@ import java.time.LocalDate
 /** Everything the sheet derives from your history, recomputed when entries change. */
 private data class VoiceInputs(
     val usuals: List<Usual>, val recent: List<String>, val cats: List<String>,
-    val people: List<String>, val voiceCats: List<String>,
+    val people: List<String>, val voiceCats: List<String>, val cards: List<String>,
 )
 
 /** How the sheet was opened: plain +, a quick action (type preset), or tapping an entry (edit). */
@@ -58,6 +61,17 @@ data class AddEntryState(
     val mode: String = "UPI",
     val date: LocalDate = LocalDate.now(),
     val note: String = "",
+    val card: String = "",                   // which card, for a card spend or a card bill
+    val cards: List<String> = emptyList(),   // your named cards
+    // refund (spends only)
+    val refundOn: Boolean = false,
+    val refundFull: Boolean = true,
+    val refundText: String = "",             // partial amount, as typed
+    val refundArrived: Boolean = false,
+    val refundConfirmed: LocalDate = LocalDate.now(),
+    val refundReceived: LocalDate = LocalDate.now(),
+    val refundTo: String = "",               // "Card", "UPI", "Bank", "Cash"
+    val refundCard: String = "",
     val keypadOn: Boolean = true,
     val error: String? = null,
     val done: String? = null,                // set after saving/deleting: the sheet closes and shows this
@@ -115,6 +129,10 @@ interface AddEntryActions {
     fun applySaid(text: String)
     /** "+ New" in the category row: adds the category everywhere and picks it. */
     fun addCategory(name: String)
+    /** Pick (or add) the credit card for a card spend or a card bill. */
+    fun onCard(name: String)
+    /** Refund on a spend: turn it on/off, full or partial, amount, awaited or arrived, where it came back. */
+    fun onRefund(change: (AddEntryState) -> AddEntryState)
 }
 
 /**
@@ -143,17 +161,19 @@ class AddEntryViewModel(
                 // what the voice parser knows about you: same rules as the web (allPeople(), allCats())
                 val names = visible.peopleIndex().values.sortedByDescending { it.lastDate }.map { it.name }
                 val voiceCats = (used + (if (show) emptySet() else private) + DEFAULT_CATEGORIES).distinctBy { it.lowercase() }
-                VoiceInputs(visible.usuals(), visible.recentPeople(), cats, names, voiceCats)
+                VoiceInputs(visible.usuals(), visible.recentPeople(), cats, names, voiceCats, visible.cardNames())
             }.collect { v ->
                 _state.update {
-                    it.copy(allUsuals = v.usuals, recentPeople = v.recent, categories = v.cats, voicePeople = v.people, voiceCategories = v.voiceCats)
+                    it.copy(allUsuals = v.usuals, recentPeople = v.recent, categories = v.cats, voicePeople = v.people, voiceCategories = v.voiceCats,
+                        cards = (v.cards + it.cards).distinctBy { c -> c.lowercase() })
                 }
             }
         }
     }
 
     fun start(req: AddRequest) = _state.update { s ->
-        val fresh = AddEntryState(allUsuals = s.allUsuals, recentPeople = s.recentPeople, categories = s.categories)
+        val fresh = AddEntryState(allUsuals = s.allUsuals, recentPeople = s.recentPeople, categories = s.categories, cards = s.cards,
+            voicePeople = s.voicePeople, voiceCategories = s.voiceCategories)
         val e = req.edit
         when {
             e != null -> fresh.copy(
@@ -161,6 +181,13 @@ class AddEntryViewModel(
                 description = e.description, person = if (e.type == EntryType.SPENT) "" else e.person,
                 withPeople = e.people(), includesMe = e.includesMe, category = e.category,
                 mode = e.mode.ifBlank { "UPI" }, date = e.date, note = e.note, keypadOn = false,
+                card = e.card,
+                refundOn = e.refund != null, refundFull = e.refund?.let { it.amount >= e.amount } ?: true,
+                refundText = e.refund?.let { plain(it.amount) }.orEmpty(),
+                refundArrived = e.refund?.status == RefundStatus.RECEIVED,
+                refundConfirmed = e.refund?.confirmed ?: LocalDate.now(),
+                refundReceived = e.refund?.received ?: LocalDate.now(),
+                refundTo = e.refund?.to.orEmpty(), refundCard = e.refund?.card.orEmpty(),
             )
             req.type != null -> fresh.copy(
                 type = req.type, typeTouched = true,
@@ -235,6 +262,8 @@ class AddEntryViewModel(
         when {
             s.amount <= 0 -> { _state.update { it.copy(error = "Type the amount first", keypadOn = true) }; return }
             s.type.isDebt && s.person.isBlank() -> { _state.update { it.copy(error = "Add who this was with, so the balance adds up") }; return }
+            s.type == EntryType.CARD_BILL && s.card.isBlank() -> { _state.update { it.copy(error = "Pick which card this bill is for") }; return }
+            s.type == EntryType.SPENT && s.refundOn && refundAmount(s) <= 0 -> { _state.update { it.copy(error = "Type how much is coming back") }; return }
         }
         val now = System.currentTimeMillis()
         val base = s.editing
@@ -242,8 +271,21 @@ class AddEntryViewModel(
             id = base?.id ?: newEntryId(now), type = s.type, amount = Math.round(s.amount * 100) / 100.0, date = s.date,
             description = s.description.trim(),
             person = if (s.type == EntryType.SPENT) "" else s.person.trim(),
-            category = if (s.type.isDebt) "" else s.category.ifBlank { if (s.type == EntryType.SPENT) "Other" else "" },
-            mode = s.mode, note = s.note.trim(),
+            category = if (!s.type.hasCategory) "" else s.category.ifBlank { if (s.type == EntryType.SPENT) "Other" else "" },
+            mode = if (s.type == EntryType.CARD_BILL && s.mode.equals("Card", true)) "UPI" else s.mode, note = s.note.trim(),
+            card = when {
+                s.type == EntryType.CARD_BILL -> s.card
+                s.type == EntryType.SPENT && s.mode.equals("Card", true) -> s.card
+                else -> ""
+            },
+            refund = if (s.type == EntryType.SPENT && s.refundOn) Refund(
+                amount = minOf(refundAmount(s), Math.round(s.amount * 100) / 100.0),
+                status = if (s.refundArrived) RefundStatus.RECEIVED else RefundStatus.AWAITED,
+                confirmed = s.editing?.refund?.confirmed ?: s.refundConfirmed,
+                received = if (s.refundArrived) s.refundReceived else null,
+                to = if (s.refundArrived) s.refundTo else "",
+                card = if (s.refundArrived && s.refundTo.equals("Card", true)) s.refundCard.ifBlank { s.card } else "",
+            ) else null,
             withPeople = withPeople, includesMe = if (withPeople.isEmpty()) true else s.includesMe,
             paidBack = if (s.type == EntryType.SPENT && withPeople.isNotEmpty()) base?.paidBack.orEmpty() else emptyMap(),
             prior = if (s.type.isDebt) base?.prior ?: 0.0 else 0.0,
@@ -260,7 +302,8 @@ class AddEntryViewModel(
         val line = text.trim()
         if (line.isEmpty()) return
         _state.update { s ->
-            val r = parseLine(line, VoiceContext(s.voicePeople, s.voiceCategories, s.allUsuals))
+            val today = LocalDate.now() // one "today" for both the parse and the date, even at midnight
+            val r = parseLine(line, VoiceContext(s.voicePeople, s.voiceCategories, s.allUsuals, today))
             val notes = buildList {
                 if (r.amount <= 0) add("tap in the amount")
                 if (r.type.isDebt && r.person.isBlank()) add("add who it was with")
@@ -273,7 +316,7 @@ class AddEntryViewModel(
                 person = if (r.type == EntryType.SPENT) "" else r.person,
                 category = r.category.ifBlank { s.category },
                 mode = r.mode.ifBlank { s.mode },
-                date = r.date(LocalDate.now()),
+                date = r.date(today),
                 keypadOn = r.amount <= 0,
                 heard = line,
                 heardNote = if (notes.isEmpty()) "Check it and tap Save." else notes.joinToString(" · "),
@@ -281,6 +324,20 @@ class AddEntryViewModel(
             )
         }
     }
+
+    override fun onCard(name: String) {
+        val n = name.trim().replace(Regex("\\s+"), " ").take(20)
+        if (n.isEmpty()) return
+        _state.update { st ->
+            val existing = st.cards.firstOrNull { it.equals(n, true) }
+            st.copy(card = existing ?: n, cards = if (existing == null) st.cards + n else st.cards, error = null)
+        }
+    }
+
+    override fun onRefund(change: (AddEntryState) -> AddEntryState) = _state.update { change(it).copy(error = null) }
+
+    /** Full refund = the whole amount; partial = what was typed. */
+    private fun refundAmount(s: AddEntryState): Double = if (s.refundFull) s.amount else s.refundText.toDoubleOrNull() ?: 0.0
 
     override fun addCategory(name: String) {
         val n = name.trim().replace(Regex("\\s+"), " ").take(24).replaceFirstChar { it.uppercase() }

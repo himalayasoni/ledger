@@ -96,6 +96,8 @@ class FirestoreSync(
         }
         _status.value = SyncStatus.Syncing
         val col = collection(uid)
+        // the app learned new fields or types: fetch everything once so nothing it skipped before is missing
+        if (prefs.needsFullResync()) { prefs.setLastServerTime(0); prefs.markFormatCurrent() }
         val since = Timestamp(Date(prefs.lastServerTime()))
         val registration = col.whereGreaterThan("srv", since).addSnapshotListener { snap, err ->
             if (err != null) { _status.value = SyncStatus.Problem(friendly(err)); return@addSnapshotListener }

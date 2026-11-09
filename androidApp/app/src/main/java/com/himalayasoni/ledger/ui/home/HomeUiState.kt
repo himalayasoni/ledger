@@ -12,6 +12,11 @@ import com.himalayasoni.ledger.core.domain.spentInUntil
 import com.himalayasoni.ledger.core.domain.streak
 import com.himalayasoni.ledger.core.model.Entry
 import com.himalayasoni.ledger.core.model.EntryType
+import com.himalayasoni.ledger.core.model.RefundStatus
+import com.himalayasoni.ledger.core.domain.net
+import com.himalayasoni.ledger.core.domain.cardDues
+import com.himalayasoni.ledger.core.domain.refundsAwaited
+import com.himalayasoni.ledger.core.domain.REFUND_NUDGE_DAYS
 import com.himalayasoni.ledger.core.money.formatRupees
 import java.time.LocalDate
 import java.time.YearMonth
@@ -40,6 +45,7 @@ sealed interface HomeUiState {
         val week: List<DayDot>,
         val totalCount: Int,
         val days: List<DayGroup>,
+        val inFlight: InFlight? = null,
     ) : HomeUiState
 }
 
@@ -103,6 +109,7 @@ fun buildHomeState(entries: List<Entry>, today: LocalDate, zone: ZoneId = ZoneId
         week = week,
         totalCount = entries.size,
         days = days,
+        inFlight = inFlight(entries, today),
     )
 }
 
@@ -124,17 +131,28 @@ fun dayGroups(entries: List<Entry>, today: LocalDate, who: String? = null): List
 /** Same title and details line as the web app's rowHtml(). */
 fun entryRow(e: Entry, who: String? = null): EntryRow {
     val title = e.description.ifBlank {
-        if (e.type.isDebt) (if (e.person.isNotBlank()) "${e.type.personLabel} ${e.person}" else e.type.label)
-        else e.category.ifBlank { e.type.label }
+        when {
+            e.type == EntryType.CARD_BILL -> if (e.card.isNotBlank()) "${e.card} card bill" else "Card bill"
+            e.type.isDebt -> if (e.person.isNotBlank()) "${e.type.personLabel} ${e.person}" else e.type.label
+            else -> e.category.ifBlank { e.type.label }
+        }
     }
+    val refund = e.refund?.takeIf { e.type == EntryType.SPENT }
     val parts = buildList {
         val with = e.people()
         if (with.isNotEmpty()) add("with " + with.take(2).joinToString(", ") + if (with.size > 2) " +${with.size - 2}" else "")
         else if (e.person.isNotBlank() && !(e.type.isDebt && e.description.isBlank())) add(e.person)
         if (e.prior > 0) add(if (e.prior >= e.amount) "loan from before Ledger" else "${formatRupees(e.prior)} from before Ledger")
         if (e.repaid() > 0) add("${formatRupees(e.repaid())} paid back")
-        if (e.category.isNotBlank() && !e.type.isDebt) add(e.category)
-        if (e.mode.isNotBlank()) add(e.mode)
+        // a refund shows what was paid and what's coming back, so the smaller amount on the right makes sense
+        if (refund != null) add(
+            "${formatRupees(e.amount)} paid · " +
+                if (refund.status == RefundStatus.AWAITED) "${formatRupees(refund.amount)} refund awaited" else "${formatRupees(refund.amount)} refunded",
+        )
+        if (e.category.isNotBlank() && e.type.hasCategory) add(e.category)
+        if (e.type == EntryType.CARD_BILL) add("not spending")
+        val payment = if (e.mode.equals("Card", true) && e.card.isNotBlank()) "${e.card} card" else e.mode
+        if (payment.isNotBlank()) add(payment)
     }
     val kind = when {
         e.type.isDebt -> if (e.type.sign < 0) RowKind.LOAN_OUT else RowKind.LOAN_IN
@@ -143,11 +161,14 @@ fun entryRow(e: Entry, who: String? = null): EntryRow {
     }
     return EntryRow(
         id = e.id, title = title, subtitle = parts.joinToString(" · "), note = e.note.trim(),
-        amount = (if (e.type.sign < 0) "−" else "+") + formatRupees(e.amount),
+        amount = (if (e.type.sign < 0) "−" else "+") + formatRupees(if (refund != null) e.net() else e.amount),
         kind = kind,
         badge = when {
             who != null && e.type == EntryType.SPENT && e.people().any { it.equals(who, true) } ->
                 formatRupees(maxOf(0.0, e.share() - e.repaid(who))) + " theirs"
+            refund?.status == RefundStatus.AWAITED -> "Refund awaited"
+            refund != null -> "Refunded"
+            e.type == EntryType.CARD_BILL -> "Card bill"
             kind == RowKind.OUT -> null
             else -> e.type.label
         },
@@ -164,6 +185,7 @@ val EntryType.personLabel: String get() = when (this) {
     EntryType.BORROWED -> "Borrowed from"
     EntryType.GOT_BACK -> "Got back from"
     EntryType.PAID_BACK -> "Paid back to"
+    EntryType.CARD_BILL -> "Card"
 }
 
 /** "Money out", "They owe you"…, the web app's TYPES[type].cap. */
@@ -174,4 +196,23 @@ val EntryType.caption: String get() = when (this) {
     EntryType.BORROWED -> "You owe them"
     EntryType.GOT_BACK -> "They repaid you"
     EntryType.PAID_BACK -> "You repaid them"
+    EntryType.CARD_BILL -> "Not spending"
+}
+
+/** Money on its way: refunds awaited and what's due on each card. Shown on Home only when there is some. */
+data class InFlight(val refunds: String?, val refundsNote: String?, val cards: List<Pair<String, String>>, val cardNote: String?)
+
+fun inFlight(entries: List<Entry>, today: LocalDate): InFlight? {
+    val awaited = entries.refundsAwaited(today)
+    val cards = entries.cardDues().filter { it.due > 0 || it.notLogged > 0 }
+    if (awaited.isEmpty() && cards.isEmpty()) return null
+    val oldest = awaited.firstOrNull { it.days >= REFUND_NUDGE_DAYS }
+    return InFlight(
+        refunds = if (awaited.isEmpty()) null else "${formatRupees(awaited.sumOf { it.amount })} · ${awaited.size} refund${if (awaited.size == 1) "" else "s"} awaited",
+        refundsNote = oldest?.let { "${it.entry.description.ifBlank { it.entry.category }}: waiting ${it.days} days. Worth checking?" },
+        cards = cards.map { it.name to formatRupees(it.due) },
+        cardNote = cards.filter { it.notLogged > 0 }.takeIf { it.isNotEmpty() }?.joinToString(" · ") {
+            "${it.name}: ${formatRupees(it.notLogged)} paid that isn't logged in Ledger (fees, interest or older spends)"
+        },
+    )
 }

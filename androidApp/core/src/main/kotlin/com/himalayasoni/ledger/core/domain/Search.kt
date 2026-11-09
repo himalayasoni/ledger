@@ -48,7 +48,8 @@ private fun amountText(v: Double) = if (v == Math.floor(v)) v.toLong().toString(
 
 /** Every word you type must appear somewhere: description, people, category, comment, mode, type, amount or date. */
 private fun Entry.matches(words: List<String>): Boolean {
-    val hay = listOf(description, person, people().joinToString(" "), category, note, mode, type.label, amountText(amount), date.format(SEARCH_DATE))
+    val hay = listOf(description, person, people().joinToString(" "), category, note, mode, card, type.label,
+        if (refund != null) "refund" else "", amountText(amount), date.format(SEARCH_DATE))
         .joinToString(" ").lowercase()
     return words.all { hay.contains(it) }
 }
@@ -79,9 +80,9 @@ fun List<Entry>.search(f: Filters, today: LocalDate): List<Entry> {
     }
 }
 
-/** "Out ₹x · In ₹y" for a set of results: money out counts what it really cost you. */
+/** "Out ₹x · In ₹y" for a set of results: money out counts what it really cost you. Card bills aren't spending, so they're left out. */
 fun List<Entry>.outAndIn(): Pair<Double, Double> {
     var out = 0.0; var inn = 0.0
-    for (e in this) if (e.type.sign < 0) out += e.cost() else inn += e.amount
+    for (e in this) if (e.type == EntryType.CARD_BILL) continue else if (e.type.sign < 0) out += e.cost() else inn += e.amount
     return out to inn
 }

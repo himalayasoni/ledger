@@ -12,6 +12,28 @@ import java.time.LocalDate
  * @property prior part of a repayment that settled a loan from before Ledger existed
  * @property deleted deletions are kept as markers ("tombstones") so they can sync to other devices
  */
+enum class RefundStatus(val key: String) {
+    /** Confirmed by the shop or IRCTC, but the money hasn't arrived yet. */
+    AWAITED("awaited"),
+    RECEIVED("received");
+
+    companion object { fun fromKey(k: String?) = entries.firstOrNull { it.key == k } }
+}
+
+/**
+ * Money coming back on an expense. As soon as it's confirmed the expense counts at its net cost
+ * (₹1,500 ticket − ₹1,320 refund = ₹180), while the refund shows as awaited until it arrives.
+ * @property to where it came back: "Card", "UPI", "Bank", "Cash" (with [card] when it's a card)
+ */
+data class Refund(
+    val amount: Double,
+    val status: RefundStatus,
+    val confirmed: LocalDate,
+    val received: LocalDate? = null,
+    val to: String = "",
+    val card: String = "",
+)
+
 data class Entry(
     val id: String,
     val type: EntryType,
@@ -26,6 +48,10 @@ data class Entry(
     val includesMe: Boolean = true,
     val paidBack: Map<String, Double> = emptyMap(),
     val prior: Double = 0.0,
+    /** A full or partial refund on an expense (cancelled ticket, returned order). */
+    val refund: Refund? = null,
+    /** Which credit card: on a card spend (mode "Card") or a card bill. */
+    val card: String = "",
     val createdAt: Long,
     val updatedAt: Long,
     val deleted: Boolean = false,

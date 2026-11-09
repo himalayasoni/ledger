@@ -17,17 +17,20 @@ fun Entry.people(): List<String> = when {
 }
 
 /** Each person's share of a shared expense. */
+/** The amount after any refund (confirmed or arrived): what the expense really came to. */
+fun Entry.net(): Double = if (type == EntryType.SPENT && refund != null) maxOf(0.0, amount - refund.amount) else amount
+
 fun Entry.share(): Double {
     val ways = people().size + if (includesMe) 1 else 0
-    return amount / maxOf(1, ways)
+    return net() / maxOf(1, ways)
 }
 
 /** How much one person (or everyone, if [name] is null) paid back for this expense. */
 fun Entry.repaid(name: String? = null): Double =
     if (name == null) paidBack.values.sum() else paidBack[name.lowercase()] ?: 0.0
 
-/** What an entry really cost you: a shared bill minus what people paid back. */
-fun Entry.cost(): Double = if (type == EntryType.SPENT) maxOf(0.0, amount - repaid()) else amount
+/** What an entry really cost you: the amount after refunds, minus what people paid back for their shares. */
+fun Entry.cost(): Double = if (type == EntryType.SPENT) maxOf(0.0, net() - repaid()) else amount
 
 /** Total spent in a month, after repayments. */
 fun List<Entry>.spentIn(month: YearMonth): Double =

@@ -20,7 +20,13 @@ enum class EntryType(
     LENT("lent", "Lent", -1, true, +1),
     BORROWED("borrowed", "Borrowed", +1, true, -1),
     GOT_BACK("gotback", "Got back", +1, true, -1),
-    PAID_BACK("paidback", "Paid back", -1, true, +1);
+    PAID_BACK("paidback", "Paid back", -1, true, +1),
+
+    /** Paying a credit card bill: money leaves your bank, but it isn't new spending (the card spends were logged already). */
+    CARD_BILL("cardbill", "Card bill", -1, false, 0);
+
+    /** Spent or received: the types that have a category and count in spending/income totals. */
+    val hasCategory: Boolean get() = this == SPENT || this == RECEIVED
 
     companion object {
         fun fromKey(key: String): EntryType? = entries.firstOrNull { it.key == key }

@@ -18,6 +18,9 @@ private val Context.syncStore by preferencesDataStore(name = "sync")
  * Small key-value settings kept with Jetpack DataStore (the modern replacement for
  * SharedPreferences: asynchronous, and observable as a Flow).
  */
+/** 2: refunds, named cards, card bills. */
+const val CURRENT_FORMAT = 2
+
 class SyncPrefs(private val context: Context) : SettingsRepository {
     private object Keys {
         val uid = stringPreferencesKey("uid")
@@ -25,6 +28,7 @@ class SyncPrefs(private val context: Context) : SettingsRepository {
         val lastSyncAt = longPreferencesKey("lastSyncAt")
         val privateCategories = stringSetPreferencesKey("privateCategories")
         val showPrivate = booleanPreferencesKey("showPrivate")
+        val format = androidx.datastore.preferences.core.intPreferencesKey("format")
         val customCategories = stringSetPreferencesKey("customCategories")
         val removedCategories = stringSetPreferencesKey("removedCategories")
     }
@@ -49,6 +53,14 @@ class SyncPrefs(private val context: Context) : SettingsRepository {
 
     /** Server time of the newest change already downloaded; we ask only for newer ones. */
     suspend fun lastServerTime(): Long = context.syncStore.data.first()[Keys.lastServerTime] ?: 0L
+
+    /**
+     * The data format this phone last synced with. When the app learns new entry types or fields,
+     * bumping [CURRENT_FORMAT] makes the next sync download everything once, so documents it
+     * couldn't read before (e.g. card bills made on the web) arrive now.
+     */
+    suspend fun needsFullResync(): Boolean = (context.syncStore.data.first()[Keys.format] ?: 1) < CURRENT_FORMAT
+    suspend fun markFormatCurrent() { context.syncStore.edit { it[Keys.format] = CURRENT_FORMAT } }
 
     suspend fun setLastServerTime(value: Long) { context.syncStore.edit { it[Keys.lastServerTime] = value } }
     suspend fun markSynced(at: Long) { context.syncStore.edit { it[Keys.lastSyncAt] = at } }

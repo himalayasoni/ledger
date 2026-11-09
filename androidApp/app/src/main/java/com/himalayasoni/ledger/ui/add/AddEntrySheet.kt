@@ -376,9 +376,10 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
         }
     }
 
-    PersonField(s, vm, onFocus)
+    if (s.type != EntryType.CARD_BILL) PersonField(s, vm, onFocus)
+    if (s.type == EntryType.CARD_BILL) CardPicker(s, vm, "Which card", onFocus)
 
-    if (!s.type.isDebt) Column {
+    if (s.type.hasCategory) Column {
         FieldLabel("Category")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             s.categories.forEach { cat -> LedgerChip(cat, s.category == cat, swatch = categoryColor(cat)) { vm.onCategory(cat) } }
@@ -397,11 +398,21 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
     }
 
     Column {
-        FieldLabel(if (s.type.sign > 0 && s.type != EntryType.BORROWED) "Received in" else "Paid with")
+        FieldLabel(
+            when {
+                s.type == EntryType.CARD_BILL -> "Paid from"
+                s.type.sign > 0 && s.type != EntryType.BORROWED -> "Received in"
+                else -> "Paid with"
+            },
+        )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PAYMENT_MODES.forEach { m -> LedgerChip(m, s.mode == m) { vm.onMode(m) } }
+            PAYMENT_MODES.filter { s.type != EntryType.CARD_BILL || !it.equals("Card", true) }
+                .forEach { m -> LedgerChip(m, s.mode == m) { vm.onMode(m) } }
         }
     }
+    if (s.type == EntryType.SPENT && s.mode.equals("Card", true)) CardPicker(s, vm, "Which card (optional)", onFocus)
+
+    if (s.type == EntryType.SPENT) RefundSection(s, vm, onFocus)
 
     Column {
         FieldLabel("Comment")
@@ -417,15 +428,86 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
     )
 }
 
+/** Your named cards as chips, plus "+ New card". Used for card spends, card bills and refunds to a card. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CardPicker(s: AddEntryState, vm: AddEntryActions, label: String, onFocus: (Boolean) -> Unit, selected: String = s.card, onPick: (String) -> Unit = vm::onCard) {
+    var adding by remember { mutableStateOf(false) }
+    Column {
+        FieldLabel(label)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            s.cards.forEach { name -> LedgerChip(name, selected.equals(name, true)) { onPick(name) } }
+            if (!adding) LedgerChip(if (s.cards.isEmpty()) "+ Name your card" else "+ New card") { adding = true }
+        }
+        if (adding) NewCategory(
+            onAdd = { vm.onCard(it); onPick(it.trim()); adding = false }, onCancel = { adding = false }, onFocus = onFocus,
+            hint = "Card name, e.g. HDFC",
+        )
+    }
+}
+
+/**
+ * Refund on an expense (web: the same section). Off: one chip, "Add refund". On: full or partial,
+ * then "Awaited" (confirmed, not here yet) or "Arrived" with the date and where it came back.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RefundSection(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) -> Unit) {
+    val c = LocalLedgerColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        FieldLabel("Refund")
+        if (!s.refundOn) {
+            LedgerChip("+ Add refund (cancelled or returned)") { vm.onRefund { it.copy(refundOn = true) } }
+            return@Column
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LedgerChip("Full", s.refundFull) { vm.onRefund { it.copy(refundFull = true) } }
+            LedgerChip("Partial", !s.refundFull) { vm.onRefund { it.copy(refundFull = false) } }
+            LedgerChip("Remove refund") { vm.onRefund { it.copy(refundOn = false, refundText = "", refundArrived = false) } }
+        }
+        if (!s.refundFull) LedgerTextField(
+            s.refundText, { v -> vm.onRefund { it.copy(refundText = v.filter { ch -> ch.isDigit() || ch == '.' }.take(10)) } },
+            placeholder = "How much is coming back, e.g. 1320",
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal, imeAction = ImeAction.Done,
+            modifier = Modifier.onFocusChanged { onFocus(it.isFocused) },
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LedgerChip("Awaited", !s.refundArrived) { vm.onRefund { it.copy(refundArrived = false) } }
+            LedgerChip("Arrived", s.refundArrived) { vm.onRefund { it.copy(refundArrived = true) } }
+        }
+        val back = if (s.refundFull) s.amount else s.refundText.toDoubleOrNull() ?: 0.0
+        if (back > 0 && s.amount > 0) Text(
+            "Counts as ${com.himalayasoni.ledger.core.money.formatRupees(maxOf(0.0, s.amount - back))} spent" +
+                if (!s.refundArrived) " · ${com.himalayasoni.ledger.core.money.formatRupees(minOf(back, s.amount))} shows as awaited until it arrives" else "",
+            style = LedgerType.small, color = c.ink2,
+        )
+        if (s.refundArrived) {
+            Column {
+                FieldLabel("Arrived on")
+                DateChips(s.refundReceived) { d -> vm.onRefund { it.copy(refundReceived = d) } }
+            }
+            Column {
+                FieldLabel("Came back to")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Card", "UPI", "Bank", "Cash").forEach { t -> LedgerChip(t, s.refundTo == t) { vm.onRefund { it.copy(refundTo = t) } } }
+                }
+            }
+            if (s.refundTo == "Card") CardPicker(s, vm, "Which card", onFocus, selected = s.refundCard.ifBlank { s.card }) { name ->
+                vm.onRefund { it.copy(refundCard = name) }
+            }
+        }
+    }
+}
+
 /** "+ New" category: a small box that opens with the keyboard, like the web's new-category field. */
 @Composable
-private fun NewCategory(onAdd: (String) -> Unit, onCancel: () -> Unit, onFocus: (Boolean) -> Unit) {
+private fun NewCategory(onAdd: (String) -> Unit, onCancel: () -> Unit, onFocus: (Boolean) -> Unit, hint: String = "New category, e.g. Pets") {
     var name by remember { mutableStateOf("") }
     val requester = remember { androidx.compose.ui.focus.FocusRequester() }
     LaunchedEffect(Unit) { requester.requestFocus() }
     Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerTextField(
-            name, { name = it.take(24) }, placeholder = "New category, e.g. Pets",
+            name, { name = it.take(24) }, placeholder = hint,
             imeAction = ImeAction.Done, onDone = { if (name.isNotBlank()) onAdd(name) else onCancel() },
             modifier = Modifier.weight(1f).focusRequester(requester).onFocusChanged { onFocus(it.isFocused) },
         )

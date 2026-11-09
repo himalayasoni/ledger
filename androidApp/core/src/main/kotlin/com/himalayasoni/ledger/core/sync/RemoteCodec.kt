@@ -2,6 +2,8 @@ package com.himalayasoni.ledger.core.sync
 
 import com.himalayasoni.ledger.core.model.Entry
 import com.himalayasoni.ledger.core.model.EntryType
+import com.himalayasoni.ledger.core.model.Refund
+import com.himalayasoni.ledger.core.model.RefundStatus
 import java.time.LocalDate
 
 /*
@@ -56,6 +58,8 @@ fun decodeRemote(id: String, data: Map<String, Any?>): RemoteDoc {
             includesMe = data["incMe"] as? Boolean ?: true,
             paidBack = paidBack,
             prior = (data["prior"] as? Number)?.toDouble() ?: 0.0,
+            card = data.str("card"),
+            refund = decodeRefund(data["refund"], date),
             createdAt = data.long("createdAt"),
             updatedAt = updatedAt,
         ),
@@ -80,7 +84,31 @@ fun Entry.encodeRemote(): Map<String, Any?> {
         if (withPeople.isNotEmpty()) { put("with", withPeople); put("incMe", includesMe) }
         if (paidBack.isNotEmpty()) put("paidBack", paidBack)
         if (prior > 0) put("prior", prior)
+        if (card.isNotBlank()) put("card", card)
+        refund?.let { r ->
+            put("refund", buildMap {
+                put("amount", r.amount); put("status", r.status.key); put("confirmed", r.confirmed.toString())
+                r.received?.let { put("received", it.toString()) }
+                if (r.to.isNotBlank()) put("to", r.to)
+                if (r.card.isNotBlank()) put("card", r.card)
+            })
+        }
     }
+}
+
+/** A refund block, if present and sensible. Dates fall back to the entry's date rather than failing. */
+private fun decodeRefund(raw: Any?, fallback: LocalDate): Refund? {
+    val m = raw as? Map<*, *> ?: return null
+    val amount = (m["amount"] as? Number)?.toDouble()?.takeIf { it > 0 } ?: return null
+    fun date(k: String) = (m[k] as? String)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+    return Refund(
+        amount = amount,
+        status = RefundStatus.fromKey(m["status"] as? String) ?: RefundStatus.AWAITED,
+        confirmed = date("confirmed") ?: fallback,
+        received = date("received"),
+        to = m["to"] as? String ?: "",
+        card = m["card"] as? String ?: "",
+    )
 }
 
 /** Conflict rule shared with the web app: the most recent edit wins. */

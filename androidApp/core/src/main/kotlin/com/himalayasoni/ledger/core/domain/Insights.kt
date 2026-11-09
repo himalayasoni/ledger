@@ -104,8 +104,9 @@ fun List<Entry>.spentOnOthers(limit: Int = 5): Pair<List<Pair<String, Double>>, 
 
 fun List<Entry>.biggest(limit: Int = 5): List<Entry> = spends().sortedByDescending { it.amount }.take(limit)
 
+/** Spending by how you paid; card spends are split by card name when you've named it ("Card · HDFC"). */
 fun List<Entry>.byMode(): List<Pair<String, Double>> =
-    spends().groupBy { it.mode.ifBlank { "Other" } }.mapValues { (_, l) -> l.costSum() }.toList().sortedByDescending { it.second }
+    spends().groupBy { if (it.mode.equals("Card", true) && it.card.isNotBlank()) "Card · ${it.card}" else it.mode.ifBlank { "Other" } }.mapValues { (_, l) -> l.costSum() }.toList().sortedByDescending { it.second }
 
 /** One bar group in "Category trends": this period's value and (optionally) the year-before comparison. */
 data class TrendGroup(val label: String, val full: String, val value: Double, val previous: Double?, val previousLabel: String)

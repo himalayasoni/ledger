@@ -107,6 +107,7 @@ fun HomeTab(
             return@LazyColumn
         }
         item { Hero(s) }
+        s.inFlight?.let { f -> item { InFlightCard(f, onSeeAll) } }
         item { StreakCard(s) }
         item {
             QuickActions(
@@ -206,6 +207,35 @@ private fun Mini(label: String, value: String, modifier: Modifier) {
             value, color = c.deepInk, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 17.sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis, style = LedgerType.amount,
         )
+    }
+}
+
+/* ---------- money on the way: refunds awaited, card dues ---------- */
+
+@Composable
+private fun InFlightCard(f: InFlight, onOpen: () -> Unit) {
+    val c = LocalLedgerColors.current
+    LedgerCard(Modifier.padding(top = 12.dp)) {
+        Column(Modifier.pressable(shrink = false, onClick = onOpen).padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            f.refunds?.let {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Refunds", fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = c.ink, modifier = Modifier.weight(1f))
+                    Text(it, style = LedgerType.small.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"), color = c.loan)
+                }
+                f.refundsNote?.let { n -> Text(n, style = LedgerType.small, color = c.spent) }
+            }
+            if (f.refunds != null && f.cards.isNotEmpty()) Hairline()
+            if (f.cards.isNotEmpty()) {
+                Text("Card due", fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = c.ink)
+                f.cards.forEach { (name, due) ->
+                    Row {
+                        Text(name, style = LedgerType.body, color = c.ink2, modifier = Modifier.weight(1f))
+                        Text(due, style = LedgerType.amount, color = c.ink)
+                    }
+                }
+                f.cardNote?.let { n -> Text(n, style = LedgerType.small, color = c.ink2) }
+            }
+        }
     }
 }
 

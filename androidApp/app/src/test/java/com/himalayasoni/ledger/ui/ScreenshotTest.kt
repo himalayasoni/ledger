@@ -72,6 +72,10 @@ class ScreenshotTest {
         e("14", 24, EntryType.SPENT, 18000.0, "Rent", "Rent"),
         e("15", 33, EntryType.SPENT, 2100.0, "DMart groceries", "Groceries", mode = "Card"),
         e("16", 41, EntryType.LENT, 2000.0, person = "Rahul", mode = "Cash"),
+        e("18", 2, EntryType.SPENT, 1500.0, "Train to Jaipur", "Travel").copy(
+            refund = com.himalayasoni.ledger.core.model.Refund(1320.0, com.himalayasoni.ledger.core.model.RefundStatus.AWAITED, today.minusDays(1))),
+        e("19", 1, EntryType.SPENT, 2499.0, "Running shoes", "Shopping", mode = "Card").copy(card = "HDFC"),
+        e("20", 0, EntryType.CARD_BILL, 2000.0, mode = "UPI").copy(card = "HDFC"),
     ).sortedWith(compareByDescending<Entry> { it.date }.thenByDescending { it.createdAt })
 
     private val account = AccountUiState(configured = true, email = "you@gmail.com", status = SyncStatus.Synced(0))
@@ -94,6 +98,8 @@ class ScreenshotTest {
         override fun delete() {}
         override fun applySaid(text: String) {}
         override fun addCategory(name: String) {}
+        override fun onCard(name: String) {}
+        override fun onRefund(change: (AddEntryState) -> AddEntryState) {}
     }
 
     /** A tab inside the app frame (background + bottom bar), like AppShell draws it. */
@@ -180,5 +186,13 @@ class ScreenshotTest {
     @Test fun add_typed() = sheet(false, fresh.copy(amountText = "1200", description = "Dinner", withPeople = listOf("Rahul", "Amit"), category = "Food"))
     @Test fun add_heard() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "200", person = "Ashish",
         heard = "lent 200 to ashish", heardNote = "Check it and tap Save.", keypadOn = false))
+    @Test fun add_refund() = sheet(false, fresh.copy(
+        editing = entries.first { it.id == "18" }, type = EntryType.SPENT, typeTouched = true, amountText = "1500",
+        description = "Train to Jaipur", category = "Travel", keypadOn = false,
+        refundOn = true, refundFull = false, refundText = "1320", cards = listOf("HDFC", "SBI"),
+    ))
+    @Test fun add_cardbill() = sheet(false, fresh.copy(
+        type = EntryType.CARD_BILL, typeTouched = true, amountText = "12000", card = "HDFC", cards = listOf("HDFC", "SBI"), keypadOn = false,
+    ))
     @Test fun add_lent() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "500", person = "", keypadOn = false))
 }
