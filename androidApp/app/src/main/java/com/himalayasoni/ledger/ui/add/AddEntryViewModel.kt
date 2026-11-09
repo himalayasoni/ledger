@@ -303,10 +303,11 @@ class AddEntryViewModel(
         if (line.isEmpty()) return
         _state.update { s ->
             val today = LocalDate.now() // one "today" for both the parse and the date, even at midnight
-            val r = parseLine(line, VoiceContext(s.voicePeople, s.voiceCategories, s.allUsuals, today))
+            val r = parseLine(line, VoiceContext(s.voicePeople, s.voiceCategories, s.allUsuals, today, s.cards))
             val notes = buildList {
                 if (r.amount <= 0) add("tap in the amount")
                 if (r.type.isDebt && r.person.isBlank()) add("add who it was with")
+                if (r.type == EntryType.CARD_BILL && r.card.isBlank()) add("pick which card")
             }
             s.copy(
                 type = r.type, typeTouched = true,
@@ -317,6 +318,8 @@ class AddEntryViewModel(
                 category = r.category.ifBlank { s.category },
                 mode = r.mode.ifBlank { s.mode },
                 date = r.date(today),
+                card = r.card.ifBlank { s.card },
+                cards = if (r.card.isNotBlank() && s.cards.none { it.equals(r.card, true) }) s.cards + r.card else s.cards,
                 keypadOn = r.amount <= 0,
                 heard = line,
                 heardNote = if (notes.isEmpty()) "Check it and tap Save." else notes.joinToString(" · "),

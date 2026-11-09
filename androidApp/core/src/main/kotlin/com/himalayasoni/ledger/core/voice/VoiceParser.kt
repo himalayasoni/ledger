@@ -22,8 +22,9 @@ import kotlin.math.floor
  *  3. Drop speech fillers ("um", "uh", a leading "so" / "okay", "like" before a number).
  *  4. Find the day ("yesterday", "on monday", "last friday", "on the 3rd", "3 nov", "on 03/11")
  *     before the amount, because a date has numbers in it too.
- *  5. Take out the first number (the amount), the payment mode (UPI / Cash / Card) and currency
- *     words (rs, rupees, bucks).
+ *  5. Take out the first number (the amount), a credit card bill ("paid hdfc card bill"), the
+ *     payment mode (UPI / Cash / Card, with the card's name if you've named it: "on hdfc card")
+ *     and currency words (rs, rupees, bucks).
  *  6. Decide the type from the verbs (got back, paid back, borrowed, lent, received, else spent)
  *     and pull out the person ("to Rahul", "from Priya", "Rahul gave me ...", "repaid Rahul").
  *     For money in, a shop after "from" stays in the description ("refund from flipkart").
@@ -50,6 +51,8 @@ import kotlin.math.floor
  * @property mode "UPI", "Cash", "Card", or "" when not said (the form then keeps its default)
  * @property daysAgo days before [VoiceContext.today]: 0 = today, 1 = yesterday, 5 for "on monday"
  *   said on a Saturday. Negative only for a date said with a future year ("on 03/12/2027").
+ * @property card which credit card: the bill's card for a [EntryType.CARD_BILL] ("hdfc card bill"),
+ *   or a card you've named that paid for a spend ("on hdfc card"). Empty when not said.
  */
 data class ParsedLine(
     val type: EntryType,
@@ -60,6 +63,7 @@ data class ParsedLine(
     val category: String,
     val mode: String,
     val daysAgo: Int,
+    val card: String = "",
 ) {
     /** The entry's date, counting back from [today] (pass the same day as [VoiceContext.today]). */
     fun date(today: LocalDate): LocalDate = today.minusDays(daysAgo.toLong())
@@ -75,12 +79,15 @@ data class ParsedLine(
  * @property usuals descriptions you've used before (see `List<Entry>.usuals()`); a description
  *   that matches one gets that usual's spelling and, if the type matches, its category.
  * @property today the day the line is said on: "on monday" and "on the 3rd" count back from it.
+ * @property cards credit card names you've used, most recent first (web: cardNames()). Last, so
+ *   existing calls that pass the first four positionally keep working.
  */
 data class VoiceContext(
     val people: List<String> = emptyList(),
     val categories: List<String> = DEFAULT_CATEGORIES,
     val usuals: List<Usual> = emptyList(),
     val today: LocalDate = LocalDate.now(),
+    val cards: List<String> = emptyList(),
 )
 
 /** Words that put a spend in a category. Order matters: the first category with a match wins. */
@@ -394,6 +401,12 @@ private val AND_AMOUNT = Regex(""" and (\d+(?:\.\d+)?)(?= )""")
 private val FILLER: Set<String> = ("i we me my have has had just did spent spend spending paid pay paying bought buy purchased purchase lent lend lended lented lending loaned loan " +
     "borrowed borrow borrowing took taken got get received recieved returned repaid gave given give back credited earned earn for on of the a an to from worth amount " +
     "udhaar udhar diya diye liya liye kiye di li wapas lauta mile de le kar ki ka ke ko wala wali via by using through in at some money").split(" ").toSet()
+// "credit card bill", "sbi card bill", "card ka bill": the optional word before "card" may be the card's name ("credit" never is).
+private val CARD_BILL = js("""\b(?:(?!credit\b)(\p{L}[\p{L}\p{M}'-]*) )?(?:credit )?card (?:ka )?bill\b""")
+/** Words before "card bill" that aren't a card's name ("paid card bill", "my credit card bill", "full card bill"). */
+private val NOT_CARD_NAME: Set<String> = "debit card bill this last next month monthly pending full total due minimum whole entire outstanding".split(" ").toSet()
+/** A card name the parser can look for: what's left of it after step 1 cleans the line. */
+private val CARD_NAME_CHARS = Regex("""^[\p{L}\p{M}0-9&' -]+$""")
 private val COMMA_AMP = Regex("[,&]")
 private val HAS_LETTER_OR_DIGIT = Regex("""[\p{L}0-9]""") // a lone "-" or "'" isn't a word
 private val SALARY_WORD = js("""\b(?:salary|stipend)\b""")
@@ -407,6 +420,11 @@ private class Heard(val name: String, val at: Int) {
 fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
     val people = context.people
     val cats = context.categories
+    // Cards you've named, as they appear in the cleaned line, longest first (so "hdfc millennia" beats "hdfc").
+    val cards = context.cards.filter { CARD_NAME_CHARS.matches(it) }
+    fun cardKey(c: String) = c.lowercase().trim().replace(SPACES, " ")
+    val cardAlt = cards.map(::cardKey).sortedByDescending { it.length }.joinToString("|")
+    fun knownCard(w: String) = cards.firstOrNull { cardKey(it) == w } ?: ""
 
     // 1. Clean the line.
     var t = raw.lowercase()
@@ -441,6 +459,7 @@ fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
     var category = ""
     var mode = ""
     var daysAgo = 0
+    var card = ""
 
     // Removes a recognised piece. Like the web, a pattern without /g only removes its first match.
     fun cut(re: Regex, all: Boolean = false) {
@@ -462,7 +481,29 @@ fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
         amount = m.groupValues[1].toDouble()
         t = t.replaceFirst(m.value, " ") // plain text, not a pattern (JS string replace)
     }
-    for ((re, m) in MODES) if (re.containsMatchIn(t)) { mode = m; cut(re); break }
+
+    //    A credit card bill ("paid hdfc card bill", "credit card bill 12000", "paid sbi bill" for a card you've named) isn't
+    //    spending. Found before the payment mode, which would otherwise take "card" as how it was paid.
+    val namedBill = if (cardAlt.isEmpty()) null else js("\\b(?:my )?($cardAlt) (?:credit )?(?:card )?(?:ka )?bill\\b")
+    val bill = namedBill?.find(t) ?: CARD_BILL.find(t)
+    if (bill != null) {
+        type = EntryType.CARD_BILL
+        val w = bill.groups[1]?.value ?: ""
+        val isName = w.isNotEmpty() && w !in FILLER && w !in NAME_STOP && w !in NOT_CARD_NAME
+        if (isName) card = knownCard(w).ifEmpty { titleCase(w) }
+        val from = if (isName || w.isEmpty()) bill.range.first else bill.range.first + w.length + 1 // a word that isn't the card's name stays
+        t = t.substring(0, from) + " " + t.substring(bill.range.last + 1)
+    }
+    // A card you've named, right before "card", says which card paid: "shoes 2499 on hdfc card".
+    val namedCard = if (cardAlt.isEmpty()) null else js("\\b(?:by |via |using |with |through |on )?(?:my )?($cardAlt) (?:credit |debit )?card\\b")
+    for ((re, m) in MODES) {
+        if (!re.containsMatchIn(t)) continue
+        if (m == "Card" && type == EntryType.CARD_BILL) break // a card bill is paid to the card, never with it
+        val named = if (m == "Card") namedCard?.find(t) else null
+        if (named != null) { card = knownCard(named.groupValues[1]); cut(namedCard!!) } else cut(re)
+        mode = m
+        break
+    }
     cut(CURRENCY, all = true)
 
     // 6. Type and person. A name is heard after a word ("to rahul") or at the start ("rahul returned").
@@ -483,7 +524,8 @@ fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
     val returnedBy = subject(THEY_RETURNED) // "Rahul returned 300"
     val lentMeBy = subject(THEY_LENT_ME) // "Rahul gave me 2000"
     // The order matters: the first rule that fits decides the type.
-    if (GOT_BACK.containsMatchIn(t)) { type = EntryType.GOT_BACK; who = after("from") }
+    if (type == EntryType.CARD_BILL) { /* already decided in step 5 */ }
+    else if (GOT_BACK.containsMatchIn(t)) { type = EntryType.GOT_BACK; who = after("from") }
     else if (returnedBy != null) { type = EntryType.GOT_BACK; who = returnedBy }
     else if (PAID_BACK.containsMatchIn(t)) { type = EntryType.PAID_BACK; who = after("to") ?: after(PAID_BACK_VERBS) } // "repaid rahul 5000"
     else if (lentMeBy != null) { type = EntryType.BORROWED; who = lentMeBy }
@@ -500,7 +542,7 @@ fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
 
     // A new name is still a person for a loan; for money in, a shop stays in the description ("refund from flipkart").
     val heard = who
-    if (heard != null && heard.firstWord !in NAME_STOP && !(!type.isDebt && isPlace(heard))) {
+    if (heard != null && heard.firstWord !in NAME_STOP && !(type.hasCategory && isPlace(heard))) {
         // Keep two words only if they're someone you know ("neha gupta"); else just the first.
         val used = if (' ' in heard.name && matchPerson(heard.name, people).isNotEmpty()) heard.name else heard.firstWord
         person = matchPerson(used, people).ifEmpty { titleCase(used) }
@@ -536,7 +578,7 @@ fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
     }
 
     // 8. "spent 50 on parking and 20 on toll" is one entry for the total (70), described as "Parking and toll".
-    if (!type.isDebt && person.isEmpty()) {
+    if (type.hasCategory && person.isEmpty()) {
         t = AND_AMOUNT.replace(t) { m -> amount = jsRound((amount + m.groupValues[1].toDouble()) * 100) / 100; " and" }
     }
     if (amount > MAX_AMOUNT) amount = 0.0
@@ -551,7 +593,7 @@ fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
     val description = usual?.description ?: (if (desc.isNotEmpty()) desc.substring(0, 1).uppercase() + desc.substring(1) else "")
 
     // 10. Category: from a usual with the same description, a category name in it, or a known word ("uber" -> Transport).
-    if (!type.isDebt && description.isNotEmpty()) {
+    if (type.hasCategory && description.isNotEmpty()) {
         if (usual != null && usual.category.isNotEmpty() && usual.type == type) category = usual.category
         val dl = " " + description.lowercase() + " "
         val descWords = dl.trim().split(" ")
@@ -562,5 +604,5 @@ fun parseLine(raw: String, context: VoiceContext = VoiceContext()): ParsedLine {
         if (category.isEmpty() && type == EntryType.RECEIVED && SALARY_WORD.containsMatchIn(dl)) category = "Salary"
     }
 
-    return ParsedLine(type, amount, person, withPeople, description, category, mode, daysAgo)
+    return ParsedLine(type, amount, person, withPeople, description, category, mode, daysAgo, card)
 }

@@ -124,6 +124,26 @@ class VoiceParserTest {
         assertEquals("Constructor", parseLine("constructor 500", ctx).description) // a JavaScript quirk, fixed on the web too
     }
 
+    @Test fun `a credit card bill is its own type, with the card's name`() {
+        val cards = ctx.copy(cards = listOf("HDFC", "SBI"))
+        val r = parseLine("paid my sbi credit card bill of 8,000", cards)
+        assertEquals(listOf(EntryType.CARD_BILL, 8000.0, "SBI", ""), listOf(r.type, r.amount, r.card, r.description))
+        assertEquals(EntryType.CARD_BILL to "HDFC", parseLine("paid hdfc bill 4500", cards).let { it.type to it.card }) // a card you've named
+        assertEquals(EntryType.SPENT, parseLine("paid hdfc bill 4500", ctx).type) // ...but not one you haven't
+        assertEquals("Axis", parseLine("paid axis card bill 6000", ctx).card) // the word before "card"
+        assertEquals("", parseLine("paid card bill 12000", ctx).card) // "paid" isn't a card
+        val upi = parseLine("card bill 3000 from upi", cards)
+        assertEquals(EntryType.CARD_BILL to "UPI", upi.type to upi.mode)
+    }
+
+    @Test fun `card spends stay spends, with the card when you've named it`() {
+        val cards = ctx.copy(cards = listOf("HDFC"))
+        val r = parseLine("shoes 2499 on hdfc card", cards)
+        assertEquals(listOf(EntryType.SPENT, "Card", "HDFC", "Shoes"), listOf(r.type, r.mode, r.card, r.description))
+        assertEquals(EntryType.SPENT to "Card", parseLine("card 500 for shoes", cards).let { it.type to it.mode })
+        assertEquals(EntryType.SPENT to "Bills", parseLine("bill 2000 electricity", cards).let { it.type to it.category })
+    }
+
     @Test fun `numbers are written back into the text the way JavaScript writes them`() {
         assertEquals("200", jsNumberToString(200.0))
         assertEquals("1.5", jsNumberToString(1.5))

@@ -34,13 +34,14 @@ class VoiceContractTest {
         VoiceContext(
             people = c["people"] as List<String>, categories = c["categories"] as List<String>, usuals = usuals,
             today = LocalDate.parse(c["today"] as String), // phrases like "on monday" count back from this day
+            cards = c["cards"] as List<String>,
         )
     }
 
     /** The parsed line in the web's shape, so the two can be compared field by field. */
     private fun ParsedLine.asWeb(): Map<String, Any> = linkedMapOf(
         "type" to type.key, "amount" to amount, "person" to person, "with" to withPeople,
-        "desc" to description, "cat" to category, "mode" to mode, "day" to daysAgo,
+        "desc" to description, "cat" to category, "mode" to mode, "day" to daysAgo, "card" to card,
     )
 
     /** Gson reads every JSON number as a Double; make ours comparable. */
