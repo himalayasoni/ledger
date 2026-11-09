@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Ledger</title>
 <meta name="description" content="Your personal money diary: expenses, lending and shared bills.">
 <meta name="theme-color" content="#ECF1EE" media="(prefers-color-scheme: light)">
@@ -105,13 +105,28 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .switch input{width:22px;height:22px;accent-color:var(--accent);flex:0 0 auto}
 .ask{background:var(--accent-soft);border-radius:12px;padding:12px;display:grid;gap:10px;margin-top:8px}
 .ask p{margin:0;font-size:14px;color:var(--ink)}
-/* keypad bar */
-.padbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:6px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2);min-height:34px}
-.padbar button{font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;padding:6px 4px}
-.padbar svg{width:16px;height:16px}
-#pad{border-top:0}
-.sheet.padoff #pad{display:none}
-@media (pointer:coarse){ .sheet.typing .padbar{display:none} }
+/* add sheet keypad: digits on the left; delete, hide and a tall Save key on the right (like a calculator's = key) */
+.kpad{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:46px;gap:6px;padding-top:6px;flex:0 0 auto}
+.kpad button{border-radius:12px;background:var(--surface-2);font-family:var(--f-display);font-size:22px;font-weight:700;display:grid;place-items:center;min-width:0}
+.kpad button:active{background:var(--line)}
+.kpad svg{width:22px;height:22px}
+.kpad .k-save{grid-column:4;grid-row:3 / span 2;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:800}
+.kpad .k-save:active{background:color-mix(in srgb,var(--accent) 85%,var(--ink))}
+.sheet.padoff .kpad{display:none}
+/* with the keypad down: a small "123" key to bring it back, and the full Save button */
+.sh-foot{display:none;gap:8px;padding-top:6px;flex:0 0 auto}
+.sheet.padoff .sh-foot{display:flex}
+.padshow{flex:0 0 54px;height:54px;border-radius:14px;background:var(--surface-2);font-family:var(--f-display);font-weight:700;font-size:15px}
+.sh-foot .save{margin-top:0;flex:1;width:auto}
+.sh-err{font-size:13px;color:var(--spent);font-weight:600;padding:6px 2px 0;flex:0 0 auto}
+/* the phone keyboard is up (a text box in the sheet has focus): the form gets the room */
+@media (pointer:coarse){
+  .sheet.typing .kpad,.sheet.typing .types,.sheet.typing .amt-cap,.sheet.typing .padshow{display:none}
+  .sheet.typing .sh-foot{display:flex}
+  .sheet.typing .amount{padding:4px 0 2px}
+  .sheet.typing .amount #amt-val{font-size:26px}
+  .sheet.typing .amount .cur{font-size:18px}
+}
 /* insights */
 .seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:12px;padding:4px;margin-top:14px}
 .seg button{height:36px;border-radius:9px;font-weight:700;color:var(--ink-2)}
@@ -329,8 +344,8 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
 .kv:first-of-type{border-top:0;padding-top:0}
 .kv b{font-variant-numeric:tabular-nums}
 /* home: refunds awaited and card dues */
-.inflight{display:block;width:100%;text-align:left;padding:14px 16px}
-.inflight .if-sec{display:grid;gap:2px}
+.inflight{padding:14px 16px}
+.inflight .if-sec{display:grid;gap:2px;width:100%;text-align:left}
 .inflight .if-sec + .if-sec{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
 .inflight .if-h{font-family:var(--f-display);font-size:16px;font-weight:700;margin-bottom:4px}
 .inflight .if-big{font-weight:700;color:var(--lend)}
@@ -338,6 +353,31 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
 .inflight .if-note{font-size:13px;color:var(--ink-2);margin-top:4px}
 .inflight .kv{padding:6px 0}
 .inflight .if-h + .kv{border-top:0}
+.inflight button.kv{width:100%;text-align:left;align-items:center}
+.inflight button.kv span{flex:1;color:var(--ink-2)}
+.inflight button.kv svg{width:18px;height:18px;color:var(--ink-2);margin-left:-4px}
+/* card page: what's due, the statement day, and each billing period's bill against what you logged */
+.card-hero .nm{display:flex;align-items:center;gap:10px}
+.card-hero .nm svg{width:24px;height:24px;color:var(--ink-2);flex:0 0 auto}
+.card-hero .note{font-size:13px;color:var(--ink-2);margin-top:6px}
+.stmt{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;color:var(--ink-2)}
+.stmt .link{color:var(--ink);font-size:15px;font-weight:700;padding:4px}
+.daygrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}
+.daygrid .chip{padding:0;justify-content:center;min-width:0}
+.daygrid .chip.wide{grid-column:span 4}
+.cyc{padding:0;overflow:hidden}
+.cyc-h{display:grid;gap:5px;width:100%;text-align:left;padding:16px}
+.cyc-t{display:flex;align-items:center;justify-content:space-between;gap:10px;font-family:var(--f-display);font-size:17px;font-weight:700}
+.cyc-t svg{width:18px;height:18px;color:var(--ink-2);flex:0 0 auto}
+.cyc-h .paid{font-weight:600}
+.vpill{justify-self:start;display:flex;align-items:center;gap:8px;margin-top:4px;padding:7px 10px;border-radius:10px;font-size:13px;font-weight:600;line-height:1.35;
+  color:var(--c,var(--ink-2));background:color-mix(in srgb,var(--c) 12%,transparent)}
+.vpill i{flex:0 0 8px;height:8px;border-radius:50%;background:currentColor}
+.vpill.neutral{background:var(--surface-2)}
+.cyc-rows{border-top:1px solid var(--line)}
+/* add sheet, card bill: what Ledger thinks the bill is */
+.billhint{display:flex;align-items:center;gap:8px;margin-top:10px;padding:6px 6px 6px 12px;border-radius:12px;background:var(--accent-soft);font-size:13px;line-height:1.35}
+.billhint span{flex:1;min-width:0}
 
 /* bottom nav */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -354,22 +394,21 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
 /* sheet */
 .scrim{position:fixed;inset:0;background:var(--scrim);z-index:40;opacity:0;transition:opacity .22s}
 .scrim.open{opacity:1}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;margin:0 auto;max-width:560px;max-height:94dvh;max-height:94vh;display:flex;flex-direction:column;
+/* --kb and --vvh follow the phone keyboard (see fitToKeyboard), so the sheet always sits in the part of the screen you can see */
+.sheet{position:fixed;left:0;right:0;bottom:var(--kb,0px);z-index:50;margin:0 auto;max-width:560px;max-height:94vh;display:flex;flex-direction:column;
   background:var(--surface);border-radius:24px 24px 0 0;box-shadow:0 -10px 40px -10px rgba(0,0,0,.3);
   padding:8px max(16px, env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px));
   transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.9,.25,1)}
-@supports (max-height:94dvh){.sheet{max-height:94dvh}}
+@supports (max-height:94dvh){.sheet{max-height:calc(var(--vvh, 100dvh) * .94)}}
 .sheet.open{transform:none}
 .grab{width:40px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 6px}
 .sh-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.sh-head h2{margin:0;font-family:var(--f-display);font-size:18px}
-.types{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:10px 0 2px}
-.tbtn{border:1px solid var(--line);border-radius:12px;padding:7px 10px;text-align:left;background:var(--surface);min-width:0;transition:background .15s}
-.tbtn b{display:block;font-size:14px;line-height:1.2}
-.tbtn span{display:block;font-size:11px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-head h2{margin:0;font-family:var(--f-display);font-size:18px;flex:1}
+.sh-head .mic{flex:0 0 40px;width:40px;height:40px}
+/* 7 types in two rows of four: labels only; what the chosen one means shows under the amount */
+.types{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px 0 0}
+.tbtn{height:38px;border:1px solid var(--line);border-radius:11px;padding:0 4px;background:var(--surface);min-width:0;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s}
 .tbtn.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
-.tbtn.on span{color:var(--bg);opacity:.7}
-.tbtn.wide{grid-column:1/-1;display:flex;align-items:baseline;gap:8px}
 .newcard{display:inline-flex;gap:6px;align-items:center}
 .chip.wp{background:var(--accent-soft);border-color:transparent}
 .chip.wp span{font-size:17px;line-height:1;color:var(--ink-2)}
@@ -379,15 +418,18 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
 .qa svg{width:18px;height:18px}
 .person-hero .sub{font-size:14px;color:var(--ink-2);margin-top:8px}
 .person-hero .sub b{color:var(--ink);font-family:var(--f-display);font-size:18px}
-.amount{display:flex;align-items:baseline;justify-content:center;gap:4px;padding:10px 0 8px;font-family:var(--f-display);font-weight:800;cursor:text;user-select:none}
-.amount .cur{font-size:28px;color:var(--ink-2)}
-.amount #amt-val{font-size:52px;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.amount{display:grid;justify-items:center;padding:8px 0 4px;cursor:text;user-select:none;flex:0 0 auto}
+.amt-line{display:flex;align-items:baseline;gap:4px;font-family:var(--f-display);font-weight:800}
+.amount .cur{font-size:24px;color:var(--ink-2)}
+.amount #amt-val{font-size:44px;letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums}
+.amt-cap{font-size:13px;color:var(--ink-2);margin-top:2px}
 .amount.zero #amt-val{color:var(--ink-2);opacity:.45}
 .amount.bump #amt-val{animation:bump .14s ease}
 @keyframes bump{50%{transform:scale(1.05)}}
 .shake{animation:shake .35s ease}
 @keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 .sh-body{flex:1;overflow-y:auto;display:grid;gap:14px;align-content:start;padding:4px 2px 12px;min-height:80px}
+#quick:empty{display:none} /* no usuals: no empty gap in the form */
 .quick-h{font-size:12px;font-weight:700;color:var(--ink-2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
 .qp{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
 .qp b{font-variant-numeric:tabular-nums}
@@ -405,7 +447,6 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
 .pad svg{width:22px;height:22px}
 .save{margin-top:8px;height:54px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:17px;width:100%;flex:0 0 auto}
 .save:active{transform:scale(.99)}
-@media (pointer:coarse){ .sheet.typing .pad{display:none} }
 .done{position:absolute;inset:0;border-radius:24px 24px 0 0;background:var(--surface);display:grid;place-items:center;z-index:2}
 .done .ring{width:96px;height:96px;border-radius:50%;background:var(--accent);display:grid;place-items:center;animation:pop .4s cubic-bezier(.3,1.6,.5,1)}
 .done svg{width:52px;height:52px;color:var(--accent-ink)}
@@ -429,7 +470,7 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
 pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-all}
 
 @media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none!important;transition:none!important} .done path{stroke-dashoffset:0} }
-@media (max-width:380px){ .hero .big{font-size:38px} .mini b{font-size:15px} .amount #amt-val{font-size:44px} }
+@media (max-width:380px){ .hero .big{font-size:38px} .mini b{font-size:15px} .amount #amt-val{font-size:40px} }
 </style>
 </head>
 <body>
@@ -452,18 +493,24 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
 
 <section class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sh-title">
   <div class="grab"></div>
+  <!-- fixed top, kept small so the form gets the room: title, mic, close; type buttons; amount -->
   <div class="sh-head">
     <h2 id="sh-title">New entry</h2>
+    <button class="mic" id="mic-btn" data-act="mic" aria-label="Speak an entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
     <button class="icon-btn" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
-  <div class="say" id="say">
-    <input class="inp" id="f-say" autocomplete="off" enterkeyhint="go" placeholder="Say or type: lent 200 to Ashish">
-    <button class="mic" id="mic-btn" data-act="mic" aria-label="Speak an entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
-  </div>
-  <div class="heard" id="heard" hidden></div>
   <div class="types" id="sh-types" role="group" aria-label="Entry type"></div>
-  <div class="amount zero" id="sh-amount" role="button" tabindex="0" aria-label="Amount"><span class="cur">₹</span><span id="amt-val">0</span></div>
+  <div class="amount zero" id="sh-amount" role="button" tabindex="0" aria-label="Amount">
+    <div class="amt-line"><span class="cur">₹</span><span id="amt-val">0</span></div>
+    <div class="amt-cap" id="amt-cap"></div>
+  </div>
+  <!-- scrolling middle: the details -->
   <div class="sh-body" id="sh-body">
+    <div id="say">
+      <label class="fld"><span>Type it in one line</span>
+        <input class="inp" id="f-say" autocomplete="off" enterkeyhint="go" placeholder="lent 200 to Ashish · chai 20 cash"></label>
+      <div class="heard" id="heard" hidden></div>
+    </div>
     <div id="quick"></div>
     <div>
       <label class="fld"><span>What was it?</span>
@@ -506,9 +553,13 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
       <textarea class="inp" id="f-note" rows="2" placeholder="Anything you want to remember"></textarea></label>
     <button class="del" id="sh-del" data-act="delete" hidden>Delete this entry</button>
   </div>
-  <div class="padbar" id="padbar"><span id="padbar-hint"></span><button data-act="padtoggle" id="padbar-btn"></button></div>
-  <div class="pad" id="pad"></div>
-  <button class="save" id="sh-save" data-act="save">Save</button>
+  <!-- fixed bottom: a problem to fix, then the keypad (it has its own Save key) or the Save button -->
+  <div class="sh-err" id="sh-err" role="alert" hidden></div>
+  <div class="kpad" id="pad"></div>
+  <div class="sh-foot" id="sh-foot">
+    <button class="padshow" data-act="padshow" aria-label="Show keypad">123</button>
+    <button class="save" id="sh-save" data-act="save">Save</button>
+  </div>
   <div class="done" id="done" hidden><div class="done-in"><div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><p id="done-txt">Logged</p></div></div>
 </section>
 
@@ -561,7 +612,7 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v17';
+const APP_VERSION = 'v18';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
@@ -577,6 +628,7 @@ const ICON = {
   search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>',
   del:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12zM17 9l-6 6M11 9l6 6"/></svg>',
   card:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3 10h18M7 15h3"/></svg>',
+  next:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
 };
 
 /* ---------- state ---------- */
@@ -584,6 +636,7 @@ const S = {
   entries: [], everything: [], all: new Map(), unlocked: false, hiddenCount: 0, view:'home', person:null, mode:'local', loading:false,
   f: freshFilters(),
   im: null,            // insights month {y,m}
+  card: null, cardPick: false, cardOpen: {},  // card page: which card, statement-day picker open, periods opened/closed
   flashId: null,
 };
 function freshFilters(){ return {q:'', types:[], range:'all', from:'', to:'', person:'', cat:'', mode:'', min:'', max:'', note:false, sort:'date-desc'}; }
@@ -658,10 +711,10 @@ function peopleIndex(){
    A card spend counts in full here, even a shared dinner: the card was charged the whole bill. */
 const daysBetween = (from, to) => Math.round((parseKey(to) - parseKey(from)) / 864e5);
 const REFUND_NUDGE_DAYS = 7; // refunds still waiting after this many days get a nudge on Home
-/* every card you've named, on any entry, newest use first */
+/* every card you've named, on any entry, newest use first, plus any from card settings */
 function cardNames(){
   const recent = [...S.everything].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  return uniqCI(recent.flatMap(e => [e.card, e.refund && e.refund.card]));
+  return uniqCI([...recent.flatMap(e => [e.card, e.refund && e.refund.card]), ...cardSettings().map(c => c.name)]);
 }
 const isCardSpend = (e, name) => e.type === 'spent' && lc(e.mode) === 'card' && lc(e.card) === lc(name);
 function cardDues(list = S.entries){
@@ -673,6 +726,113 @@ function cardDues(list = S.entries){
     // paid more than Ledger saw charged: interest, fees, spends you didn't log, or a balance from before Ledger
     return {name, due: Math.max(0, charged - refunded - paid), notLogged: Math.max(0, paid - (charged - refunded))};
   });
+}
+/* ---------- matching bills against card spends (the same rules as Cards.kt: cardCycles, suggestedBill) ----------
+   Card settings live in one record, cfg-cards: {cards: [{name: 'HDFC', statementDay: 15}, {name: 'SBI'}]}.
+   A statement day is the day of the month the card's statement closes (1–31). */
+const CARDS_ID = 'cfg-cards';
+function cardSettings(){ const r = S.all.get(CARDS_ID); return (r && !r.deleted && Array.isArray(r.cards)) ? r.cards.filter(c => c && c.name) : []; }
+function statementDayOf(name){
+  const c = cardSettings().find(c => lc(c.name) === lc(name)), d = c ? Math.round(+c.statementDay) : 0;
+  return d >= 1 && d <= 31 ? d : null;
+}
+/* set (or clear, with null) one card's statement day; the other cards stay as they are */
+function saveCardSettings(name, statementDay){
+  const card = {name}; if (statementDay) card.statementDay = statementDay;
+  const list = cardSettings(), i = list.findIndex(c => lc(c.name) === lc(name));
+  const cards = i < 0 ? [...list, card] : list.map((c, j) => j === i ? card : c);
+  return store.put({id: CARDS_ID, cards}); // synced like the other cfg- records
+}
+/* day [day] of a month, or its last day when the month is shorter (a statement on the 31st in February).
+   m is 1–12; 0 or 13 roll into the year before or after. */
+function closingIn(y, m, day){
+  const first = new Date(y, m - 1, 1), yy = first.getFullYear(), mm = first.getMonth() + 1;
+  return `${yy}-${pad2(mm)}-${pad2(Math.min(day, new Date(yy, mm, 0).getDate()))}`;
+}
+const yearMonth = k => k.slice(0, 7).split('-').map(Number);                                      // '2026-11-09' → [2026, 11]
+const monthBefore = k => { const [y, m] = yearMonth(k); return closingIn(y, m - 1, +k.slice(8)); }  // 31 Mar → 28 Feb
+/* One card's billing periods, newest first, ending with the one still open today. Each one:
+   {from, to, open, charges, charged, refunded, bills, paid, logged, difference, verdict}
+   With a statement day: the statement period (16 Oct – 15 Nov), and the bills paid after it closed and before
+   the next one closed. Without one: from the day after one bill up to the next bill.
+   Charges count by the spend's date; refunds back to the card by the day they arrived. */
+function cardCycles(list, card, statementDay, today){
+  const charges = list.filter(e => isCardSpend(e, card));
+  const refunds = list.filter(e => e.type === 'spent' && e.refund && e.refund.status === 'received' && lc(e.refund.to) === 'card'
+    && lc(e.refund.card) === lc(card) && e.refund.received).map(e => e.refund);
+  const bills = list.filter(e => e.type === 'cardbill' && lc(e.card) === lc(card)).sort((a, b) => a.date.localeCompare(b.date));
+  if (!charges.length && !bills.length) return [];
+  const sum = (xs, f) => Math.round(xs.reduce((s, x) => s + (+f(x) || 0), 0) * 100) / 100;
+  const cycle = (from, to, open, paidBy) => {
+    const inside = d => (!from || d >= from) && d <= to;
+    const ch = charges.filter(e => inside(e.date)).sort(byRecent);
+    const c = {from, to, open, charges: ch, charged: sum(ch, e => e.amount), refunded: sum(refunds.filter(r => inside(r.received)), r => r.amount),
+               bills: paidBy, paid: sum(paidBy, e => e.amount)};
+    c.logged = Math.round((c.charged - c.refunded) * 100) / 100;
+    c.difference = Math.round((c.paid - c.logged) * 100) / 100;
+    c.verdict = open ? 'open' : !paidBy.length ? 'notpaid' : Math.abs(c.difference) <= 1 ? 'matches'  // ₹1 of rounding on a statement
+      : c.difference > 0 ? 'more' : 'less';
+    return c;
+  };
+  const out = [];
+  if (statementDay){
+    // start one statement before the earliest spend or bill: a bill pays the statement that closed before it
+    const first = [...charges, ...bills].map(e => e.date).sort()[0], [fy, fm] = yearMonth(first);
+    let end = closingIn(fy, fm - 1, statementDay);
+    if (end < monthBefore(first)) end = closingIn(fy, fm, statementDay);
+    for (;;){
+      const [ey, em] = yearMonth(end);
+      const start = addDays(closingIn(ey, em - 1, statementDay), 1), nextEnd = closingIn(ey, em + 1, statementDay);
+      const open = end >= today;
+      const paidBy = open ? [] : bills.filter(b => b.date > end && b.date <= nextEnd); // paid after it closed, before the next one closed
+      const c = cycle(start, end, open, paidBy);
+      if (open || c.charges.length || c.bills.length || c.refunded > 0) out.push(c); // skip empty months
+      if (open) break;
+      end = nextEnd;
+    }
+  } else {
+    let from = null;
+    for (const b of bills){ out.push(cycle(from, b.date, false, [b])); from = addDays(b.date, 1); }
+    out.push(cycle(from, today, true, []));
+  }
+  return out.reverse();
+}
+/* what the sheet offers when you log a bill: the last closed statement not paid yet (or everything since the last bill) */
+function suggestedBill(list, card, statementDay, today){
+  const cycles = cardCycles(list, card, statementDay, today);
+  return statementDay ? cycles.find(c => !c.open && !c.bills.length && c.logged > 0) || null
+    : cycles.find(c => c.open && c.logged > 0) || null;
+}
+const dayMon = k => { const d = parseKey(k); return `${d.getDate()} ${MON[d.getMonth()]}`; }; // '2026-11-05' → '5 Nov'
+const ordinal = d => d + (d % 100 >= 11 && d % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][d % 10] || 'th');
+function billHint(list, card, statementDay, today){
+  const c = suggestedBill(list, card, statementDay, today); if (!c) return null;
+  const text = statementDay ? `Statement ${dayMon(c.from)} – ${dayMon(c.to)}: ${rupee(c.logged)} logged on ${card}`
+    : `Logged on ${card} since your last bill: ${rupee(c.logged)}`;
+  return {text, amount: c.logged};
+}
+/* the words for one period on the card page; tone picks the pill's colour */
+function cycleWords(c, statementDay){
+  const title = statementDay ? `${dayMon(c.from)} – ${dayMon(c.to)}` + (c.open ? ` · closes ${dayMon(c.to)}` : '')
+    : c.open && !c.from ? 'Everything so far'
+    : c.open ? `Since ${dayMon(addDays(c.from, -1))} bill`
+    : !c.from ? `Up to the ${dayMon(c.to)} bill`
+    : `${dayMon(c.from)} – ${dayMon(c.to)} bill`;
+  const gap = rupee(Math.abs(c.difference));
+  const [verdict, tone] = {
+    matches: ['Matches what you logged', 'good'],
+    more: [`Paid ${gap} more than logged: interest, fees, or a spend that isn't in Ledger`, 'more'],
+    less: [`Paid ${gap} less than logged: a part payment, or spends that went on the next statement`, 'less'],
+    notpaid: ['No bill logged for this one yet', 'neutral'],
+    open: [statementDay ? `Still open. The bill for this comes after ${dayMon(c.to)}` : 'Not billed yet', 'neutral'],
+  }[c.verdict];
+  const n = c.charges.length;
+  return {
+    title, verdict, tone,
+    logged: `Logged on card ${rupee(c.charged)} · ${n} spend${n === 1 ? '' : 's'}`,
+    refunds: c.refunded > 0 ? `Refunds back to card −${rupee(c.refunded)}` : '',
+    paid: c.bills.length ? `Bill paid ${rupee(c.paid)} · ` + c.bills.map(b => dayMon(b.date)).join(', ') : '',
+  };
 }
 /* expenses whose refund is confirmed but hasn't arrived, the longest wait first */
 function refundsAwaited(list = S.entries, today = todayKey()){
@@ -1032,24 +1192,61 @@ function topBar(){
   return `<div class="top"><div><div class="brand"><i>₹</i>Ledger</div><button class="sync" data-act="settings">${wd}, ${d.getDate()} ${MONTH_FULL[d.getMonth()]} · <span class="sd ${si.cls}"></span>${esc(si.txt)}</button></div>
     ${headBtns()}</div>${appUpdate ? `<a class="ubar" href="${APK_URL}" style="text-decoration:none;color:var(--ink)">${ICON.out}A new version of the app is ready<b>Download</b></a>` : ''}${apkVersion() >= 2 && Sync.user && !quickLinked() ? `<button class="ubar" data-act="qlink">${ICON.bolt}Make the widget's Quick add instant<b>Connect</b></button>` : ''}`;
 }
-/* money on its way: refunds awaited and what's due on each card. Only shown when there's some. */
+/* money on its way: refunds awaited, and every card you've named with what's due on it. Only shown when there's some. */
 function inFlightCard(){
-  const awaited = refundsAwaited(), cards = cardDues().filter(c => c.due > 0 || c.notLogged > 0);
+  const awaited = refundsAwaited(), cards = cardDues();
   if (!awaited.length && !cards.length) return '';
   const parts = [];
   if (awaited.length){
     const total = awaited.reduce((s, a) => s + a.amount, 0), old = awaited.find(a => a.days >= REFUND_NUDGE_DAYS);
-    parts.push(`<span class="if-sec"><span class="if-h">Refunds</span>
+    parts.push(`<button class="if-sec" data-act="nav" data-v="search" aria-label="Refunds awaited. Open search"><span class="if-h">Refunds</span>
       <span class="if-big num">${rupee(total)} · ${awaited.length} refund${awaited.length === 1 ? '' : 's'} awaited</span>
-      ${old ? `<span class="if-nudge">${esc(old.e.desc || old.e.cat || 'Refund')}: waiting ${old.days} days. Worth checking?</span>` : ''}</span>`);
+      ${old ? `<span class="if-nudge">${esc(old.e.desc || old.e.cat || 'Refund')}: waiting ${old.days} days. Worth checking?</span>` : ''}</button>`);
   }
   if (cards.length){
     const notes = cards.filter(c => c.notLogged > 0).map(c => `${esc(c.name)}: ${rupee(c.notLogged)} paid that isn't logged in Ledger (fees, interest or older spends)`);
-    parts.push(`<span class="if-sec"><span class="if-h">Card due</span>
-      ${cards.map(c => `<span class="kv"><span>${esc(c.name)}</span><b>${rupee(c.due)}</b></span>`).join('')}
-      ${notes.length ? `<span class="if-note">${notes.join(' · ')}</span>` : ''}</span>`);
+    // each card opens its own page: bills matched with what was spent on it
+    parts.push(`<div class="if-sec"><span class="if-h">Card due</span>
+      ${cards.map(c => `<button class="kv" data-act="cardpage" data-c="${esc(c.name)}" aria-label="Open ${esc(c.name)}"><span>${esc(c.name)}</span><b>${rupee(c.due)}</b>${ICON.next}</button>`).join('')}
+      ${notes.length ? `<span class="if-note">${notes.join(' · ')}</span>` : ''}</div>`);
   }
-  return `<button class="card inflight" data-act="nav" data-v="search" aria-label="Refunds and card dues. Open search">${parts.join('')}</button>`;
+  return `<div class="card inflight">${parts.join('')}</div>`;
+}
+/* one card's page: what's due, its statement day, and each billing period's bill against what you logged */
+function viewCard(){
+  const name = S.card, day = statementDayOf(name);
+  const due = cardDues().find(c => lc(c.name) === lc(name)) || {due: 0, notLogged: 0};
+  const cycles = cardCycles(S.entries, name, day, todayKey());
+  let picker = '';
+  if (S.cardPick) picker = `<p class="note">Which day does this card's statement close? It's on your bill.</p>
+      <div class="daygrid">${Array.from({length: 31}, (_, i) => i + 1).map(d => `<button class="chip${d === day ? ' on' : ''}" data-act="stmtday" data-d="${d}">${d}</button>`).join('')}
+        <button class="chip wide${day ? '' : ' on'}" data-act="stmtday" data-d="0">Not set</button></div>`;
+  else if (!day) picker = `<p class="note">Bills are compared with everything since the previous bill. Set the statement date to compare each bill with the exact statement.</p>`;
+  const tones = {good: 'var(--in)', more: 'var(--spent)', less: 'var(--lend)'};
+  const periods = cycles.map((c, i) => {
+    const w = cycleWords(c, day), k = `${c.from || ''}|${c.to}`, open = S.cardOpen[k] ?? i === 0; // the newest starts open
+    const color = tones[w.tone];
+    return `<div class="card cyc">
+      <button class="cyc-h" data-act="cyctoggle" data-k="${k}" data-i="${i}" aria-expanded="${open}">
+        <span class="cyc-t">${esc(w.title)}${CHEV(!open)}</span>
+        <span class="num">${w.logged}</span>
+        ${w.refunds ? `<span class="num">${w.refunds}</span>` : ''}
+        ${w.paid ? `<span class="paid num">${w.paid}</span>` : ''}
+        <span class="vpill${color ? '' : ' neutral'}"${color ? ` style="--c:${color}"` : ''}><i></i>${esc(w.verdict)}</span>
+      </button>
+      ${open && c.charges.length ? `<div class="cyc-rows">${c.charges.map(e => rowHtml(e)).join('')}</div>` : ''}</div>`;
+  }).join('');
+  return `<button class="back" data-act="nav" data-v="home">${ICON.back}Home</button>
+    <div class="person-hero card-hero">
+      <div class="nm">${ICON.card}${esc(name)}</div>
+      <div class="bal">Due now <b class="num">${rupee(due.due)}</b></div>
+      ${due.notLogged > 0 ? `<div class="note">${rupee(due.notLogged)} paid in bills that isn't logged in Ledger (fees, interest or older spends)</div>` : ''}
+      <div class="stmt"><span>${day ? `Statement closes on the ${ordinal(day)}` : 'No statement date set'}</span>
+        <button class="link" data-act="stmtpick" aria-expanded="${!!S.cardPick}">${S.cardPick ? 'Done' : day ? 'Change' : 'Set it'}</button></div>
+      ${picker}
+      <div class="btns"><button class="btn primary" data-act="add" data-type="cardbill" data-card="${esc(name)}">Log a bill payment</button></div>
+    </div>
+    ${periods || '<p class="muted" style="margin:14px 4px">Nothing on this card yet.</p>'}`;
 }
 function viewHome(){
   if (S.loading) return topBar() + `<p class="muted" style="padding:40px 4px;text-align:center">Opening Ledger…</p>`;
@@ -1459,12 +1656,13 @@ function viewInsights(){
 /* ---------- render ---------- */
 function render(){
   const main = $('#main');
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === (S.view==='person'?'people':S.view)));
+  const tab = S.view === 'person' ? 'people' : S.view === 'card' ? 'home' : S.view;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === tab));
   if (S.view === 'search'){
     if (!main.querySelector('#q')) main.innerHTML = searchShell();
     refreshResults();
   } else {
-    main.innerHTML = S.view==='people' ? viewPeople() : S.view==='person' ? viewPerson() : S.view==='insights' ? viewInsights() : viewHome();
+    main.innerHTML = S.view==='people' ? viewPeople() : S.view==='person' ? viewPerson() : S.view==='card' && S.card ? viewCard() : S.view==='insights' ? viewInsights() : viewHome();
   }
   S.flashId = null;
 }
@@ -1472,10 +1670,12 @@ function go(view, fromBack){
   if (!fromBack){
     const top = () => layers[layers.length - 1];
     let n = 0;
-    if (view === 'home'){ for (let i = layers.length - 1; i >= 0 && (layers[i].type === 'view' || layers[i].type === 'person'); i--) n++; dropLayers(n); }
-    else if (view === 'person'){ pushLayer('person', S.view); }
+    // a person's page or a card's page sits on top of the page it was opened from
+    const sub = t => t === 'person' || t === 'card';
+    if (view === 'home'){ for (let i = layers.length - 1; i >= 0 && (layers[i].type === 'view' || sub(layers[i].type)); i--) n++; dropLayers(n); }
+    else if (sub(view)){ pushLayer(view, S.view); }
     else {
-      for (let i = layers.length - 1; i >= 0 && layers[i].type === 'person'; i--) n++;
+      for (let i = layers.length - 1; i >= 0 && sub(layers[i].type); i--) n++;
       if (n) dropLayers(n);
       if (!layers.some(l => l.type === 'view')) pushLayer('view');
     }
@@ -1508,6 +1708,7 @@ window.addEventListener('popstate', () => {
   else if (top.type === 'pad') setPad(false);
   else if (top.type === 'sheet') closeSheet(true);
   else if (top.type === 'person'){ S.person = null; go(top.data || 'people', true); }
+  else if (top.type === 'card'){ S.card = null; go(top.data || 'home', true); }
   else if (top.type === 'view') go('home', true);
   else if (top.type === 'quick') closeQuick(true);
 });
@@ -1541,11 +1742,12 @@ function openEntry(pref = {}, editId = null){
         : {type: pref.type || 'spent', amountStr: pref.amount ? trimAmt(+pref.amount) : '', desc:'',
            person: multi0 ? '' : (pref.person || ''), with: (multi0 && pref.person) ? [pref.person] : [], incMe:true, paidBack:{}, cat:'',
            mode: lsGet(LS_MODE) || 'UPI', date: todayKey(), note:'', catTouched:false, typeTouched:!!pref.type, prior: 0, priorAsked: false, priorShown: false,
-           card: '', newCards: [], ...refundDraft(null)};
+           card: pref.card || '', newCards: [], ...refundDraft(null)};
+  if (D.type === 'cardbill' && D.mode === 'Card') D.mode = 'UPI'; // a bill is paid to the card, from somewhere else
   $('#f-desc').value = D.desc || ''; $('#f-person').value = D.person || ''; $('#f-note').value = D.note || ''; $('#f-date').value = D.date;
   $('#desc-sugg').innerHTML = ''; $('#sh-title').textContent = e ? 'Edit entry' : 'New entry';
   $('#sh-del').hidden = !e; $('#done').hidden = true;
-  $('#say').hidden = !!e; $('#heard').hidden = true; $('#f-say').value = '';
+  $('#say').hidden = !!e; $('#mic-btn').hidden = !!e; $('#heard').hidden = true; $('#f-say').value = ''; setErr('');
   syncSheet(); showSheet($('#sheet'));
   setPad(!e && !pref.amount);
   $('#sh-body').scrollTop = 0;
@@ -1565,9 +1767,9 @@ function setPad(on){
   const top = layers[layers.length - 1];
   if (on && openEl === $('#sheet') && top && top.type === 'sheet') pushLayer('pad');
   else if (!on && top && top.type === 'pad') popLayer('pad');
-  $('#padbar-btn').innerHTML = on ? 'Hide keypad ' + CHEV(true) : 'Show keypad ' + CHEV(false);
-  $('#padbar-hint').textContent = on ? '' : 'Or tap the amount';
 }
+/* the one line above the keypad/Save that says what still needs fixing ('' clears it) */
+function setErr(msg){ const el = $('#sh-err'); el.textContent = msg; el.hidden = !msg; }
 /* how much of a repayment goes beyond what Ledger knows is owed */
 function settleExcess(type, person, amount, excludeId){
   if (type !== 'gotback' && type !== 'paidback') return 0;
@@ -1590,13 +1792,14 @@ function syncAmount(bump){
   a.classList.toggle('zero', !(parseFloat(D.amountStr) > 0));
   if (bump){ a.classList.remove('bump'); void a.offsetWidth; a.classList.add('bump'); }
   const v = parseFloat(D.amountStr);
-  $('#sh-save').textContent = v > 0 ? `Save ${rupee(v)}` : 'Save';
+  $('#sh-save').textContent = D.editId ? 'Save changes' : v > 0 ? `Save ${rupee(v)}` : 'Save';
   renderWith(); updateRefundHint();
 }
 function syncSheet(){
   const t = TYPES[D.type], multi = D.type === 'spent', bill = D.type === 'cardbill';
-  // the 7th type (Card bill) gets its own full-width row under the 3×2 grid
-  $('#sh-types').innerHTML = Object.entries(TYPES).map(([k,x])=>`<button class="tbtn${D.type===k?' on':''}${k==='cardbill'?' wide':''}" data-act="type" data-t="${k}" aria-pressed="${D.type===k}"><b>${x.label}</b><span>${x.cap}</span></button>`).join('');
+  // two rows of four (the last slot stays empty); what the chosen type means shows under the amount
+  $('#sh-types').innerHTML = Object.entries(TYPES).map(([k,x])=>`<button class="tbtn${D.type===k?' on':''}" data-act="type" data-t="${k}" aria-pressed="${D.type===k}" title="${x.cap}">${x.label}</button>`).join('');
+  $('#amt-cap').textContent = t.cap;
   $('#person-wrap').hidden = bill; // a card bill has no person and no category
   $('#f-desc').placeholder = bill ? 'Optional, e.g. October statement' : 'Chai, Uber, Rent, Movie tickets';
   $('#person-lbl').textContent = multi ? 'Spent with (optional)' : t.person + (t.kind==='debt' ? '' : ' (optional)');
@@ -1629,7 +1832,10 @@ function cardPicker(label, act, selected){
 function renderCards(){
   const bill = D.type === 'cardbill', onCard = D.type === 'spent' && D.mode === 'Card';
   $('#bill-card').hidden = !bill;
-  $('#bill-card').innerHTML = bill ? cardPicker('Which card', 'card', D.card) + '<div id="card-err"></div>' : '';
+  // a card bill for a card: offer the amount Ledger saw charged in the period this bill pays for
+  const h = bill && D.card ? billHint(S.entries, D.card, statementDayOf(D.card), todayKey()) : null;
+  $('#bill-card').innerHTML = !bill ? '' : cardPicker('Which card', 'card', D.card)
+    + (h ? `<div class="billhint"><span>${esc(h.text)}</span><button class="chip" data-act="usebill" data-v="${h.amount}">Use ${rupee(h.amount)}</button></div>` : '');
   $('#spend-card').hidden = !onCard;
   $('#spend-card').innerHTML = onCard ? cardPicker('Which card (optional)', 'card', D.card) : '';
 }
@@ -1659,7 +1865,7 @@ function renderRefund(){
       ${D.refundFull ? '' : `<input class="inp" id="f-refund" inputmode="decimal" autocomplete="off" enterkeyhint="done" aria-label="Refund amount" placeholder="How much is coming back, e.g. 1320" value="${esc(D.refundStr)}">`}
       <div class="chips">${chip('refund', 'awaited', 'Awaited', !D.refundArrived)}${chip('refund', 'arrived', 'Arrived', D.refundArrived)}</div>
       <div class="hint" id="refund-hint" style="margin:0"${hint ? '' : ' hidden'}>${esc(hint)}</div>${arrived}
-      <div id="refund-err" hidden></div></div>`;
+      </div>`;
 }
 function renderQuick(){
   const q = $('#quick');
@@ -1720,16 +1926,19 @@ function applyTemplate(key){
   if (D.type === 'cardbill' && D.mode === 'Card') D.mode = 'UPI';
   $('#desc-sugg').innerHTML = ''; buzz(); syncSheet(); syncAmount(true);
 }
+/* the amount after one key: at most 9 digits before the point and 2 after it. Returns s unchanged when the key doesn't fit. */
+function nextAmount(s, k){
+  if (k === 'del') return s.slice(0, -1);
+  if (k === '.') return s.includes('.') ? s : (s || '0') + '.';
+  if (k === '00') return (!s || s === '0') ? s : nextAmount(nextAmount(s, '0'), '0'); // two zeros, never on an empty amount
+  if (s.includes('.')){ if (s.split('.')[1].length >= 2) return s; }
+  else if (s.replace(/^0+/, '').length >= 9) return s;
+  return s === '0' ? k : s + k;
+}
 function keyPress(k){
-  let s = D.amountStr;
-  if (k === 'del') s = s.slice(0,-1);
-  else if (k === '.'){ if (!s.includes('.')) s = (s || '0') + '.'; }
-  else {
-    if (s.includes('.')){ if (s.split('.')[1].length >= 2) return; }
-    else if (s.replace(/^0+/,'').length >= 9) return;
-    s = (s === '0') ? k : s + k;
-  }
-  D.amountStr = s; syncAmount(true);
+  const s = nextAmount(D.amountStr, k);
+  if (s === D.amountStr && k !== 'del') return;
+  D.amountStr = s; setErr(''); syncAmount(true);
   if ($('#quick').innerHTML && s) renderQuick();
 }
 function shake(el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
@@ -1738,21 +1947,24 @@ async function saveEntry(){
   if (saving) return;
   const amount = Math.round(parseFloat(D.amountStr)*100)/100;
   const t = TYPES[D.type];
-  if (!(amount > 0)){ setPad(true); shake($('#sh-amount')); $('#sheet').classList.remove('typing'); return; }
+  if (!(amount > 0)){
+    if (document.activeElement && sheet.contains(document.activeElement)) document.activeElement.blur();
+    setErr('Type the amount first'); setPad(true); shake($('#sh-amount')); $('#sheet').classList.remove('typing'); return;
+  }
   const multi = D.type === 'spent';
   if (multi && $('#f-person').value.trim()) addWithName($('#f-person').value);
   const bill = D.type === 'cardbill';
   const person = (multi || bill) ? '' : canonPerson($('#f-person').value);
   if (t.kind === 'debt' && !person){
-    const f = $('#f-person'); shake(f.parentElement); f.focus();
-    $('#person-hint').innerHTML = '<div class="err">Add who this was with, so the balance adds up.</div>'; return;
+    const f = $('#f-person'); setErr('Add who this was with, so the balance adds up'); shake(f.parentElement); f.focus(); return;
   }
-  const formError = (box, msg) => { // show the message under the field and bring it into view
-    const err = $(box); err.hidden = false; err.innerHTML = `<div class="err">${msg}</div>`;
-    setPad(false); buzz(); shake(err.parentElement); err.scrollIntoView({block: 'center', behavior: 'smooth'});
+  const formError = (box, msg) => { // say what's missing above Save, and bring the field into view
+    const field = $(box); setErr(msg);
+    setPad(false); buzz(); shake(field); field.scrollIntoView({block: 'center', behavior: 'smooth'});
   };
-  if (bill && !D.card){ formError('#card-err', 'Pick which card this bill is for'); return; }
-  if (multi && D.refundOn && !(refundBack() > 0)){ formError('#refund-err', 'Type how much is coming back'); return; }
+  if (bill && !D.card){ formError('#bill-card', 'Pick which card this bill is for'); return; }
+  if (multi && D.refundOn && !(refundBack() > 0)){ formError('#refund-wrap', 'Type how much is coming back'); return; }
+  setErr('');
   if (D.type === 'gotback' || D.type === 'paidback'){
     if (!D.priorAsked){
       const ex = settleExcess(D.type, person, amount, D.editId);
@@ -1834,13 +2046,7 @@ function qkSync(bump){
   a.classList.toggle('zero', !(parseFloat(QK) > 0));
   if (bump){ a.classList.remove('bump'); void a.offsetWidth; a.classList.add('bump'); }
 }
-function qkKey(k){
-  let s = QK;
-  if (k === 'del') s = s.slice(0, -1);
-  else if (k === '.'){ if (!s.includes('.')) s = (s || '0') + '.'; }
-  else { if (s.includes('.')){ if (s.split('.')[1].length >= 2) return; } else if (s.replace(/^0+/, '').length >= 9) return; s = s === '0' ? k : s + k; }
-  QK = s; qkSync(true);
-}
+function qkKey(k){ const s = nextAmount(QK, k); if (s === QK && k !== 'del') return; QK = s; qkSync(true); }
 async function qkSave(cat){
   const amount = Math.round(parseFloat(QK) * 100) / 100;
   if (!(amount > 0)){ shake($('#qk-amt')); $('#qk-hint').textContent = 'Type the amount first'; buzz(); return; }
@@ -2044,7 +2250,7 @@ document.addEventListener('click', ev => {
     case 'nav': S.person = null; go(el.dataset.v); break;
     case 'voice': openEntry({}); startVoice(); break;
     case 'mic': startVoice(); break;
-    case 'add': if (el.dataset.lp){ delete el.dataset.lp; break; } openEntry({type: el.dataset.type, person: el.dataset.person, amount: el.dataset.amount, focusWith: el.dataset.with}); break;
+    case 'add': if (el.dataset.lp){ delete el.dataset.lp; break; } openEntry({type: el.dataset.type, person: el.dataset.person, amount: el.dataset.amount, focusWith: el.dataset.with, card: el.dataset.card}); break;
     case 'open': openEntry({}, el.dataset.id); break;
     case 'close': closeSheet(); break;
     case 'person': S.person = el.dataset.name; go('person'); break;
@@ -2054,11 +2260,16 @@ document.addEventListener('click', ev => {
       const nt = el.dataset.t, inp = $('#f-person'), buf = inp.value.trim();
       if (D.type === 'spent' && nt !== 'spent'){ D.person = buf || D.with[0] || ''; inp.value = D.person; }
       else if (D.type !== 'spent' && nt === 'spent'){ if (buf) addWithName(buf); D.person = ''; inp.value = ''; }
-      D.type = nt; D.typeTouched = true;
+      D.type = nt; D.typeTouched = true; setErr('');
       if (nt === 'cardbill' && D.mode === 'Card') D.mode = 'UPI'; // a bill is paid to the card, from somewhere else
       syncSheet(); break;
     }
-    case 'card': D.card = lc(D.card) === lc(el.dataset.c) ? '' : el.dataset.c; renderCards(); break;
+    case 'card': D.card = lc(D.card) === lc(el.dataset.c) ? '' : el.dataset.c; setErr(''); renderCards(); break;
+    case 'usebill': D.amountStr = trimAmt(+el.dataset.v); setErr(''); syncAmount(true); renderQuick(); break;
+    case 'cardpage': S.card = el.dataset.c; S.cardPick = false; S.cardOpen = {}; go('card'); break;
+    case 'stmtpick': S.cardPick = !S.cardPick; render(); break;
+    case 'stmtday': S.cardPick = false; saveCardSettings(S.card, +el.dataset.d || null); break;
+    case 'cyctoggle': { const k = el.dataset.k, i = +el.dataset.i; S.cardOpen[k] = !(S.cardOpen[k] ?? i === 0); render(); break; }
     case 'rcard': D.refundCard = el.dataset.c; renderRefund(); break;
     case 'newcard': { // like "+ New" category: the chip turns into a small box
       const forRefund = el.dataset.for === 'rcard';
@@ -2069,7 +2280,7 @@ document.addEventListener('click', ev => {
         if (v){
           const name = uniqCI([...cardNames(), ...D.newCards]).find(c => lc(c) === lc(v)) || v; // reuse "HDFC" for "hdfc"
           if (!D.newCards.some(c => lc(c) === lc(name))) D.newCards.push(name);
-          if (forRefund) D.refundCard = name; else D.card = name;
+          if (forRefund) D.refundCard = name; else { D.card = name; setErr(''); }
         }
         renderCards(); renderRefund();
       };
@@ -2109,7 +2320,7 @@ document.addEventListener('click', ev => {
     case 'pickperson':
       if (D.type === 'spent') addWith(el.dataset.p);
       else { D.person = el.dataset.p; $('#f-person').value = D.person; renderPersonSugg(); }
-      break;
+      setErr(''); break;
     case 'unwith': D.with = D.with.filter(x => x !== el.dataset.p); renderWith(); renderPersonSugg(); break;
     case 'fullamt': D.amountStr = trimAmt(+el.dataset.v); syncAmount(true); renderPersonSugg(); break;
     case 'key': keyPress(el.dataset.k); break;
@@ -2145,7 +2356,8 @@ document.addEventListener('click', ev => {
     case 'tcat': S.tcat = el.dataset.c; S.tsel = null; render(); break;
     case 'tmode': S.tmode = el.dataset.m; S.tsel = null; render(); break;
     case 'tbar': S.tsel = +el.dataset.i; render(); break;
-    case 'padtoggle': setPad($('#sheet').classList.contains('padoff')); break;
+    case 'padshow': setPad(true); break;
+    case 'padhide': setPad(false); break;
     case 'save': saveEntry(); break;
     case 'delete': deleteEntry(); break;
     case 'ftype': {
@@ -2253,9 +2465,12 @@ document.addEventListener('click', ev => {
 $('#scrim').addEventListener('click', closeSheet);
 $('#import-file').addEventListener('change', ev => { const f = ev.target.files[0]; ev.target.value = ''; if (f) doImport(f); });
 
-// numpad
-$('#pad').innerHTML = ['1','2','3','4','5','6','7','8','9','.','0','del'].map(k =>
-  `<button data-act="key" data-k="${k}" aria-label="${k==='del'?'Delete digit':k}">${k==='del'?ICON.del:k}</button>`).join('');
+// keypad, in reading order: 1 2 3 ⌫ / 4 5 6 hide / 7 8 9 Save / . 0 00 (Save is two rows tall, see .k-save)
+const KEY = k => `<button data-act="key" data-k="${k}" aria-label="${k === 'del' ? 'Delete digit' : k === '00' ? 'Two zeros' : k}">${k === 'del' ? ICON.del : k}</button>`;
+$('#pad').innerHTML = ['1','2','3','del'].map(KEY).join('')
+  + ['4','5','6'].map(KEY).join('') + `<button data-act="padhide" aria-label="Hide keypad">${CHEV(true)}</button>`
+  + ['7','8','9'].map(KEY).join('') + `<button class="k-save" data-act="save">Save</button>`
+  + ['.','0','00'].map(KEY).join('');
 $('#pad').addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); }); // keep text fields from losing/gaining focus
 $('#sh-amount').addEventListener('click', () => { setPad(true); document.activeElement && document.activeElement.blur(); $('#sheet').classList.remove('typing'); });
 
@@ -2263,7 +2478,26 @@ $('#sh-amount').addEventListener('click', () => { setPad(true); document.activeE
 const sheet = $('#sheet');
 // touching the form tucks the keypad away; tapping the amount brings it back
 $('#sh-body').addEventListener('pointerdown', () => { if (!sheet.classList.contains('padoff')) setPad(false); });
-sheet.addEventListener('focusin', e => { if (e.target.matches('input:not([type=date]):not([type=checkbox]),textarea')) sheet.classList.add('typing'); });
+// typing in a text box: the phone keyboard comes up, so Ledger's keypad goes down
+sheet.addEventListener('focusin', e => {
+  if (!e.target.matches('input:not([type=date]):not([type=checkbox]),textarea')) return;
+  sheet.classList.add('typing');
+  if (!sheet.classList.contains('padoff')) setPad(false);
+});
+/* The phone keyboard covers the bottom of the screen. Some browsers shrink the page for it, others only the
+   visible part (visualViewport). Either way: lift the sheet above it (--kb), fit it in what's left (--vvh),
+   and keep the box being typed in where you can see it. */
+function fitToKeyboard(){
+  const vv = window.visualViewport, root = document.documentElement.style;
+  if (!vv || Math.abs(vv.scale - 1) > 0.01){ root.removeProperty('--kb'); root.removeProperty('--vvh'); return; } // zoomed in: leave it
+  root.setProperty('--kb', Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) + 'px');
+  root.setProperty('--vvh', Math.round(vv.height) + 'px');
+  const a = document.activeElement;
+  if (sheet.classList.contains('typing') && a && $('#sh-body').contains(a)) setTimeout(() => a.scrollIntoView({block: 'nearest'}), 50);
+}
+if (window.visualViewport){ visualViewport.addEventListener('resize', fitToKeyboard); visualViewport.addEventListener('scroll', fitToKeyboard); }
+window.addEventListener('resize', fitToKeyboard);
+fitToKeyboard();
 sheet.addEventListener('focusout', () => setTimeout(() => { if (!sheet.contains(document.activeElement) || !document.activeElement.matches('input:not([type=date]):not([type=checkbox]),textarea')) sheet.classList.remove('typing'); }, 50));
 $('#f-desc').addEventListener('input', e => {
   D.desc = e.target.value; renderDescSugg(); renderQuick();
@@ -2282,7 +2516,7 @@ function syncSheetCats(){ document.querySelectorAll('#cat-chips .chip[data-c]').
 $('#f-person').addEventListener('input', e => {
   let v = e.target.value;
   if (D.type === 'spent' && v.includes(',')){ const parts = v.split(','); v = parts.pop(); parts.forEach(addWithName); e.target.value = v; renderWith(); }
-  D.person = v; renderPersonSugg();
+  D.person = v; renderPersonSugg(); setErr('');
 });
 $('#f-incme').addEventListener('change', e => { D.incMe = e.target.checked; renderWith(); });
 // the refund section is redrawn often, so its fields are listened to on the box around them
@@ -2290,8 +2524,7 @@ $('#refund-wrap').addEventListener('input', e => {
   if (e.target.id !== 'f-refund') return;
   const v = e.target.value.replace(/[^0-9.]/g, '').slice(0, 10);
   if (v !== e.target.value) e.target.value = v;
-  D.refundStr = v; updateRefundHint(); renderWith();
-  $('#refund-err').hidden = true;
+  D.refundStr = v; updateRefundHint(); renderWith(); setErr('');
 });
 $('#refund-wrap').addEventListener('keydown', e => { if (e.target.id === 'f-refund' && e.key === 'Enter'){ e.preventDefault(); e.target.blur(); } });
 $('#refund-wrap').addEventListener('change', e => { if (e.target.id === 'f-rdate' && e.target.value){ D.refundReceived = e.target.value; renderRefund(); } });
@@ -2791,7 +3024,8 @@ function micUI(){
   const b = $('#mic-btn'), i = $('#f-say');
   b.classList.toggle('on', listening);
   b.setAttribute('aria-label', listening ? 'Stop listening' : 'Speak an entry');
-  i.placeholder = listening ? 'Listening… say it like “chai 20”' : 'Say or type: lent 200 to Ashish';
+  i.placeholder = listening ? 'Listening… say it like “chai 20”' : 'lent 200 to Ashish · chai 20 cash';
+  if (listening) $('#sh-body').scrollTop = 0; // what you say shows in the first box of the form
 }
 function stopVoice(){ if (rec && listening){ try { rec.abort(); } catch {} } listening = false; if ($('#mic-btn')) micUI(); }
 function startVoice(){
