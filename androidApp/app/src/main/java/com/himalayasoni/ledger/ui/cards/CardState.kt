@@ -45,7 +45,7 @@ private fun CardCycle.ui(statementDay: Int?): CycleUi {
         open && from == null -> "Everything so far"
         open -> "Since ${from!!.minusDays(1).format(DM)} bill"
         from == null -> "Up to the ${to.format(DM)} bill"
-        else -> "${from.format(DM)} – ${to.format(DM)} bill"
+        else -> "${from!!.format(DM)} – ${to.format(DM)} bill"
     }
     val n = charges.size
     val (verdict, tone) = when (verdict) {
