@@ -1,5 +1,5 @@
 // Ledger service worker: keeps the app usable offline.
-const VERSION = 'ledger-v15';
+const VERSION = 'ledger-v16';
 const RUNTIME = 'ledger-runtime';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 

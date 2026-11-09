@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
+import java.time.LocalDate
 
 /**
  * Contract test: every phrase in spec/voice-phrases.json must parse to exactly what the web
@@ -30,7 +31,10 @@ class VoiceContractTest {
             val desc = it.getValue("desc").trim()
             Usual(desc.lowercase(), desc, 0.0, EntryType.fromKey(it.getValue("type"))!!, it["cat"] ?: "", "", emptyList(), true, "", 1, 0)
         }
-        VoiceContext(people = c["people"] as List<String>, categories = c["categories"] as List<String>, usuals = usuals)
+        VoiceContext(
+            people = c["people"] as List<String>, categories = c["categories"] as List<String>, usuals = usuals,
+            today = LocalDate.parse(c["today"] as String), // phrases like "on monday" count back from this day
+        )
     }
 
     /** The parsed line in the web's shape, so the two can be compared field by field. */
@@ -49,7 +53,7 @@ class VoiceContractTest {
     @Suppress("UNCHECKED_CAST")
     @Test fun `every phrase parses exactly as the web app parses it`() {
         val cases = spec["cases"] as List<Map<String, Any?>>
-        assertTrue("expected at least 60 phrases", cases.size >= 60)
+        assertTrue("expected at least 200 phrases", cases.size >= 200)
         val failures = mutableListOf<String>()
         for (case in cases) {
             val say = case["say"] as String
