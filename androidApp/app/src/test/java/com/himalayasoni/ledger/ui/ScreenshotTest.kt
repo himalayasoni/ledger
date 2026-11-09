@@ -197,7 +197,7 @@ class ScreenshotTest {
         type = EntryType.CARD_BILL, typeTouched = true, amountText = "12000", card = "HDFC", cards = listOf("HDFC", "SBI"), keypadOn = false,
     ))
     @Test fun card_page() = framed(false, Tab.HOME) {
-        com.himalayasoni.ledger.ui.cards.CardPage(com.himalayasoni.ledger.ui.cards.buildCardState(entries, "HDFC", 5, today), {}, {}, {}, {})
+        com.himalayasoni.ledger.ui.cards.CardPage(com.himalayasoni.ledger.ui.cards.buildCardState(entries, "HDFC", 5, today, 3), onBack = {}, onStatementDay = {}, onOpen = {}, onPayBill = {})
     }
     @Test fun add_typing() = sheet(false, fresh.copy(amountText = "240", description = "Uber", keypadOn = false), typing = true)
     @Test fun add_received_linked() = sheet(false, fresh.copy(
