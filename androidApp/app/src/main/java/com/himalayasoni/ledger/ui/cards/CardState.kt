@@ -33,6 +33,8 @@ data class CardUiState(
     val notLogged: String?,
     val statementDay: Int?,
     val cycles: List<CycleUi>,
+    val dueDay: Int? = null,
+    val nextDue: String? = null,      // "Bill due 3 Dec"
 )
 
 private val DM = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
@@ -65,13 +67,14 @@ private fun CardCycle.ui(statementDay: Int?): CycleUi {
 }
 
 /** Pure: entries + card + its statement day → the card page. */
-fun buildCardState(entries: List<Entry>, name: String, statementDay: Int?, today: LocalDate): CardUiState {
+fun buildCardState(entries: List<Entry>, name: String, statementDay: Int?, today: LocalDate, dueDay: Int? = null): CardUiState {
     val due = entries.cardDues(listOf(name)).firstOrNull { it.name.equals(name, true) }
     return CardUiState(
         name, formatRupees(due?.due ?: 0.0),
         due?.notLogged?.takeIf { it > 0 }?.let { "${formatRupees(it)} paid in bills that isn't logged in Ledger (fees, interest or older spends)" },
         statementDay,
         entries.cardCycles(name, statementDay, today).map { it.ui(statementDay) },
+        dueDay, dueDay?.let { "Bill due " + com.himalayasoni.ledger.core.domain.nextDueDate(it, today).format(DM) },
     )
 }
 

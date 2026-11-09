@@ -56,8 +56,17 @@ const val REFUND_NUDGE_DAYS = 7
 
 /* ---------- matching bills against card spends ---------- */
 
-/** A card's settings: the day its statement closes (1–31), if you've set it. Synced as cfg-cards. */
-data class CardSettings(val name: String, val statementDay: Int? = null)
+/** A card's settings: the day its statement closes and the day its bill is due (1–31), if set. Synced as cfg-cards. */
+data class CardSettings(val name: String, val statementDay: Int? = null, val dueDay: Int? = null)
+
+/** The next date a card bill is due, on or after [today]. Short months use their last day. */
+fun nextDueDate(dueDay: Int, today: LocalDate): LocalDate {
+    val ym = java.time.YearMonth.from(today)
+    val thisMonth = ym.atDay(minOf(dueDay, ym.lengthOfMonth()))
+    if (!thisMonth.isBefore(today)) return thisMonth
+    val next = ym.plusMonths(1)
+    return next.atDay(minOf(dueDay, next.lengthOfMonth()))
+}
 
 /** What a bill should be compared with: the period it pays for. */
 enum class Verdict { MATCHES, PAID_MORE, PAID_LESS, NOT_PAID, OPEN }

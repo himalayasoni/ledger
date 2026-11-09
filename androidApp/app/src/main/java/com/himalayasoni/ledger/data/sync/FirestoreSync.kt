@@ -198,10 +198,16 @@ class FirestoreSync(
     }
 
     /** Sets a card's statement day (null clears it), here and in your account (merged, so nothing else changes). */
-    fun setStatementDay(card: String, day: Int?) {
+    fun setStatementDay(card: String, day: Int?) = updateCard(card) { it.copy(statementDay = day) }
+
+    /** Sets the day a card's bill is due (for the reminder). */
+    fun setDueDay(card: String, day: Int?) = updateCard(card) { it.copy(dueDay = day) }
+
+    private fun updateCard(card: String, change: (com.himalayasoni.ledger.core.domain.CardSettings) -> com.himalayasoni.ledger.core.domain.CardSettings) {
         scope.launch {
             val cur = prefs.cardSettings.first()
-            val next = cur.filterNot { it.name.equals(card, true) } + com.himalayasoni.ledger.core.domain.CardSettings(card, day)
+            val old = cur.firstOrNull { it.name.equals(card, true) } ?: com.himalayasoni.ledger.core.domain.CardSettings(card)
+            val next = cur.filterNot { it.name.equals(card, true) } + change(old)
             prefs.setCardSettings(next)
             val uid = auth.account.value?.uid ?: return@launch
             try {

@@ -52,11 +52,13 @@ fun CardPage(
     state: CardUiState?,
     onBack: () -> Unit,
     onStatementDay: (Int?) -> Unit,
+    onDueDay: (Int?) -> Unit = {},
     onOpen: (String) -> Unit,
     onPayBill: () -> Unit,
 ) {
     val c = LocalLedgerColors.current
     var picking by remember { mutableStateOf(false) }
+    var pickingDue by remember { mutableStateOf(false) }
     LazyColumn(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 140.dp),
@@ -97,6 +99,25 @@ fun CardPage(
                         "Bills are compared with everything since the previous bill. Set the statement date to compare each bill with the exact statement.",
                         style = LedgerType.small, color = c.ink2,
                     )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            state.dueDay?.let { "Bill due on the ${ordinal(it)}" + (state.nextDue?.let { n -> " · next: ${n.removePrefix("Bill due ")}" } ?: "") }
+                                ?: "No due date set (for a reminder)",
+                            style = LedgerType.body, color = c.ink2, modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            if (pickingDue) "Done" else if (state.dueDay == null) "Set it" else "Change",
+                            style = LedgerType.body, fontWeight = FontWeight.Bold, color = c.ink, textDecoration = TextDecoration.Underline,
+                            modifier = Modifier.pressable { pickingDue = !pickingDue }.padding(4.dp),
+                        )
+                    }
+                    if (pickingDue) {
+                        Text("Which day is the bill due? You'll get a reminder 3 days before.", style = LedgerType.small, color = c.ink2)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            (1..31).forEach { d -> LedgerChip("$d", state.dueDay == d) { onDueDay(d); pickingDue = false } }
+                            LedgerChip("Not set", state.dueDay == null) { onDueDay(null); pickingDue = false }
+                        }
+                    }
                     Box(
                         Modifier.padding(top = 4.dp).clip(RoundedCornerShape(12.dp)).background(c.accent).pressable(onClick = onPayBill)
                             .padding(horizontal = 16.dp, vertical = 11.dp),

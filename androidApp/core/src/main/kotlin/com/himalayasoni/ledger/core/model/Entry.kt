@@ -23,6 +23,7 @@ enum class RefundStatus(val key: String) {
 /**
  * Money coming back on an expense. As soon as it's confirmed the expense counts at its net cost
  * (₹1,500 ticket − ₹1,320 refund = ₹180), while the refund shows as awaited until it arrives.
+ * Also used for money a person gives you back for an expense (a treat someone covered): [from] is their name.
  * @property to where it came back: "Card", "UPI", "Bank", "Cash" (with [card] when it's a card)
  */
 data class Refund(
@@ -32,6 +33,8 @@ data class Refund(
     val received: LocalDate? = null,
     val to: String = "",
     val card: String = "",
+    /** Who gave it back: "" for a shop or service refund, or a person's name ("Dad paid me back for this"). */
+    val from: String = "",
 )
 
 data class Entry(

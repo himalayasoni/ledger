@@ -146,8 +146,12 @@ fun entryRow(e: Entry, who: String? = null): EntryRow {
         if (e.repaid() > 0) add("${formatRupees(e.repaid())} paid back")
         // a refund shows what was paid and what's coming back, so the smaller amount on the right makes sense
         if (refund != null) add(
-            "${formatRupees(e.amount)} paid · " +
-                if (refund.status == RefundStatus.AWAITED) "${formatRupees(refund.amount)} refund awaited" else "${formatRupees(refund.amount)} refunded",
+            "${formatRupees(e.amount)} paid · " + when {
+                refund.from.isNotBlank() && refund.status == RefundStatus.AWAITED -> "${formatRupees(refund.amount)} awaited from ${refund.from}"
+                refund.from.isNotBlank() -> "${formatRupees(refund.amount)} back from ${refund.from}"
+                refund.status == RefundStatus.AWAITED -> "${formatRupees(refund.amount)} refund awaited"
+                else -> "${formatRupees(refund.amount)} refunded"
+            },
         )
         if (e.category.isNotBlank() && e.type.hasCategory) add(e.category)
         if (e.type == EntryType.CARD_BILL) add("not spending")
@@ -167,8 +171,8 @@ fun entryRow(e: Entry, who: String? = null): EntryRow {
         badge = when {
             who != null && e.type == EntryType.SPENT && e.people().any { it.equals(who, true) } ->
                 formatRupees(maxOf(0.0, e.share() - e.repaid(who))) + " theirs"
-            refund?.status == RefundStatus.AWAITED -> "Refund awaited"
-            refund != null -> "Refunded"
+            refund?.status == RefundStatus.AWAITED -> if (refund.from.isNotBlank()) "Money back awaited" else "Refund awaited"
+            refund != null -> if (refund.from.isNotBlank()) "Money back" else "Refunded"
             kind == RowKind.OUT -> null
             kind == RowKind.CARD_BILL -> "Not spending"
             else -> e.type.label

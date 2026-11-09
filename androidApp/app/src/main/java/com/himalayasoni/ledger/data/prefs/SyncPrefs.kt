@@ -47,12 +47,14 @@ class SyncPrefs(private val context: Context) : SettingsRepository {
 
     override val cardSettings: Flow<List<CardSettings>> = context.syncStore.data.map { p ->
         val a = org.json.JSONArray(p[Keys.cardSettings] ?: "[]")
-        List(a.length()) { i -> a.getJSONObject(i).let { o -> CardSettings(o.getString("name"), o.optInt("statementDay", 0).takeIf { it in 1..31 }) } }
+        List(a.length()) { i -> a.getJSONObject(i).let { o ->
+            CardSettings(o.getString("name"), o.optInt("statementDay", 0).takeIf { it in 1..31 }, o.optInt("dueDay", 0).takeIf { it in 1..31 })
+        } }
     }
 
     suspend fun setCardSettings(cards: List<CardSettings>) {
         val a = org.json.JSONArray()
-        cards.forEach { c -> a.put(org.json.JSONObject().put("name", c.name).apply { c.statementDay?.let { put("statementDay", it) } }) }
+        cards.forEach { c -> a.put(org.json.JSONObject().put("name", c.name).apply { c.statementDay?.let { put("statementDay", it) }; c.dueDay?.let { put("dueDay", it) } }) }
         context.syncStore.edit { it[Keys.cardSettings] = a.toString() }
     }
 

@@ -55,6 +55,7 @@ class RemoteContractTest {
                     expect["refundReceived"]?.let { assertEquals(name, it, e.refund!!.received.toString()) }
                     expect["refundTo"]?.let { assertEquals(name, it, e.refund!!.to) }
                     expect["refundCard"]?.let { assertEquals(name, it, e.refund!!.card) }
+                    expect["refundFrom"]?.let { assertEquals(name, it, e.refund!!.from) }
                     // what the app writes back must read the same (nothing lost when the phone edits an entry)
                     val again = (decodeRemote(e.id, e.encodeRemote()) as RemoteDoc.EntryDoc).entry
                     assertEquals("$name (round trip)", e, again)
@@ -62,7 +63,7 @@ class RemoteContractTest {
                 "tombstone" -> assertEquals(name, (expect["updatedAt"] as Number).toLong(), (doc as RemoteDoc.Tombstone).updatedAt)
                 "cards" -> {
                     val d = doc as RemoteDoc.Cards
-                    assertEquals(name, expect["cards"], d.cards.map { c -> buildMap { put("name", c.name); c.statementDay?.let { put("statementDay", it.toDouble()) } } })
+                    assertEquals(name, expect["cards"], d.cards.map { c -> buildMap { put("name", c.name); c.statementDay?.let { put("statementDay", it.toDouble()) }; c.dueDay?.let { put("dueDay", it.toDouble()) } } })
                     assertEquals(name, d, decodeRemote("cfg-cards", encodeCards(d.cards, d.updatedAt)))
                 }
                 "categories" -> {

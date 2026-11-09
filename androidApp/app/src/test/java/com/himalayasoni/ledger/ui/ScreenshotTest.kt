@@ -100,6 +100,7 @@ class ScreenshotTest {
         override fun addCategory(name: String) {}
         override fun onCard(name: String) {}
         override fun useAmount(amount: Double) {}
+        override fun linkTo(id: String?) {}
         override fun onRefund(change: (AddEntryState) -> AddEntryState) {}
     }
 
@@ -199,5 +200,13 @@ class ScreenshotTest {
         com.himalayasoni.ledger.ui.cards.CardPage(com.himalayasoni.ledger.ui.cards.buildCardState(entries, "HDFC", 5, today), {}, {}, {}, {})
     }
     @Test fun add_typing() = sheet(false, fresh.copy(amountText = "240", description = "Uber", keypadOn = false), typing = true)
+    @Test fun add_received_linked() = sheet(false, fresh.copy(
+        type = EntryType.RECEIVED, typeTouched = true, amountText = "1500", person = "Dad", keypadOn = false,
+        linkable = listOf(com.himalayasoni.ledger.ui.add.LinkOption("6", "Dinner at Toit", "₹3,200 · 4 Nov")), linkTo = "6",
+    ))
+    @Test fun add_moneyback_person() = sheet(false, fresh.copy(
+        editing = entries.first { it.id == "2" }, type = EntryType.SPENT, typeTouched = true, amountText = "1500", description = "Birthday treat",
+        category = "Food", keypadOn = false, refundOn = true, refundFrom = "Dad", refundArrived = true, refundTo = "UPI",
+    ))
     @Test fun add_lent() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "500", person = "", keypadOn = false))
 }

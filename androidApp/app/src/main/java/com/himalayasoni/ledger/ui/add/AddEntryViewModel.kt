@@ -32,6 +32,9 @@ import com.himalayasoni.ledger.core.voice.parseLine
 import java.time.LocalDate
 
 /** Everything the sheet derives from your history, recomputed when entries change. */
+/** A recent expense you can link money in to. */
+data class LinkOption(val id: String, val title: String, val detail: String)
+
 /** One key press applied to the amount being typed. */
 internal fun nextAmount(t: String, key: String): String = when (key) {
     "del" -> t.dropLast(1)
@@ -85,6 +88,10 @@ data class AddEntryState(
     val refundReceived: LocalDate = LocalDate.now(),
     val refundTo: String = "",               // "Card", "UPI", "Bank", "Cash"
     val refundCard: String = "",
+    val refundFrom: String = "",             // "" = a shop/service refund; a name = someone paid you back
+    // money in that was really for an expense: saved as money back on that expense instead of income
+    val linkTo: String? = null,
+    val linkable: List<LinkOption> = emptyList(),
     val billHints: Map<String, com.himalayasoni.ledger.ui.cards.BillHint> = emptyMap(),  // card name (lowercase) → what's due per Ledger
     val keypadOn: Boolean = true,
     val error: String? = null,
@@ -149,6 +156,8 @@ interface AddEntryActions {
     fun useAmount(amount: Double)
     /** Refund on a spend: turn it on/off, full or partial, amount, awaited or arrived, where it came back. */
     fun onRefund(change: (AddEntryState) -> AddEntryState)
+    /** Received: "this was for that expense" (null unlinks). */
+    fun linkTo(id: String?)
 }
 
 /**
@@ -162,6 +171,7 @@ class AddEntryViewModel(
     private val sync: com.himalayasoni.ledger.data.sync.FirestoreSync,
 ) : ViewModel(), AddEntryActions {
     private val _state = MutableStateFlow(AddEntryState())
+    @Volatile private var latest: List<Entry> = emptyList()
     val state: StateFlow<AddEntryState> = _state.asStateFlow()
 
     init {
@@ -174,6 +184,18 @@ class AddEntryViewModel(
                     com.himalayasoni.ledger.ui.cards.billHint(entries, name, day, today)?.let { name.lowercase() to it }
                 }.toMap()
             }.collect { h -> _state.update { it.copy(billHints = h) } }
+        }
+        // recent expenses that money in can be linked to (no money back on them yet)
+        viewModelScope.launch {
+            visible.entries.collect { entries ->
+                latest = entries
+                val since = LocalDate.now().minusDays(120)
+                val fmt = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
+                val options = entries.filter { it.type == EntryType.SPENT && !it.deleted && it.refund == null && !it.date.isBefore(since) }
+                    .sortedWith(compareByDescending<Entry> { it.date }.thenByDescending { it.createdAt }).take(30)
+                    .map { e -> LinkOption(e.id, e.description.ifBlank { e.category.ifBlank { "Expense" } }, "${formatRupees(e.amount)} · ${e.date.format(fmt)}") }
+                _state.update { it.copy(linkable = options) }
+            }
         }
         // keep usuals, names and categories in step with your entries (private ones left out)
         viewModelScope.launch {
@@ -199,6 +221,7 @@ class AddEntryViewModel(
 
     fun start(req: AddRequest) = _state.update { s ->
         val fresh = AddEntryState(allUsuals = s.allUsuals, recentPeople = s.recentPeople, categories = s.categories, cards = s.cards, billHints = s.billHints,
+            linkable = s.linkable,
             voicePeople = s.voicePeople, voiceCategories = s.voiceCategories)
         val e = req.edit
         when {
@@ -213,7 +236,7 @@ class AddEntryViewModel(
                 refundArrived = e.refund?.status == RefundStatus.RECEIVED,
                 refundConfirmed = e.refund?.confirmed ?: LocalDate.now(),
                 refundReceived = e.refund?.received ?: LocalDate.now(),
-                refundTo = e.refund?.to.orEmpty(), refundCard = e.refund?.card.orEmpty(),
+                refundTo = e.refund?.to.orEmpty(), refundCard = e.refund?.card.orEmpty(), refundFrom = e.refund?.from.orEmpty(),
             )
             req.type != null -> fresh.copy(
                 type = req.type, typeTouched = true,
@@ -285,6 +308,7 @@ class AddEntryViewModel(
         }
         val now = System.currentTimeMillis()
         val base = s.editing
+        if (s.type == EntryType.RECEIVED && s.linkTo != null) { saveAsMoneyBack(s, now); return }
         val entry = Entry(
             id = base?.id ?: newEntryId(now), type = s.type, amount = Math.round(s.amount * 100) / 100.0, date = s.date,
             description = s.description.trim(),
@@ -303,6 +327,7 @@ class AddEntryViewModel(
                 received = if (s.refundArrived) s.refundReceived else null,
                 to = if (s.refundArrived) s.refundTo else "",
                 card = if (s.refundArrived && s.refundTo.equals("Card", true)) s.refundCard.ifBlank { s.card } else "",
+                from = s.refundFrom.trim(),
             ) else null,
             withPeople = withPeople, includesMe = if (withPeople.isEmpty()) true else s.includesMe,
             paidBack = if (s.type == EntryType.SPENT && withPeople.isNotEmpty()) base?.paidBack.orEmpty() else emptyMap(),
@@ -312,6 +337,31 @@ class AddEntryViewModel(
         viewModelScope.launch {
             repository.save(entry)
             _state.update { it.copy(done = if (base != null) "Changes saved" else "Logged ${formatRupees(entry.amount)}") }
+        }
+    }
+
+    override fun linkTo(id: String?) = _state.update { it.copy(linkTo = id, error = null) }
+
+    /**
+     * Money in that was for an expense ("Dad gave me 1,500 for the treat"): instead of income, it
+     * becomes money back on that expense, so the expense's month shows what it really cost you.
+     */
+    private fun saveAsMoneyBack(s: AddEntryState, now: Long) {
+        val target = latest.firstOrNull { it.id == s.linkTo }
+        if (target == null) { _state.update { it.copy(error = "That expense isn't there any more. Pick another.", linkTo = null) }; return }
+        val back = minOf(Math.round(s.amount * 100) / 100.0, target.amount)
+        val updated = target.copy(
+            refund = Refund(
+                amount = back, status = RefundStatus.RECEIVED, confirmed = s.date, received = s.date,
+                to = if (s.mode.equals("Card", true)) "Card" else s.mode, from = s.person.trim(),
+            ),
+            updatedAt = now,
+        )
+        viewModelScope.launch {
+            repository.save(updated)
+            s.editing?.let { repository.delete(it.id) }   // an income entry being turned into money back
+            val name = target.description.ifBlank { target.category }
+            _state.update { it.copy(done = "${formatRupees(back)} back on $name · counts as ${formatRupees(maxOf(0.0, target.amount - back))} spent") }
         }
     }
 

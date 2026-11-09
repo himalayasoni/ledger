@@ -54,6 +54,14 @@
       "expect": {"kind": "entry", "card": "HDFC", "share": 500, "cost": 1000, "refundStatus": "received", "refundReceived": "2026-11-06", "refundTo": "Card", "refundCard": "HDFC"}
     },
     {
+      "name": "a treat someone paid me back for (money back from a person)",
+      "id": "m3k9mb0001",
+      "remote": {"id": "m3k9mb0001", "type": "spent", "amount": 1500, "desc": "Birthday treat", "person": "", "cat": "Food", "mode": "UPI",
+                 "date": "2026-10-28", "note": "", "createdAt": 1793600000000, "updatedAt": 1793700000000,
+                 "refund": {"amount": 1500, "status": "received", "confirmed": "2026-11-02", "received": "2026-11-02", "to": "UPI", "from": "Dad"}},
+      "expect": {"kind": "entry", "cost": 0, "refundAmount": 1500, "refundStatus": "received", "refundFrom": "Dad"}
+    },
+    {
       "name": "credit card bill paid (not spending)",
       "id": "m3k9cb0001",
       "remote": {"id": "m3k9cb0001", "type": "cardbill", "amount": 12000, "desc": "", "person": "", "cat": "", "mode": "UPI", "card": "HDFC",
@@ -63,8 +71,8 @@
     {
       "name": "card settings: statement days",
       "id": "cfg-cards",
-      "remote": {"id": "cfg-cards", "cards": [{"name": "HDFC", "statementDay": 15}, {"name": "SBI"}], "updatedAt": 1793700000000},
-      "expect": {"kind": "cards", "cards": [{"name": "HDFC", "statementDay": 15}, {"name": "SBI"}]}
+      "remote": {"id": "cfg-cards", "cards": [{"name": "HDFC", "statementDay": 15, "dueDay": 3}, {"name": "SBI"}], "updatedAt": 1793700000000},
+      "expect": {"kind": "cards", "cards": [{"name": "HDFC", "statementDay": 15, "dueDay": 3}, {"name": "SBI"}]}
     },
     {
       "name": "custom categories from the web",

@@ -95,6 +95,7 @@ fun AppShell(
             cardName != null -> com.himalayasoni.ledger.ui.cards.CardPage(
                 cardState, onBack = { cardName = null },
                 onStatementDay = { d -> cardName?.let { cards.setStatementDay(it, d) } },
+                onDueDay = { d -> cardName?.let { cards.setDueDay(it, d) } },
                 onOpen = openEntry,
                 onPayBill = { adding = AddRequest(type = com.himalayasoni.ledger.core.model.EntryType.CARD_BILL, card = cardName) },
             )

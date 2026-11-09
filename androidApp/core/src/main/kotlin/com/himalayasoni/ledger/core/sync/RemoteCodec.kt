@@ -43,7 +43,8 @@ fun decodeRemote(id: String, data: Map<String, Any?>): RemoteDoc {
         val cards = (data["cards"] as? List<*>)?.mapNotNull { c ->
             val m = c as? Map<*, *> ?: return@mapNotNull null
             val name = (m["name"] as? String)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            com.himalayasoni.ledger.core.domain.CardSettings(name, (m["statementDay"] as? Number)?.toInt()?.takeIf { it in 1..31 })
+            fun day(k: String) = (m[k] as? Number)?.toInt()?.takeIf { it in 1..31 }
+            com.himalayasoni.ledger.core.domain.CardSettings(name, day("statementDay"), day("dueDay"))
         } ?: emptyList()
         return RemoteDoc.Cards(cards, updatedAt)
     }
@@ -102,6 +103,7 @@ fun Entry.encodeRemote(): Map<String, Any?> {
                 r.received?.let { put("received", it.toString()) }
                 if (r.to.isNotBlank()) put("to", r.to)
                 if (r.card.isNotBlank()) put("card", r.card)
+                if (r.from.isNotBlank()) put("from", r.from)
             })
         }
     }
@@ -119,6 +121,7 @@ private fun decodeRefund(raw: Any?, fallback: LocalDate): Refund? {
         received = date("received"),
         to = m["to"] as? String ?: "",
         card = m["card"] as? String ?: "",
+        from = m["from"] as? String ?: "",
     )
 }
 
@@ -132,5 +135,5 @@ private fun Map<String, Any?>.long(key: String): Long = (this[key] as? Number)?.
 /** cfg-cards as the web stores it. */
 fun encodeCards(cards: List<com.himalayasoni.ledger.core.domain.CardSettings>, updatedAt: Long): Map<String, Any?> = mapOf(
     "id" to "cfg-cards", "updatedAt" to updatedAt,
-    "cards" to cards.map { c -> buildMap { put("name", c.name); c.statementDay?.let { put("statementDay", it) } } },
+    "cards" to cards.map { c -> buildMap { put("name", c.name); c.statementDay?.let { put("statementDay", it) }; c.dueDay?.let { put("dueDay", it) } } },
 )

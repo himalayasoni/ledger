@@ -69,6 +69,7 @@ import com.himalayasoni.ledger.ui.components.CheckRow
 import com.himalayasoni.ledger.ui.components.FieldLabel
 import com.himalayasoni.ledger.ui.components.Hairline
 import com.himalayasoni.ledger.ui.components.LedgerChip
+import com.himalayasoni.ledger.ui.components.LedgerCard
 import com.himalayasoni.ledger.ui.components.LedgerIcons
 import com.himalayasoni.ledger.ui.components.LedgerTextField
 import com.himalayasoni.ledger.ui.components.PrimaryButton
@@ -436,6 +437,7 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
     if (s.type == EntryType.SPENT && s.mode.equals("Card", true)) CardPicker(s, vm, "Which card (optional)", onFocus)
 
     if (s.type == EntryType.SPENT) RefundSection(s, vm, onFocus)
+    if (s.type == EntryType.RECEIVED && s.linkable.isNotEmpty()) LinkSection(s, vm)
 
     Column {
         FieldLabel("Comment")
@@ -478,15 +480,31 @@ private fun CardPicker(s: AddEntryState, vm: AddEntryActions, label: String, onF
 private fun RefundSection(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) -> Unit) {
     val c = LocalLedgerColors.current
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        FieldLabel("Refund")
+        FieldLabel("Money back")
         if (!s.refundOn) {
-            LedgerChip("+ Add refund (cancelled or returned)") { vm.onRefund { it.copy(refundOn = true) } }
+            LedgerChip("+ Money back (refund, or someone paid you back)") { vm.onRefund { it.copy(refundOn = true) } }
             return@Column
         }
+        // who it comes from: a shop/service refund, or a person who covered it (not someone you split it with)
+        var addingName by remember { mutableStateOf(false) }
+        val shared = s.withPeople.map { it.lowercase() }.toSet()
+        val names = (listOfNotNull(s.refundFrom.takeIf { it.isNotBlank() }) + s.recentPeople).distinctBy { it.lowercase() }.filter { it.lowercase() !in shared }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LedgerChip("Shop refund", s.refundFrom.isBlank()) { vm.onRefund { it.copy(refundFrom = "") } }
+            names.forEach { n -> LedgerChip(n, s.refundFrom.equals(n, true)) { vm.onRefund { it.copy(refundFrom = n, refundArrived = true) } } }
+            if (!addingName) LedgerChip("+ Someone else") { addingName = true }
+        }
+        if (addingName) NewCategory(
+            onAdd = { n -> vm.onRefund { it.copy(refundFrom = n.trim(), refundArrived = true) }; addingName = false },
+            onCancel = { addingName = false }, onFocus = onFocus, hint = "Their name",
+        )
+        if (shared.isNotEmpty()) Text(
+            "Someone you split this with? Use \"paid their share\" on their page instead.", style = LedgerType.small, color = c.ink2,
+        )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LedgerChip("Full", s.refundFull) { vm.onRefund { it.copy(refundFull = true) } }
             LedgerChip("Partial", !s.refundFull) { vm.onRefund { it.copy(refundFull = false) } }
-            LedgerChip("Remove refund") { vm.onRefund { it.copy(refundOn = false, refundText = "", refundArrived = false) } }
+            LedgerChip("Remove") { vm.onRefund { it.copy(refundOn = false, refundText = "", refundArrived = false, refundFrom = "") } }
         }
         if (!s.refundFull) LedgerTextField(
             s.refundText, { v -> vm.onRefund { it.copy(refundText = v.filter { ch -> ch.isDigit() || ch == '.' }.take(10)) } },
@@ -519,6 +537,52 @@ private fun RefundSection(s: AddEntryState, vm: AddEntryActions, onFocus: (Boole
                 vm.onRefund { it.copy(refundCard = name) }
             }
         }
+    }
+}
+
+/**
+ * Money in that was for an expense. Linking saves it as money back on that expense (its real cost drops,
+ * in the expense's month) instead of as income.
+ */
+@Composable
+private fun LinkSection(s: AddEntryState, vm: AddEntryActions) {
+    val c = LocalLedgerColors.current
+    var open by remember(s.linkTo) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FieldLabel("Was this for an expense?")
+        val linked = s.linkable.firstOrNull { it.id == s.linkTo }
+        if (linked == null && !open) {
+            LedgerChip("+ Link to an expense (it was money back)") { open = true }
+            return@Column
+        }
+        if (linked != null && !open) {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.accentSoft).padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Saves as money back on ${linked.title} (${linked.detail}), not as income. That expense's month shows what it really cost.",
+                    style = LedgerType.small, color = c.ink, modifier = Modifier.weight(1f),
+                )
+                LedgerChip("Unlink") { vm.linkTo(null) }
+            }
+            return@Column
+        }
+        LedgerCard {
+            Column {
+                s.linkable.take(12).forEachIndexed { i, o ->
+                    if (i > 0) Hairline()
+                    Row(
+                        Modifier.fillMaxWidth().pressable(shrink = false) { vm.linkTo(o.id); open = false }.padding(horizontal = 14.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(o.title, style = LedgerType.body, fontWeight = FontWeight.SemiBold, color = c.ink, modifier = Modifier.weight(1f), maxLines = 1)
+                        Text(o.detail, style = LedgerType.small, color = c.ink2)
+                    }
+                }
+            }
+        }
+        LedgerChip("Not for an expense") { vm.linkTo(null); open = false }
     }
 }
 

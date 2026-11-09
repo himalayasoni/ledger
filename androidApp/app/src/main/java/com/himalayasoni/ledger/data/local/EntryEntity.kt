@@ -43,7 +43,7 @@ data class EntryEntity(
 private fun Refund.toJson(): String = JSONObject().apply {
     put("amount", amount); put("status", status.key); put("confirmed", confirmed.toString())
     received?.let { put("received", it.toString()) }
-    put("to", to); put("card", card)
+    put("to", to); put("card", card); put("from", from)
 }.toString()
 
 private fun refundFromJson(s: String): Refund? {
@@ -54,7 +54,7 @@ private fun refundFromJson(s: String): Refund? {
         status = RefundStatus.fromKey(o.optString("status")) ?: RefundStatus.AWAITED,
         confirmed = LocalDate.parse(o.getString("confirmed")),
         received = o.optString("received").takeIf { it.isNotBlank() }?.let(LocalDate::parse),
-        to = o.optString("to"), card = o.optString("card"),
+        to = o.optString("to"), card = o.optString("card"), from = o.optString("from"),
     )
 }
 
