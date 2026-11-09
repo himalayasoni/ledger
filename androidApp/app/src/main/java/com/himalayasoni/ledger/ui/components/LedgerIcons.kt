@@ -44,5 +44,6 @@ object LedgerIcons {
     val ChevronUp = icon("chevron-up", 2.2f, "M6 15l6-6 6 6")
     val ChevronLeft = icon("chevron-left", 2.2f, "M15 6l-6 6 6 6")
     val ChevronRight = icon("chevron-right", 2.2f, "M9 6l6 6-6 6")
+    val Card = icon("card", 2f, "M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM3 10h18M7 15h4")
     val Check = icon("check", 2.6f, "M5 12.5l4.5 4.5L19 7.5")
 }

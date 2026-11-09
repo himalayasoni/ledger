@@ -127,6 +127,7 @@ fun EntryRowItem(row: EntryRow, onClick: () -> Unit) {
         RowKind.LOAN_OUT, RowKind.LOAN_IN -> c.loan
         RowKind.IN -> c.income
         RowKind.OUT -> categoryColor(row.category)
+        RowKind.CARD_BILL -> c.ink2
     }
     Row(
         Modifier.fillMaxWidth().pressable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp),
@@ -135,6 +136,7 @@ fun EntryRowItem(row: EntryRow, onClick: () -> Unit) {
         when (row.kind) {
             RowKind.LOAN_OUT -> IconTile(tint, icon = LedgerIcons.Out)
             RowKind.LOAN_IN -> IconTile(tint, icon = LedgerIcons.In)
+            RowKind.CARD_BILL -> IconTile(tint, icon = LedgerIcons.Card)
             else -> IconTile(tint, letter = row.initial)
         }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {

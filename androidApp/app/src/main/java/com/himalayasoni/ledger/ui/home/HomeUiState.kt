@@ -54,7 +54,7 @@ data class DayDot(val letter: String, val logged: Boolean, val isToday: Boolean)
 
 data class DayGroup(val label: String, val spent: String?, val rows: List<EntryRow>)
 
-enum class RowKind { OUT, IN, LOAN_OUT, LOAN_IN }
+enum class RowKind { OUT, IN, LOAN_OUT, LOAN_IN, CARD_BILL }
 
 data class EntryRow(
     val id: String,
@@ -157,6 +157,7 @@ fun entryRow(e: Entry, who: String? = null): EntryRow {
     val kind = when {
         e.type.isDebt -> if (e.type.sign < 0) RowKind.LOAN_OUT else RowKind.LOAN_IN
         e.type == EntryType.RECEIVED -> RowKind.IN
+        e.type == EntryType.CARD_BILL -> RowKind.CARD_BILL
         else -> RowKind.OUT
     }
     return EntryRow(
@@ -168,8 +169,8 @@ fun entryRow(e: Entry, who: String? = null): EntryRow {
                 formatRupees(maxOf(0.0, e.share() - e.repaid(who))) + " theirs"
             refund?.status == RefundStatus.AWAITED -> "Refund awaited"
             refund != null -> "Refunded"
-            e.type == EntryType.CARD_BILL -> "Card bill"
             kind == RowKind.OUT -> null
+            kind == RowKind.CARD_BILL -> "Not spending"
             else -> e.type.label
         },
         category = e.category,
