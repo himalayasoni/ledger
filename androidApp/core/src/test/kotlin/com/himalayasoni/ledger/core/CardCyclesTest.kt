@@ -42,6 +42,14 @@ class CardCyclesTest {
         assertEquals(Verdict.PAID_MORE, closed.verdict); assertEquals(150.0, closed.difference, 0.0)
     }
 
+    @Test fun `a bill paid just after the statement closed is matched to that statement`() {
+        // first ever activity: a bill on 7 Nov for the statement that closed 5 Nov (nothing logged in it)
+        val c = listOf(spend(2499.0, "2026-11-06"), bill(2000.0, "2026-11-07")).cardCycles("HDFC", 5, today)
+        assertEquals(2, c.size)
+        assertEquals(LocalDate.parse("2026-11-05"), c[1].to); assertEquals(Verdict.PAID_MORE, c[1].verdict)
+        assertEquals(true, c[0].open); assertEquals(2499.0, c[0].logged, 0.0)
+    }
+
     @Test fun `the sheet suggests the closed statement that isn't paid yet`() {
         assertEquals(2300.0, list.suggestedBill("HDFC", 15, LocalDate.parse("2026-11-18"))!!.logged, 0.0)
         assertEquals(300.0, list.suggestedBill("HDFC", null, today)!!.logged, 0.0)

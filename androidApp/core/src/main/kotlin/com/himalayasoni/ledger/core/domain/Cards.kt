@@ -104,15 +104,17 @@ fun List<Entry>.cardCycles(card: String, statementDay: Int?, today: LocalDate): 
 
     val out = mutableListOf<CardCycle>()
     if (statementDay != null) {
+        // start one statement before the earliest spend or bill: a bill pays the statement that closed before it
         val first = (charges.map { it.date } + bills.map { it.date }).min()
-        var end = closingIn(java.time.YearMonth.from(first), statementDay).let { if (it.isBefore(first)) closingIn(java.time.YearMonth.from(first).plusMonths(1), statementDay) else it }
+        var end = closingIn(java.time.YearMonth.from(first).minusMonths(1), statementDay).let { if (it.isBefore(first.minusMonths(1))) closingIn(java.time.YearMonth.from(first), statementDay) else it }
         while (true) {
             val start = closingIn(java.time.YearMonth.from(end).minusMonths(1), statementDay).plusDays(1)
             val nextEnd = closingIn(java.time.YearMonth.from(end).plusMonths(1), statementDay)
             val open = end.isAfter(today) || end == today
             // bills paid after this statement closed, before the next one closed
             val paidBy = bills.filter { it.date.isAfter(end) && !it.date.isAfter(nextEnd) }
-            out += cycle(start, end, open, if (open) emptyList() else paidBy)
+            val c = cycle(start, end, open, if (open) emptyList() else paidBy)
+            if (open || c.charges.isNotEmpty() || c.bills.isNotEmpty() || c.refunded > 0) out += c   // skip empty months
             if (open) break
             end = nextEnd
         }
