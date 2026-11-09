@@ -84,3 +84,14 @@ fun streak(days: Set<LocalDate>, today: LocalDate): Int {
     while (d in days) { n++; d = d.minusDays(1) }
     return n
 }
+
+/**
+ * The categories to offer, like the web's allCats(): the built-in ones (minus any you removed),
+ * then ones you added, then any others found on your entries. No duplicates, ignoring case.
+ */
+fun List<Entry>.allCategories(custom: Collection<String>, removed: Collection<String>, extra: Collection<String> = emptyList()): List<String> {
+    val gone = removed.map { it.lowercase() }.toSet()
+    val used = filter { !it.deleted && !it.type.isDebt && it.category.isNotBlank() }.map { it.category }
+    return (com.himalayasoni.ledger.core.model.DEFAULT_CATEGORIES.filter { it.lowercase() !in gone } + custom.sortedBy { it.lowercase() } + used + extra)
+        .distinctBy { it.lowercase() }
+}

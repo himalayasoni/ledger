@@ -93,6 +93,7 @@ class ScreenshotTest {
         override fun save() {}
         override fun delete() {}
         override fun applySaid(text: String) {}
+        override fun addCategory(name: String) {}
     }
 
     /** A tab inside the app frame (background + bottom bar), like AppShell draws it. */

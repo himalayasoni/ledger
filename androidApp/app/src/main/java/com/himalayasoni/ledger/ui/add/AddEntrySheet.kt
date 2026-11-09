@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -94,7 +96,7 @@ import java.util.Locale
  * fixed top (title, type buttons, amount), scrolling middle (details), fixed bottom (keypad, Save).
  * The keypad hides itself while you type in a text box, and comes back when you tap the amount.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddEntrySheet(
     request: AddRequest,
@@ -139,7 +141,24 @@ fun AddEntrySheet(
 
     fun close() { scope.launch { sheetState.hide(); onDismiss() } }
     fun showKeypad() { focus.clearFocus(); keyboard?.hide(); viewModel.setKeypad(true) }
-    val onFocus: (Boolean) -> Unit = { f -> typing = f; if (f) viewModel.setKeypad(false) }
+    var keypadBeforeTyping by remember { mutableStateOf(true) }
+    val onFocus: (Boolean) -> Unit = { f ->
+        if (f && !typing) { keypadBeforeTyping = s.keypadOn; viewModel.setKeypad(false) }
+        typing = f
+    }
+    // When the phone keyboard goes away (Back, or its own hide key), leave the text box and bring
+    // Ledger's keypad back the way it was. Watches the keyboard closing, not just "not open",
+    // because a box gets focus a moment before the keyboard appears.
+    val imeVisible = WindowInsets.isImeVisible
+    var imeWasVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(imeVisible) {
+        if (imeWasVisible && !imeVisible && typing) {
+            focus.clearFocus()
+            typing = false
+            viewModel.setKeypad(keypadBeforeTyping)
+        }
+        imeWasVisible = imeVisible
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -324,6 +343,7 @@ private fun AmountDisplay(text: String, onTap: () -> Unit) {
 @Composable
 private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) -> Unit) {
     val c = LocalLedgerColors.current
+    var addingCategory by remember { mutableStateOf(false) }
 
     if (s.usuals.isNotEmpty()) Column {
         FieldLabel("Your usuals · one tap")
@@ -362,7 +382,13 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
         FieldLabel("Category")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             s.categories.forEach { cat -> LedgerChip(cat, s.category == cat, swatch = categoryColor(cat)) { vm.onCategory(cat) } }
+            if (!addingCategory) LedgerChip("+ New") { addingCategory = true }
         }
+        if (addingCategory) NewCategory(
+            onAdd = { vm.addCategory(it); addingCategory = false },
+            onCancel = { addingCategory = false },
+            onFocus = onFocus,
+        )
     }
 
     Column {
@@ -389,6 +415,22 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
         "Delete this entry", color = c.spent, fontWeight = FontWeight.Bold, style = LedgerType.body,
         modifier = Modifier.pressable(onClick = vm::delete).padding(vertical = 6.dp),
     )
+}
+
+/** "+ New" category: a small box that opens with the keyboard, like the web's new-category field. */
+@Composable
+private fun NewCategory(onAdd: (String) -> Unit, onCancel: () -> Unit, onFocus: (Boolean) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    val requester = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { requester.requestFocus() }
+    Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LedgerTextField(
+            name, { name = it.take(24) }, placeholder = "New category, e.g. Pets",
+            imeAction = ImeAction.Done, onDone = { if (name.isNotBlank()) onAdd(name) else onCancel() },
+            modifier = Modifier.weight(1f).focusRequester(requester).onFocusChanged { onFocus(it.isFocused) },
+        )
+        com.himalayasoni.ledger.ui.people.ActionButton("Add", primary = true) { if (name.isNotBlank()) onAdd(name) else onCancel() }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

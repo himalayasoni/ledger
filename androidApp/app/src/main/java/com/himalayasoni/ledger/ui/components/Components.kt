@@ -59,8 +59,10 @@ fun Modifier.pressable(enabled: Boolean = true, role: Role = Role.Button, shrink
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     return this
-        // Scaling re-rasterises text, which looks soft on chips; those dim slightly instead.
-        .then(if (shrink) Modifier.scale(if (pressed) 0.97f else 1f) else Modifier.alpha(if (pressed) 0.85f else 1f))
+        // Buttons shrink a little when pressed. Chips and other selectable things don't change at all
+        // while pressed: if your finger slides, Android turns the tap into a scroll and cancels it,
+        // and a dimmed-then-unselected chip looked like a broken, blurry selection.
+        .then(if (shrink) Modifier.scale(if (pressed) 0.97f else 1f) else Modifier)
         .clickable(interactionSource = source, indication = null, enabled = enabled, role = role, onClick = onClick)
 }
 

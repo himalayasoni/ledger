@@ -50,6 +50,11 @@ class RemoteContractTest {
                     expect["prior"]?.let { assertEquals(name, (it as Number).toDouble(), e.prior, 0.001) }
                 }
                 "tombstone" -> assertEquals(name, (expect["updatedAt"] as Number).toLong(), (doc as RemoteDoc.Tombstone).updatedAt)
+                "categories" -> {
+                    val d = doc as RemoteDoc.Categories
+                    assertEquals(name, expect["custom"], d.custom)
+                    assertEquals(name, expect["removed"], d.removed)
+                }
                 "privacy" -> assertEquals(name, (expect["privateCategories"] as List<*>).toSet(), (doc as RemoteDoc.Privacy).privateCategories)
                 "other" -> assertTrue(name, doc is RemoteDoc.Other)
                 else -> fail("$name: unknown kind")

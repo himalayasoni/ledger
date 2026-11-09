@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.himalayasoni.ledger.core.domain.peopleIndex
+import com.himalayasoni.ledger.core.domain.allCategories
 import com.himalayasoni.ledger.core.voice.VoiceContext
 import com.himalayasoni.ledger.core.voice.parseLine
 import java.time.LocalDate
@@ -112,6 +113,8 @@ interface AddEntryActions {
     fun delete()
     /** A line from the say bar or the microphone: "lent 200 to Ashish". */
     fun applySaid(text: String)
+    /** "+ New" in the category row: adds the category everywhere and picks it. */
+    fun addCategory(name: String)
 }
 
 /**
@@ -122,6 +125,7 @@ class AddEntryViewModel(
     private val repository: EntryRepository,
     settings: SettingsRepository,
     visible: com.himalayasoni.ledger.data.VisibleEntries,
+    private val sync: com.himalayasoni.ledger.data.sync.FirestoreSync,
 ) : ViewModel(), AddEntryActions {
     private val _state = MutableStateFlow(AddEntryState())
     val state: StateFlow<AddEntryState> = _state.asStateFlow()
@@ -129,10 +133,13 @@ class AddEntryViewModel(
     init {
         // keep usuals, names and categories in step with your entries (private ones left out)
         viewModelScope.launch {
-            combine(visible.entries, settings.privateCategories, settings.showPrivate) { visible, private, show ->
+            combine(
+                visible.entries, settings.privateCategories, settings.showPrivate, settings.customCategories, settings.removedCategories,
+            ) { visible, private, show, custom, removed ->
                 val hidden = if (show) emptySet() else private.map { it.lowercase() }.toSet()
                 val used = visible.filter { !it.type.isDebt && it.category.isNotBlank() }.map { it.category }
-                val cats = (DEFAULT_CATEGORIES + used).distinctBy { it.lowercase() }.filter { it.lowercase() !in hidden }
+                // built-in (minus removed), your own, then any others on your entries; private ones only when showing
+                val cats = visible.allCategories(custom, removed, if (show) private else emptySet()).filter { it.lowercase() !in hidden }
                 // what the voice parser knows about you: same rules as the web (allPeople(), allCats())
                 val names = visible.peopleIndex().values.sortedByDescending { it.lastDate }.map { it.name }
                 val voiceCats = (used + (if (show) emptySet() else private) + DEFAULT_CATEGORIES).distinctBy { it.lowercase() }
@@ -273,6 +280,14 @@ class AddEntryViewModel(
                 error = null,
             )
         }
+    }
+
+    override fun addCategory(name: String) {
+        val n = name.trim().replace(Regex("\\s+"), " ").take(24).replaceFirstChar { it.uppercase() }
+        if (n.isEmpty()) return
+        val existing = _state.value.categories.firstOrNull { it.equals(n, true) }
+        if (existing == null) sync.addCategory(n)
+        _state.update { it.copy(category = existing ?: n, categories = if (existing == null) it.categories + n else it.categories) }
     }
 
     override fun delete() {

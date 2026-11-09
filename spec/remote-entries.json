@@ -38,6 +38,12 @@
       "expect": {"kind": "privacy", "privateCategories": ["Sutta", "Beer"]}
     },
     {
+      "name": "custom categories from the web",
+      "id": "cfg-cats",
+      "remote": {"id": "cfg-cats", "custom": ["Pets", "Gym"], "removed": ["Gifts"], "updatedAt": 1793700000000},
+      "expect": {"kind": "categories", "custom": ["Pets", "Gym"], "removed": ["Gifts"]}
+    },
+    {
       "name": "other settings documents are not entries",
       "id": "cfg-quick",
       "remote": {"id": "cfg-quick", "cats": ["Food", "Transport"], "mode": "UPI", "updatedAt": 1793700000000},

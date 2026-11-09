@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -125,6 +126,7 @@ class FirestoreSync(
                     if (shouldApplyRemote(dao.updatedAt(remote.entry.id), remote.entry.updatedAt)) rows += remote.entry.toEntity(dirty = false)
                 is RemoteDoc.Tombstone -> dao.applyTombstone(remote.id, remote.updatedAt)
                 is RemoteDoc.Privacy -> prefs.setPrivateCategories(remote.privateCategories)
+                is RemoteDoc.Categories -> prefs.setCategories(remote.custom, remote.removed)
                 RemoteDoc.Other -> Unit
             }
         }
@@ -166,6 +168,24 @@ class FirestoreSync(
             try {
                 collection(uid).document("cfg-private").set(
                     mapOf("id" to "cfg-private", "privateCats" to categories.sorted(), "updatedAt" to clock(), "srv" to FieldValue.serverTimestamp()),
+                    com.google.firebase.firestore.SetOptions.merge(),
+                ).await()
+            } catch (e: Exception) {
+                _status.value = SyncStatus.Problem(friendly(e))
+            }
+        }
+    }
+
+    /** Adds a category of your own: here straight away, and to the web's list (merged, so nothing else changes). */
+    fun addCategory(name: String) {
+        scope.launch {
+            val custom = (prefs.customCategories.first() + name).distinctBy { it.lowercase() }
+            val removed = prefs.removedCategories.first().filterNot { it.equals(name, true) }
+            prefs.setCategories(custom, removed)
+            val uid = auth.account.value?.uid ?: return@launch
+            try {
+                collection(uid).document("cfg-cats").set(
+                    mapOf("id" to "cfg-cats", "custom" to custom, "removed" to removed, "updatedAt" to clock(), "srv" to FieldValue.serverTimestamp()),
                     com.google.firebase.firestore.SetOptions.merge(),
                 ).await()
             } catch (e: Exception) {

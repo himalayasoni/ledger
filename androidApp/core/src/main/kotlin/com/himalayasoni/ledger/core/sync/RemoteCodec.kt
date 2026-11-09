@@ -17,6 +17,9 @@ sealed interface RemoteDoc {
     data class Tombstone(val id: String, val updatedAt: Long) : RemoteDoc
     /** The web app's private-categories setting (cfg-private). */
     data class Privacy(val privateCategories: Set<String>, val updatedAt: Long) : RemoteDoc
+    /** The web app's own categories (cfg-cats): ones you added, and defaults you removed. */
+    data class Categories(val custom: List<String>, val removed: List<String>, val updatedAt: Long) : RemoteDoc
+
     /** Anything else (other settings, future entry types): left alone. */
     data object Other : RemoteDoc
 }
@@ -26,6 +29,10 @@ fun decodeRemote(id: String, data: Map<String, Any?>): RemoteDoc {
     if (id == "cfg-private") {
         val cats = (data["privateCats"] as? List<*>)?.filterIsInstance<String>()?.toSet() ?: emptySet()
         return RemoteDoc.Privacy(cats, updatedAt)
+    }
+    if (id == "cfg-cats") {
+        fun list(k: String) = (data[k] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+        return RemoteDoc.Categories(list("custom"), list("removed"), updatedAt)
     }
     if (data["deleted"] == true) return RemoteDoc.Tombstone(id, updatedAt)
     val type = EntryType.fromKey(data["type"] as? String ?: return RemoteDoc.Other) ?: return RemoteDoc.Other

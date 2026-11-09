@@ -25,10 +25,19 @@ class SyncPrefs(private val context: Context) : SettingsRepository {
         val lastSyncAt = longPreferencesKey("lastSyncAt")
         val privateCategories = stringSetPreferencesKey("privateCategories")
         val showPrivate = booleanPreferencesKey("showPrivate")
+        val customCategories = stringSetPreferencesKey("customCategories")
+        val removedCategories = stringSetPreferencesKey("removedCategories")
     }
 
     override val privateCategories: Flow<Set<String>> =
         context.syncStore.data.map { it[Keys.privateCategories] ?: emptySet() }
+
+    override val customCategories: Flow<Set<String>> = context.syncStore.data.map { it[Keys.customCategories] ?: emptySet() }
+    override val removedCategories: Flow<Set<String>> = context.syncStore.data.map { it[Keys.removedCategories] ?: emptySet() }
+
+    suspend fun setCategories(custom: Collection<String>, removed: Collection<String>) {
+        context.syncStore.edit { it[Keys.customCategories] = custom.toSet(); it[Keys.removedCategories] = removed.toSet() }
+    }
 
     override val showPrivate: Flow<Boolean> = context.syncStore.data.map { it[Keys.showPrivate] ?: false }
 
