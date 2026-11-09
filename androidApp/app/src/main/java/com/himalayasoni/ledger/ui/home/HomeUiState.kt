@@ -205,7 +205,7 @@ data class InFlight(val refunds: String?, val refundsNote: String?, val cards: L
 
 fun inFlight(entries: List<Entry>, today: LocalDate): InFlight? {
     val awaited = entries.refundsAwaited(today)
-    val cards = entries.cardDues().filter { it.due > 0 || it.notLogged > 0 }
+    val cards = entries.cardDues()
     if (awaited.isEmpty() && cards.isEmpty()) return null
     val oldest = awaited.firstOrNull { it.days >= REFUND_NUDGE_DAYS }
     return InFlight(

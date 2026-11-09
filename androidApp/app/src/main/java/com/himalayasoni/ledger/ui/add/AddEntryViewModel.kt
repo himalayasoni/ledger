@@ -32,6 +32,18 @@ import com.himalayasoni.ledger.core.voice.parseLine
 import java.time.LocalDate
 
 /** Everything the sheet derives from your history, recomputed when entries change. */
+/** One key press applied to the amount being typed. */
+internal fun nextAmount(t: String, key: String): String = when (key) {
+    "del" -> t.dropLast(1)
+    "." -> if (t.contains('.')) t else (t.ifEmpty { "0" } + ".")
+    else -> when {
+        t.contains('.') && t.substringAfter('.').length >= 2 -> t
+        !t.contains('.') && t.trimStart('0').length >= 9 -> t
+        t == "0" -> key
+        else -> t + key
+    }
+}
+
 private data class VoiceInputs(
     val usuals: List<Usual>, val recent: List<String>, val cats: List<String>,
     val people: List<String>, val voiceCats: List<String>, val cards: List<String>,
@@ -45,6 +57,7 @@ data class AddRequest(
     val person: String? = null,   // from a person's page: "Lend" to Rahul
     val amount: Double? = null,   // "Got it back": the full balance
     val listen: Boolean = false,  // "Say it": start voice input straight away
+    val card: String? = null,     // "Log a bill payment" on a card page
 )
 
 /** What the add sheet is showing right now. Immutable: every change makes a new copy. */
@@ -72,6 +85,7 @@ data class AddEntryState(
     val refundReceived: LocalDate = LocalDate.now(),
     val refundTo: String = "",               // "Card", "UPI", "Bank", "Cash"
     val refundCard: String = "",
+    val billHints: Map<String, com.himalayasoni.ledger.ui.cards.BillHint> = emptyMap(),  // card name (lowercase) → what's due per Ledger
     val keypadOn: Boolean = true,
     val error: String? = null,
     val done: String? = null,                // set after saving/deleting: the sheet closes and shows this
@@ -131,6 +145,8 @@ interface AddEntryActions {
     fun addCategory(name: String)
     /** Pick (or add) the credit card for a card spend or a card bill. */
     fun onCard(name: String)
+    /** "Use ₹12,340": put Ledger's logged total in as the bill amount. */
+    fun useAmount(amount: Double)
     /** Refund on a spend: turn it on/off, full or partial, amount, awaited or arrived, where it came back. */
     fun onRefund(change: (AddEntryState) -> AddEntryState)
 }
@@ -149,6 +165,16 @@ class AddEntryViewModel(
     val state: StateFlow<AddEntryState> = _state.asStateFlow()
 
     init {
+        // what Ledger thinks each card's next bill is (shown when you log a card bill)
+        viewModelScope.launch {
+            combine(visible.entries, settings.cardSettings) { entries, cards ->
+                val today = LocalDate.now()
+                entries.cardNames(cards.map { it.name }).mapNotNull { name ->
+                    val day = cards.firstOrNull { it.name.equals(name, true) }?.statementDay
+                    com.himalayasoni.ledger.ui.cards.billHint(entries, name, day, today)?.let { name.lowercase() to it }
+                }.toMap()
+            }.collect { h -> _state.update { it.copy(billHints = h) } }
+        }
         // keep usuals, names and categories in step with your entries (private ones left out)
         viewModelScope.launch {
             combine(
@@ -172,7 +198,7 @@ class AddEntryViewModel(
     }
 
     fun start(req: AddRequest) = _state.update { s ->
-        val fresh = AddEntryState(allUsuals = s.allUsuals, recentPeople = s.recentPeople, categories = s.categories, cards = s.cards,
+        val fresh = AddEntryState(allUsuals = s.allUsuals, recentPeople = s.recentPeople, categories = s.categories, cards = s.cards, billHints = s.billHints,
             voicePeople = s.voicePeople, voiceCategories = s.voiceCategories)
         val e = req.edit
         when {
@@ -194,6 +220,7 @@ class AddEntryViewModel(
                 person = if (req.type == EntryType.SPENT) "" else req.person.orEmpty(),
                 withPeople = if (req.type == EntryType.SPENT) listOfNotNull(req.person) else emptyList(),
                 amountText = req.amount?.let { plain(Math.abs(it)) }.orEmpty(),
+                card = req.card.orEmpty(),
             )
             else -> fresh
         }
@@ -240,19 +267,10 @@ class AddEntryViewModel(
         )
     }
 
-    /** Same keypad rules as the web app: max 2 decimals, max 9 digits. */
+    /** Same keypad rules as the web app: max 2 decimals, max 9 digits. "00" is two zeros (not on an empty amount). */
     override fun onKey(key: String) = _state.update { s ->
-        val t = s.amountText
-        val next = when (key) {
-            "del" -> t.dropLast(1)
-            "." -> if (t.contains('.')) t else (t.ifEmpty { "0" } + ".")
-            else -> when {
-                t.contains('.') && t.substringAfter('.').length >= 2 -> t
-                !t.contains('.') && t.trimStart('0').length >= 9 -> t
-                t == "0" -> key
-                else -> t + key
-            }
-        }
+        val next = if (key == "00") (if (s.amountText.isEmpty() || s.amountText == "0") s.amountText else nextAmount(nextAmount(s.amountText, "0"), "0"))
+        else nextAmount(s.amountText, key)
         s.copy(amountText = next, error = null)
     }
 
@@ -336,6 +354,8 @@ class AddEntryViewModel(
             st.copy(card = existing ?: n, cards = if (existing == null) st.cards + n else st.cards, error = null)
         }
     }
+
+    override fun useAmount(amount: Double) = _state.update { it.copy(amountText = plain(amount), error = null) }
 
     override fun onRefund(change: (AddEntryState) -> AddEntryState) = _state.update { change(it).copy(error = null) }
 

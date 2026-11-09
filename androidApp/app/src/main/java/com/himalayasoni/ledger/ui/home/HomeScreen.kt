@@ -93,6 +93,7 @@ fun HomeTab(
     onOpen: (String) -> Unit,
     onSoon: (String) -> Unit,
     onSeeAll: () -> Unit,
+    onCard: (String) -> Unit = {},
 ) {
     val s = state as? HomeUiState.Ready ?: return Box(Modifier.fillMaxSize()) {
         Text("Opening Ledger…", color = LocalLedgerColors.current.ink2, style = LedgerType.body, modifier = Modifier.align(Alignment.Center))
@@ -107,7 +108,7 @@ fun HomeTab(
             return@LazyColumn
         }
         item { Hero(s) }
-        s.inFlight?.let { f -> item { InFlightCard(f, onSeeAll) } }
+        s.inFlight?.let { f -> item { InFlightCard(f, onSeeAll, onCard) } }
         item { StreakCard(s) }
         item {
             QuickActions(
@@ -213,7 +214,7 @@ private fun Mini(label: String, value: String, modifier: Modifier) {
 /* ---------- money on the way: refunds awaited, card dues ---------- */
 
 @Composable
-private fun InFlightCard(f: InFlight, onOpen: () -> Unit) {
+private fun InFlightCard(f: InFlight, onOpen: () -> Unit, onCard: (String) -> Unit) {
     val c = LocalLedgerColors.current
     LedgerCard(Modifier.padding(top = 12.dp)) {
         Column(Modifier.pressable(shrink = false, onClick = onOpen).padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -228,9 +229,10 @@ private fun InFlightCard(f: InFlight, onOpen: () -> Unit) {
             if (f.cards.isNotEmpty()) {
                 Text("Card due", fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = c.ink)
                 f.cards.forEach { (name, due) ->
-                    Row {
+                    Row(Modifier.pressable(shrink = false) { onCard(name) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(name, style = LedgerType.body, color = c.ink2, modifier = Modifier.weight(1f))
                         Text(due, style = LedgerType.amount, color = c.ink)
+                        Icon(LedgerIcons.ChevronRight, "Open $name", tint = c.ink2, modifier = Modifier.size(18.dp))
                     }
                 }
                 f.cardNote?.let { n -> Text(n, style = LedgerType.small, color = c.ink2) }

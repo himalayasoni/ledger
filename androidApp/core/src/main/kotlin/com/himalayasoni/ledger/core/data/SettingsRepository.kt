@@ -13,6 +13,9 @@ interface SettingsRepository {
     /** Built-in categories you removed on the web. */
     val removedCategories: Flow<Set<String>>
 
+    /** Each card's statement day, if set (synced with the web app). */
+    val cardSettings: Flow<List<com.himalayasoni.ledger.core.domain.CardSettings>>
+
     /** Whether private entries are showing on this phone. Off until you unlock with your fingerprint. */
     val showPrivate: Flow<Boolean>
 

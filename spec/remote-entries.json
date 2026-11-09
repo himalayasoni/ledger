@@ -61,6 +61,12 @@
       "expect": {"kind": "entry", "type": "cardbill", "amount": 12000, "card": "HDFC"}
     },
     {
+      "name": "card settings: statement days",
+      "id": "cfg-cards",
+      "remote": {"id": "cfg-cards", "cards": [{"name": "HDFC", "statementDay": 15}, {"name": "SBI"}], "updatedAt": 1793700000000},
+      "expect": {"kind": "cards", "cards": [{"name": "HDFC", "statementDay": 15}, {"name": "SBI"}]}
+    },
+    {
       "name": "custom categories from the web",
       "id": "cfg-cats",
       "remote": {"id": "cfg-cats", "custom": ["Pets", "Gym"], "removed": ["Gifts"], "updatedAt": 1793700000000},

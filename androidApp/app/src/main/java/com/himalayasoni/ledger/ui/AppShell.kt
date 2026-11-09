@@ -54,9 +54,11 @@ fun AppShell(
     account: AccountViewModel = koinViewModel(),
     search: com.himalayasoni.ledger.ui.search.SearchViewModel = koinViewModel(),
     insights: com.himalayasoni.ledger.ui.insights.InsightsViewModel = koinViewModel(),
+    cards: com.himalayasoni.ledger.ui.cards.CardsViewModel = koinViewModel(),
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     var personName by rememberSaveable { mutableStateOf<String?>(null) }
+    var cardName by rememberSaveable { mutableStateOf<String?>(null) }
     var adding by remember { mutableStateOf<AddRequest?>(null) }
     var showAccount by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<ToastMessage?>(null) }
@@ -68,29 +70,41 @@ fun AppShell(
     val personState by people.person.collectAsStateWithLifecycle()
     val searchState by search.state.collectAsStateWithLifecycle()
     val insightsState by insights.state.collectAsStateWithLifecycle()
+    val cardState by cards.card.collectAsStateWithLifecycle()
 
     LaunchedEffect(toast) { if (toast != null) { delay(if (toast?.action != null) 5000 else 2400); toast = null } }
     LaunchedEffect(personName) { personName?.let(people::open) }
+    LaunchedEffect(cardName) { cardName?.let(cards::open) }
 
     // Back: person page → People; any other tab → Home; Home → leave the app (system default)
-    BackHandler(enabled = personName != null || tab != Tab.HOME) {
-        if (personName != null) personName = null else tab = Tab.HOME
+    BackHandler(enabled = personName != null || cardName != null || tab != Tab.HOME) {
+        when {
+            cardName != null -> cardName = null
+            personName != null -> personName = null
+            else -> tab = Tab.HOME
+        }
     }
 
     val say: (String) -> Unit = { toast = ToastMessage(it) }
     val undoable: (Undoable) -> Unit = { u -> toast = ToastMessage(u.message, if (u.undo != null) "Undo" else null) { u.undo?.invoke() } }
     val openEntry: (String) -> Unit = { id -> home.entry(id)?.let { adding = AddRequest(edit = it) } }
-    val goTab: (Tab) -> Unit = { personName = null; tab = it }
+    val goTab: (Tab) -> Unit = { personName = null; cardName = null; tab = it }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         when {
+            cardName != null -> com.himalayasoni.ledger.ui.cards.CardPage(
+                cardState, onBack = { cardName = null },
+                onStatementDay = { d -> cardName?.let { cards.setStatementDay(it, d) } },
+                onOpen = openEntry,
+                onPayBill = { adding = AddRequest(type = com.himalayasoni.ledger.core.model.EntryType.CARD_BILL, card = cardName) },
+            )
             personName != null -> PersonPage(
                 personState, onBack = { personName = null }, onAdd = { adding = it }, onOpen = openEntry,
                 onSharesPaid = { people.markSharesPaid(it, undoable) }, onFix = { people.fixOldLoan(it, undoable) },
             )
             tab == Tab.HOME -> HomeTab(
                 homeState, accountState, onSettings = { showAccount = true }, onAdd = { adding = it }, onOpen = openEntry,
-                onSoon = say, onSeeAll = { goTab(Tab.SEARCH) },
+                onSoon = say, onSeeAll = { goTab(Tab.SEARCH) }, onCard = { cardName = it },
             )
             tab == Tab.PEOPLE -> PeopleTab(
                 peopleState, onSettings = { showAccount = true }, onPerson = { personName = it },
@@ -106,7 +120,7 @@ fun AppShell(
             )
         }
         BottomBar(
-            tab = if (personName != null) Tab.PEOPLE else tab, onTab = goTab, onAdd = { adding = AddRequest() },
+            tab = when { cardName != null -> Tab.HOME; personName != null -> Tab.PEOPLE; else -> tab }, onTab = goTab, onAdd = { adding = AddRequest() },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
         AnimatedVisibility(

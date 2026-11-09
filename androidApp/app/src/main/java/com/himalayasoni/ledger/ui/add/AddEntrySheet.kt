@@ -196,41 +196,56 @@ internal fun AddEntryContent(
     onMic: () -> Unit = {},
 ) {
     val c = LocalLedgerColors.current
+    val saveLabel = when {
+        s.editing != null -> "Save changes"
+        s.amount > 0 -> "Save ₹" + amountDisplay(s.amountText)
+        else -> "Save"
+    }
     Column(modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
-        // ---- fixed top ----
+        // ---- fixed top: kept small so the form gets the room ----
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(if (s.editing != null) "Edit entry" else "New entry", style = LedgerType.title, color = c.ink, modifier = Modifier.weight(1f))
+            if (s.editing == null) {
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(c.deep).pressable(onClick = onMic),
+                    Alignment.Center,
+                ) { Icon(LedgerIcons.Mic, "Speak an entry", tint = c.accent, modifier = Modifier.size(20.dp)) }
+                Spacer(Modifier.width(8.dp))
+            }
             SquareIconButton(LedgerIcons.Close, "Close") { onClose() }
         }
-        if (s.editing == null) SayBar(actions, onMic, onFocus)
         s.heard?.let { Heard(it, s.heardNote) }
-        TypeGrid(s.type, actions::onType)
-        AmountDisplay(s.amountText, onTap = onShowKeypad)
+        // while the phone keyboard is up, the type buttons step aside and the amount shrinks to one line
+        if (!typing) TypeGrid(s.type, actions::onType)
+        AmountDisplay(s.amountText, s.type, compact = typing, onTap = onShowKeypad)
 
         // ---- scrolling middle ----
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (s.editing == null) SayBar(actions, onFocus)
             Details(s, actions, onFocus)
         }
 
-        // ---- fixed bottom ----
-        if (!typing) PadBar(s.keypadOn) { if (s.keypadOn) actions.setKeypad(false) else onShowKeypad() }
-        AnimatedVisibility(s.keypadOn && !typing, enter = expandVertically(), exit = shrinkVertically()) {
-            Keypad(actions::onKey)
-        }
+        // ---- fixed bottom: the keypad carries its own Save key; otherwise one Save button ----
         s.error?.let {
-            Text(it, color = c.spent, fontWeight = FontWeight.SemiBold, style = LedgerType.small, modifier = Modifier.padding(top = 8.dp))
+            Text(it, color = c.spent, fontWeight = FontWeight.SemiBold, style = LedgerType.small, modifier = Modifier.padding(bottom = 6.dp))
         }
-        PrimaryButton(
-            when {
-                s.editing != null -> "Save changes"
-                s.amount > 0 -> "Save ₹" + amountDisplay(s.amountText)
-                else -> "Save"
-            },
-            Modifier.padding(top = 8.dp),
-        ) { onSave() }
+        if (s.keypadOn && !typing) {
+            Keypad(actions::onKey, onHide = { actions.setKeypad(false) }, onSave = onSave)
+        } else {
+            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (!typing) {
+                    Box(
+                        Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)).background(c.surface2).pressable(onClick = onShowKeypad),
+                        Alignment.Center,
+                    ) { Text("123", fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = c.ink) }
+                    Spacer(Modifier.width(8.dp))
+                }
+                PrimaryButton(saveLabel, Modifier.weight(1f)) { onSave() }
+            }
+        }
     }
 }
 
@@ -250,20 +265,15 @@ private fun Modifier.keepSheetOpen(): Modifier = this
 /* ---------- say bar (web: .say) ---------- */
 
 @Composable
-private fun SayBar(actions: AddEntryActions, onMic: () -> Unit, onFocus: (Boolean) -> Unit) {
-    val c = LocalLedgerColors.current
+private fun SayBar(actions: AddEntryActions, onFocus: (Boolean) -> Unit) {
     var text by remember { mutableStateOf("") }
-    Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column {
+        FieldLabel("Type it in one line")
         LedgerTextField(
-            text, { text = it }, placeholder = "Say or type: lent 200 to Ashish",
+            text, { text = it }, placeholder = "lent 200 to Ashish · chai 20 cash",
             imeAction = ImeAction.Go, onDone = { actions.applySaid(text); text = "" },
-            modifier = Modifier.weight(1f).onFocusChanged { onFocus(it.isFocused) },
+            modifier = Modifier.onFocusChanged { onFocus(it.isFocused) },
         )
-        Spacer(Modifier.width(8.dp))
-        Box(
-            Modifier.size(46.dp).clip(RoundedCornerShape(12.dp)).background(c.deep).pressable(onClick = onMic),
-            Alignment.Center,
-        ) { Icon(LedgerIcons.Mic, "Speak an entry", tint = c.accent, modifier = Modifier.size(22.dp)) }
     }
 }
 
@@ -287,10 +297,12 @@ private fun Heard(heard: String, note: String?) {
 
 @Composable
 private fun TypeGrid(selected: EntryType, onType: (EntryType) -> Unit) {
-    Column(Modifier.padding(top = 10.dp, bottom = 2.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        EntryType.entries.chunked(3).forEach { row ->
+    // 7 types in two rows of four: compact labels only; the selected type's meaning shows under the amount
+    Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        EntryType.entries.chunked(4).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 row.forEach { t -> TypeButton(t, t == selected, Modifier.weight(1f)) { onType(t) } }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
@@ -299,41 +311,41 @@ private fun TypeGrid(selected: EntryType, onType: (EntryType) -> Unit) {
 @Composable
 private fun TypeButton(t: EntryType, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = LocalLedgerColors.current
-    Column(
-        modifier.clip(RoundedCornerShape(12.dp))
+    Box(
+        modifier.height(38.dp).clip(RoundedCornerShape(11.dp))
             .background(if (on) c.ink else c.surface)
-            .border(1.dp, if (on) c.ink else c.line, RoundedCornerShape(12.dp))
-            .pressable(shrink = false, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
+            .border(1.dp, if (on) c.ink else c.line, RoundedCornerShape(11.dp))
+            .pressable(shrink = false, onClick = onClick),
+        Alignment.Center,
     ) {
-        Text(t.label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = if (on) c.bg else c.ink, style = LedgerType.body, maxLines = 1)
-        Text(
-            t.caption, fontSize = 11.sp, color = if (on) c.bg.copy(alpha = 0.7f) else c.ink2, style = LedgerType.small,
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-        )
+        Text(t.label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = if (on) c.bg else c.ink, style = LedgerType.body, maxLines = 1)
     }
 }
 
 /* ---------- amount (web: .amount) ---------- */
 
 @Composable
-private fun AmountDisplay(text: String, onTap: () -> Unit) {
+private fun AmountDisplay(text: String, type: EntryType, compact: Boolean, onTap: () -> Unit) {
     val c = LocalLedgerColors.current
     val zero = text.isEmpty()
     var bump by remember { mutableStateOf(false) }
     LaunchedEffect(text) { bump = true; kotlinx.coroutines.delay(90); bump = false }
     val scale by animateFloatAsState(if (bump && !zero) 1.04f else 1f, label = "bump")
-    Row(
-        Modifier.fillMaxWidth().pressable(onClick = onTap).padding(top = 10.dp, bottom = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.Bottom,
+    Column(
+        Modifier.fillMaxWidth().pressable(onClick = onTap).padding(top = if (compact) 6.dp else 8.dp, bottom = if (compact) 2.dp else 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("₹", fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp, color = c.ink2, modifier = Modifier.padding(bottom = 6.dp, end = 4.dp))
-        Text(
-            amountDisplay(text), fontFamily = BricolageDisplay, fontWeight = FontWeight.ExtraBold, fontSize = 52.sp, lineHeight = 54.sp,
-            letterSpacing = (-0.03).em, color = if (zero) c.ink2.copy(alpha = 0.45f) else c.ink,
-            style = LedgerType.body.copy(fontFeatureSettings = "tnum"), modifier = Modifier.scale(scale),
-        )
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text("₹", fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = if (compact) 18.sp else 24.sp, color = c.ink2,
+                modifier = Modifier.padding(bottom = if (compact) 2.dp else 5.dp, end = 4.dp))
+            Text(
+                amountDisplay(text), fontFamily = BricolageDisplay, fontWeight = FontWeight.ExtraBold,
+                fontSize = if (compact) 26.sp else 44.sp, lineHeight = if (compact) 28.sp else 46.sp,
+                letterSpacing = (-0.03).em, color = if (zero) c.ink2.copy(alpha = 0.45f) else c.ink,
+                style = LedgerType.body.copy(fontFeatureSettings = "tnum"), modifier = Modifier.scale(scale),
+            )
+        }
+        if (!compact) Text(type.caption, style = LedgerType.small, color = c.ink2)
     }
 }
 
@@ -377,7 +389,18 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
     }
 
     if (s.type != EntryType.CARD_BILL) PersonField(s, vm, onFocus)
-    if (s.type == EntryType.CARD_BILL) CardPicker(s, vm, "Which card", onFocus)
+    if (s.type == EntryType.CARD_BILL) {
+        CardPicker(s, vm, "Which card", onFocus)
+        s.billHints[s.card.lowercase()]?.let { h ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.accentSoft).padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(h.text, style = LedgerType.small, color = c.ink, modifier = Modifier.weight(1f))
+                LedgerChip("Use ₹" + groupIndian(h.amount.toLong())) { vm.useAmount(h.amount) }
+            }
+        }
+    }
 
     if (s.type.hasCategory) Column {
         FieldLabel("Category")
@@ -585,29 +608,27 @@ private fun DateChips(date: LocalDate, onDate: (LocalDate) -> Unit) {
 
 /* ---------- keypad (web: .padbar, .pad) ---------- */
 
+/**
+ * Ledger's keypad: digits on the left, and a column on the right with delete, hide, and a tall Save
+ * key, so saving never needs a separate row (like a calculator's = key).
+ */
 @Composable
-private fun PadBar(on: Boolean, onToggle: () -> Unit) {
+private fun Keypad(onKey: (String) -> Unit, onHide: () -> Unit, onSave: () -> Unit) {
     val c = LocalLedgerColors.current
-    Column {
-        Hairline()
-        Row(Modifier.fillMaxWidth().height(34.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.pressable(onClick = onToggle).padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (on) "Hide keypad" else "Show keypad", fontWeight = FontWeight.Bold, style = LedgerType.small, color = c.ink)
-                Spacer(Modifier.width(6.dp))
-                Icon(if (on) LedgerIcons.ChevronDown else LedgerIcons.ChevronUp, null, tint = c.ink, modifier = Modifier.size(16.dp))
+    val keyH = 46.dp; val gap = 6.dp
+    Row(Modifier.padding(top = 6.dp).height(keyH * 4 + gap * 3), horizontalArrangement = Arrangement.spacedBy(gap)) {
+        Column(Modifier.weight(3f), verticalArrangement = Arrangement.spacedBy(gap)) {
+            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "00").chunked(3).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(gap)) { row.forEach { k -> Key(k, Modifier.weight(1f).height(keyH)) { onKey(k) } } }
             }
         }
-    }
-}
-
-@Composable
-private fun Keypad(onKey: (String) -> Unit) {
-    val keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "del")
-    Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        keys.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { k -> Key(k, Modifier.weight(1f)) { onKey(k) } }
-            }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(gap)) {
+            Key("del", Modifier.fillMaxWidth().height(keyH)) { onKey("del") }
+            Key("hide", Modifier.fillMaxWidth().height(keyH), onClick = onHide)
+            Box(
+                Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(12.dp)).background(c.accent).pressable(onClick = onSave),
+                Alignment.Center,
+            ) { Text("Save", color = c.accentInk, fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp) }
         }
     }
 }
@@ -616,11 +637,14 @@ private fun Keypad(onKey: (String) -> Unit) {
 private fun Key(k: String, modifier: Modifier, onClick: () -> Unit) {
     val c = LocalLedgerColors.current
     Box(
-        modifier.height(48.dp).clip(RoundedCornerShape(12.dp)).background(c.surface2).pressable(onClick = onClick),
+        modifier.clip(RoundedCornerShape(12.dp)).background(c.surface2).pressable(onClick = onClick),
         Alignment.Center,
     ) {
-        if (k == "del") Icon(LedgerIcons.Backspace, "Delete digit", tint = c.ink, modifier = Modifier.size(22.dp))
-        else Text(k, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = c.ink)
+        when (k) {
+            "del" -> Icon(LedgerIcons.Backspace, "Delete digit", tint = c.ink, modifier = Modifier.size(22.dp))
+            "hide" -> Icon(LedgerIcons.ChevronDown, "Hide keypad", tint = c.ink, modifier = Modifier.size(22.dp))
+            else -> Text(k, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = c.ink)
+        }
     }
 }
 

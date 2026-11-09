@@ -6,6 +6,7 @@ import com.himalayasoni.ledger.core.domain.people
 import com.himalayasoni.ledger.core.domain.share
 import com.himalayasoni.ledger.core.sync.RemoteDoc
 import com.himalayasoni.ledger.core.sync.decodeRemote
+import com.himalayasoni.ledger.core.sync.encodeCards
 import com.himalayasoni.ledger.core.sync.encodeRemote
 import com.himalayasoni.ledger.core.sync.shouldApplyRemote
 import org.junit.Assert.assertEquals
@@ -59,6 +60,11 @@ class RemoteContractTest {
                     assertEquals("$name (round trip)", e, again)
                 }
                 "tombstone" -> assertEquals(name, (expect["updatedAt"] as Number).toLong(), (doc as RemoteDoc.Tombstone).updatedAt)
+                "cards" -> {
+                    val d = doc as RemoteDoc.Cards
+                    assertEquals(name, expect["cards"], d.cards.map { c -> buildMap { put("name", c.name); c.statementDay?.let { put("statementDay", it.toDouble()) } } })
+                    assertEquals(name, d, decodeRemote("cfg-cards", encodeCards(d.cards, d.updatedAt)))
+                }
                 "categories" -> {
                     val d = doc as RemoteDoc.Categories
                     assertEquals(name, expect["custom"], d.custom)

@@ -99,6 +99,7 @@ class ScreenshotTest {
         override fun applySaid(text: String) {}
         override fun addCategory(name: String) {}
         override fun onCard(name: String) {}
+        override fun useAmount(amount: Double) {}
         override fun onRefund(change: (AddEntryState) -> AddEntryState) {}
     }
 
@@ -169,11 +170,11 @@ class ScreenshotTest {
     // a repayment with no loan in Ledger, to show the "Check this balance" card
     private val kanika = e("17", 4, EntryType.PAID_BACK, 700.0, person = "Kanika")
 
-    private fun sheet(dark: Boolean, s: AddEntryState) = paparazzi.snapshot {
+    private fun sheet(dark: Boolean, s: AddEntryState, typing: Boolean = false) = paparazzi.snapshot {
         LedgerTheme(dark = dark) {
             androidx.compose.foundation.layout.Box(
                 androidx.compose.ui.Modifier.background(if (dark) androidx.compose.ui.graphics.Color(0xFF151F1C) else androidx.compose.ui.graphics.Color.White),
-            ) { AddEntryContent(s, NoActions, typing = false, onFocus = {}, onClose = {}, onShowKeypad = {}, onSave = {}) }
+            ) { AddEntryContent(s, NoActions, typing = typing, onFocus = {}, onClose = {}, onShowKeypad = {}, onSave = {}) }
         }
     }
 
@@ -194,5 +195,9 @@ class ScreenshotTest {
     @Test fun add_cardbill() = sheet(false, fresh.copy(
         type = EntryType.CARD_BILL, typeTouched = true, amountText = "12000", card = "HDFC", cards = listOf("HDFC", "SBI"), keypadOn = false,
     ))
+    @Test fun card_page() = framed(false, Tab.HOME) {
+        com.himalayasoni.ledger.ui.cards.CardPage(com.himalayasoni.ledger.ui.cards.buildCardState(entries, "HDFC", 5, today), {}, {}, {}, {})
+    }
+    @Test fun add_typing() = sheet(false, fresh.copy(amountText = "240", description = "Uber", keypadOn = false), typing = true)
     @Test fun add_lent() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "500", person = "", keypadOn = false))
 }

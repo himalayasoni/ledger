@@ -129,6 +129,7 @@ class FirestoreSync(
                 is RemoteDoc.Tombstone -> dao.applyTombstone(remote.id, remote.updatedAt)
                 is RemoteDoc.Privacy -> prefs.setPrivateCategories(remote.privateCategories)
                 is RemoteDoc.Categories -> prefs.setCategories(remote.custom, remote.removed)
+                is RemoteDoc.Cards -> prefs.setCardSettings(remote.cards)
                 RemoteDoc.Other -> Unit
             }
         }
@@ -188,6 +189,24 @@ class FirestoreSync(
             try {
                 collection(uid).document("cfg-cats").set(
                     mapOf("id" to "cfg-cats", "custom" to custom, "removed" to removed, "updatedAt" to clock(), "srv" to FieldValue.serverTimestamp()),
+                    com.google.firebase.firestore.SetOptions.merge(),
+                ).await()
+            } catch (e: Exception) {
+                _status.value = SyncStatus.Problem(friendly(e))
+            }
+        }
+    }
+
+    /** Sets a card's statement day (null clears it), here and in your account (merged, so nothing else changes). */
+    fun setStatementDay(card: String, day: Int?) {
+        scope.launch {
+            val cur = prefs.cardSettings.first()
+            val next = cur.filterNot { it.name.equals(card, true) } + com.himalayasoni.ledger.core.domain.CardSettings(card, day)
+            prefs.setCardSettings(next)
+            val uid = auth.account.value?.uid ?: return@launch
+            try {
+                collection(uid).document("cfg-cards").set(
+                    com.himalayasoni.ledger.core.sync.encodeCards(next, clock()) + ("srv" to FieldValue.serverTimestamp()),
                     com.google.firebase.firestore.SetOptions.merge(),
                 ).await()
             } catch (e: Exception) {

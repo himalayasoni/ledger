@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.himalayasoni.ledger.core.data.SettingsRepository
+import com.himalayasoni.ledger.core.domain.CardSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -28,6 +29,7 @@ class SyncPrefs(private val context: Context) : SettingsRepository {
         val lastSyncAt = longPreferencesKey("lastSyncAt")
         val privateCategories = stringSetPreferencesKey("privateCategories")
         val showPrivate = booleanPreferencesKey("showPrivate")
+        val cardSettings = androidx.datastore.preferences.core.stringPreferencesKey("cardSettings")
         val format = androidx.datastore.preferences.core.intPreferencesKey("format")
         val customCategories = stringSetPreferencesKey("customCategories")
         val removedCategories = stringSetPreferencesKey("removedCategories")
@@ -41,6 +43,17 @@ class SyncPrefs(private val context: Context) : SettingsRepository {
 
     suspend fun setCategories(custom: Collection<String>, removed: Collection<String>) {
         context.syncStore.edit { it[Keys.customCategories] = custom.toSet(); it[Keys.removedCategories] = removed.toSet() }
+    }
+
+    override val cardSettings: Flow<List<CardSettings>> = context.syncStore.data.map { p ->
+        val a = org.json.JSONArray(p[Keys.cardSettings] ?: "[]")
+        List(a.length()) { i -> a.getJSONObject(i).let { o -> CardSettings(o.getString("name"), o.optInt("statementDay", 0).takeIf { it in 1..31 }) } }
+    }
+
+    suspend fun setCardSettings(cards: List<CardSettings>) {
+        val a = org.json.JSONArray()
+        cards.forEach { c -> a.put(org.json.JSONObject().put("name", c.name).apply { c.statementDay?.let { put("statementDay", it) } }) }
+        context.syncStore.edit { it[Keys.cardSettings] = a.toString() }
     }
 
     override val showPrivate: Flow<Boolean> = context.syncStore.data.map { it[Keys.showPrivate] ?: false }
