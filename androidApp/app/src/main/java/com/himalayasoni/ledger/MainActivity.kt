@@ -24,6 +24,25 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         if (savedInstanceState == null) open.value = OpenRequest.from(intent)
         setContent { LedgerTheme { AppShell(openRequest = open.value, onOpened = { open.value = null }) } }
+        askForNotificationsOnce()
+    }
+
+    private val notificationPermission =
+        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+
+    /**
+     * Refund and card-bill reminders are on by default, so on Android 13+ ask once for permission to
+     * show notifications (the first time this version opens). Saying no is respected: we never ask again
+     * here; Settings > Reminders explains how to turn them on later.
+     */
+    private fun askForNotificationsOnce() {
+        if (android.os.Build.VERSION.SDK_INT < 33) return
+        val prefs = getSharedPreferences("ledger", MODE_PRIVATE)
+        if (prefs.getBoolean("askedNotifications", false)) return
+        prefs.edit().putBoolean("askedNotifications", true).apply()
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     /** A notification tapped while the app was already open. */
