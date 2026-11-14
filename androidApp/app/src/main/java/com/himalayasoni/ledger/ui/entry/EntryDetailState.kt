@@ -74,7 +74,7 @@ fun buildEntryDetail(e: Entry, all: List<Entry>, today: LocalDate): EntryDetail 
     val isCardPay = e.mode.equals("Card", true)
 
     val facts = buildList {
-        add(Fact("Date", e.date.format(LONG_DATE) + when (e.date) { today -> " (today)"; today.minusDays(1) -> " (yesterday)"; else -> "" }))
+        add(Fact("Date", e.date.format(LONG_DATE)))
         if (e.type.hasCategory && e.category.isNotBlank()) add(Fact("Category", e.category, swatch = e.category))
         if (e.type.isDebt && e.person.isNotBlank()) add(Fact(e.type.personLabel, e.person))
         if (e.type == EntryType.RECEIVED && e.person.isNotBlank()) add(Fact("Received from", e.person))
