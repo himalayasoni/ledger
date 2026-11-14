@@ -16,4 +16,5 @@
     </style>
     <color name="window">#ECF1EE</color>
     <color name="icon_bg">#0E3A33</color>
+    <color name="icon_plus_bg">#F0A20F</color>
 </resources>

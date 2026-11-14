@@ -47,8 +47,8 @@ android {
         applicationId = appPackage
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
-        versionName = "0.9.0"
+        versionCode = 14
+        versionName = "0.10.0"
         buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebase["projectId"] ?: ""}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${firebase["apiKey"] ?: ""}\"")
         buildConfigField("String", "FIREBASE_APP_ID", "\"${firebase["appId"] ?: ""}\"")

@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -64,6 +65,26 @@ fun Modifier.pressable(enabled: Boolean = true, role: Role = Role.Button, shrink
         // and a dimmed-then-unselected chip looked like a broken, blurry selection.
         .then(if (shrink) Modifier.scale(if (pressed) 0.97f else 1f) else Modifier)
         .clickable(interactionSource = source, indication = null, enabled = enabled, role = role, onClick = onClick)
+}
+
+/**
+ * [pressable] with a long-press too (the entry rows' menu). Same shrink, no ripple; the long press
+ * gives a short buzz so you feel the menu open.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun Modifier.pressable(onLongClick: (() -> Unit)?, shrink: Boolean = true, onClick: () -> Unit): Modifier {
+    if (onLongClick == null) return pressable(shrink = shrink, onClick = onClick)
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    return this
+        .then(if (shrink) Modifier.scale(if (pressed) 0.97f else 1f) else Modifier)
+        .combinedClickable(
+            interactionSource = source, indication = null, role = Role.Button, onClick = onClick,
+            onLongClickLabel = "More actions",
+            onLongClick = { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); onLongClick() },
+        )
 }
 
 /** `.chip`: a pill. Selected chips turn ink-coloured. [swatch] adds the category dot. [soft] is the marigold "usual" style. */

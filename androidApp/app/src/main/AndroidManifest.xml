@@ -39,6 +39,22 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- "Ledger +": a second app icon that opens the mini quick add directly. An alias, not a new
+             screen: same activity, its own label and icon. Samsung's side key (double press), Good Lock
+             RegiStar (back tap) and the Edge panel can only "open an app", so they open this one. -->
+        <activity-alias
+            android:name=".QuickAddLauncher"
+            android:targetActivity=".ui.quickadd.QuickAddActivity"
+            android:exported="true"
+            android:label="@string/launcher_plus"
+            android:icon="@mipmap/ic_launcher_plus"
+            android:roundIcon="@mipmap/ic_launcher_plus">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Quick Settings tile -->
         <service
             android:name=".ui.quickadd.QuickAddTile"
@@ -63,6 +79,12 @@
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_medium" />
+        </receiver>
+        <receiver android:name=".widget.TinyWidgetReceiver" android:exported="true" android:label="@string/widget_tiny_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tiny" />
         </receiver>
 
         <!-- Reminder alarms, plus "set the alarms again" after a restart, an update or a clock change -->

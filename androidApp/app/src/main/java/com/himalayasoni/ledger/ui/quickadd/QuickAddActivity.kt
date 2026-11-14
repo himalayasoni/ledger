@@ -22,7 +22,9 @@ import org.koin.core.qualifier.named
 /**
  * The quick add pop-up: the add sheet on its own, over whatever is on screen (usually the home
  * screen), without opening the rest of Ledger. Opened by the widgets, the app icon's long-press
- * shortcuts, the Quick Settings tile and the reminder notification.
+ * shortcuts, the Quick Settings tile, the reminder notification and the "Ledger +" launcher icon
+ * (an activity-alias in the manifest, so a side-key or back-tap "open app" action can open it).
+ * Plain opens show the mini layout; see [QuickAdd.requestFrom].
  *
  * How it stays out of the way (see the manifest):
  * - its window is see-through (Theme.Ledger.QuickAdd), so only the sheet and its dim show;
@@ -33,7 +35,7 @@ import org.koin.core.qualifier.named
  * LedgerApp.onCreate starts Koin before this activity is created.
  */
 class QuickAddActivity : ComponentActivity() {
-    private var request by mutableStateOf(AddRequest())
+    private var request by mutableStateOf(AddRequest(mini = true))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,11 +95,16 @@ object QuickAdd {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-    /** Reads the extras back. Shortcut XML may send "true" as text, so both forms are accepted. */
+    /**
+     * Reads the extras back. Shortcut XML may send "true" as text, so both forms are accepted.
+     * No extras (the "Ledger +" icon, the 1×1 widget, the + button, the Add shortcut): the mini quick add.
+     * A type, "say it" or a line to finish: the full form, since those need more than an amount.
+     */
     fun requestFrom(intent: Intent?): AddRequest {
-        if (intent == null) return AddRequest()
+        if (intent == null) return AddRequest(mini = true)
         val listen = intent.getBooleanExtra(EXTRA_LISTEN, false) || intent.getStringExtra(EXTRA_LISTEN) == "true"
         val type = intent.getStringExtra(EXTRA_TYPE)?.let(EntryType::fromKey)
-        return AddRequest(type = type, listen = listen, said = intent.getStringExtra(EXTRA_SAID)?.takeIf { it.isNotBlank() })
+        val said = intent.getStringExtra(EXTRA_SAID)?.takeIf { it.isNotBlank() }
+        return AddRequest(type = type, listen = listen, said = said, mini = type == null && !listen && said == null)
     }
 }

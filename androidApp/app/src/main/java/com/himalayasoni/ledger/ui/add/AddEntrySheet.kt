@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -175,8 +176,12 @@ fun AddEntrySheet(
         tonalElevation = 0.dp,
     ) {
         // Back lowers the keypad first (like a phone keyboard); a second Back closes the sheet
-        androidx.activity.compose.BackHandler(enabled = s.keypadOn && !typing) { viewModel.setKeypad(false) }
-        AddEntryContent(
+        androidx.activity.compose.BackHandler(enabled = s.keypadOn && !typing && !s.mini) { viewModel.setKeypad(false) }
+        if (s.mini) MiniAddContent(
+            s, viewModel, typing, onFocus = onFocus, onShowKeypad = ::showKeypad, onMic = listen,
+            modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars).imePadding().keepSheetOpen(),
+            onSave = { focus.clearFocus(); viewModel.save() },
+        ) else AddEntryContent(
             s, viewModel, typing,
             onFocus = onFocus, onClose = ::close, onShowKeypad = ::showKeypad, onMic = listen,
             modifier = Modifier.fillMaxHeight(heightFraction).windowInsetsPadding(WindowInsets.navigationBars).imePadding()
@@ -255,6 +260,89 @@ internal fun AddEntryContent(
 
 
 /**
+ * The mini quick add ("Ledger +", the 1×1 widget): just the amount, the keypad with its Save key, one
+ * "What was it?" line with your usual spends as one-tap chips, and the mic. Category comes from what you
+ * typed ([AddEntryState.miniCategory]), payment from your last spend. "More" opens the full form in place.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun MiniAddContent(
+    s: AddEntryState,
+    actions: AddEntryActions,
+    typing: Boolean,
+    onFocus: (Boolean) -> Unit,
+    onShowKeypad: () -> Unit,
+    onSave: () -> Unit,
+    onMic: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = LocalLedgerColors.current
+    val focus = LocalFocusManager.current
+    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width(44.dp))
+            Box(Modifier.weight(1f)) { AmountDisplay(s.amountText, s.type, compact = typing, onTap = onShowKeypad) }
+            Box(
+                Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(c.deep).pressable(onClick = onMic),
+                Alignment.Center,
+            ) { Icon(LedgerIcons.Mic, "Speak an entry", tint = c.accent, modifier = Modifier.size(21.dp)) }
+        }
+        s.heard?.let { Heard(it, s.heardNote) }
+        LedgerTextField(
+            s.description, actions::onDescription, placeholder = "What was it?",
+            imeAction = ImeAction.Done, onDone = { focus.clearFocus() },
+            modifier = Modifier.padding(top = 8.dp).onFocusChanged { onFocus(it.isFocused) },
+        )
+        if (s.miniUsuals.isNotEmpty()) Row(
+            Modifier.padding(top = 10.dp).fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            s.miniUsuals.forEach { u ->
+                val on = s.description.trim().equals(u.description, true) && s.amount == u.amount
+                LedgerChip(u.description, selected = on, soft = !on, trailing = "₹" + groupIndian(u.amount.toLong())) { actions.pickUsual(u) }
+            }
+        }
+        // what it will be saved as, and the way to the full form
+        Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(categoryColor(s.miniCategory)))
+            Text(
+                listOfNotNull(
+                    s.miniCategory,
+                    if (s.mode.equals("Card", true) && s.card.isNotBlank()) "${s.card} card" else s.mode,
+                    s.withPeople.takeIf { it.isNotEmpty() }?.let { "with " + it.joinToString(", ") },
+                ).joinToString(" · "),
+                style = LedgerType.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(start = 8.dp),
+            )
+            Row(
+                Modifier.clip(RoundedCornerShape(10.dp)).pressable(onClick = actions::expand).padding(horizontal = 6.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("More", style = LedgerType.body, fontWeight = FontWeight.Bold, color = c.ink)
+                Icon(LedgerIcons.ChevronRight, null, tint = c.ink, modifier = Modifier.size(16.dp))
+            }
+        }
+        s.error?.let {
+            Text(it, color = c.spent, fontWeight = FontWeight.SemiBold, style = LedgerType.small, modifier = Modifier.padding(bottom = 4.dp))
+        }
+        if (s.keypadOn && !typing) {
+            Keypad(actions::onKey, onHide = { actions.setKeypad(false) }, onSave = onSave)
+        } else {
+            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (!typing) {
+                    Box(
+                        Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)).background(c.surface2).pressable(onClick = onShowKeypad),
+                        Alignment.Center,
+                    ) { Text("123", fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = c.ink) }
+                    Spacer(Modifier.width(8.dp))
+                }
+                PrimaryButton(if (s.amount > 0) "Save ₹" + amountDisplay(s.amountText) else "Save", Modifier.weight(1f)) { onSave() }
+            }
+        }
+    }
+}
+
+/**
  * Like the web: scrolling or dragging inside the sheet never pulls it closed. Leftover scroll
  * from the details list is absorbed here instead of reaching the sheet, and drags on the fixed
  * parts (amount, keypad) are claimed here too. Only the grab handle at the top moves the sheet.
@@ -283,7 +371,7 @@ private fun SayBar(actions: AddEntryActions, onFocus: (Boolean) -> Unit) {
 
 /** "Heard “lent 200 to Ashish”. Check it and tap Save." */
 @Composable
-private fun Heard(heard: String, note: String?) {
+internal fun Heard(heard: String, note: String?) {
     val c = LocalLedgerColors.current
     Text(
         androidx.compose.ui.text.buildAnnotatedString {
@@ -329,7 +417,7 @@ private fun TypeButton(t: EntryType, on: Boolean, modifier: Modifier, onClick: (
 /* ---------- amount (web: .amount) ---------- */
 
 @Composable
-private fun AmountDisplay(text: String, type: EntryType, compact: Boolean, onTap: () -> Unit) {
+internal fun AmountDisplay(text: String, type: EntryType, compact: Boolean, onTap: () -> Unit) {
     val c = LocalLedgerColors.current
     val zero = text.isEmpty()
     var bump by remember { mutableStateOf(false) }
@@ -349,7 +437,8 @@ private fun AmountDisplay(text: String, type: EntryType, compact: Boolean, onTap
                 style = LedgerType.body.copy(fontFeatureSettings = "tnum"), modifier = Modifier.scale(scale),
             )
         }
-        if (!compact) Text(type.caption, style = LedgerType.small, color = c.ink2)
+        // only a card bill needs explaining (it isn't new spending); the other types say what they are on their buttons
+        if (!compact && type == EntryType.CARD_BILL) Text(type.caption, style = LedgerType.small, color = c.ink2)
     }
 }
 
@@ -439,7 +528,6 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
     }
     if (s.type == EntryType.SPENT && s.mode.equals("Card", true)) CardPicker(s, vm, "Which card (optional)", onFocus)
 
-    if (s.type == EntryType.SPENT) RefundSection(s, vm, onFocus)
     if (s.type == EntryType.RECEIVED && s.linkable.isNotEmpty()) LinkSection(s, vm)
 
     Column {
@@ -471,75 +559,6 @@ private fun CardPicker(s: AddEntryState, vm: AddEntryActions, label: String, onF
             onAdd = { vm.onCard(it); onPick(it.trim()); adding = false }, onCancel = { adding = false }, onFocus = onFocus,
             hint = "Card name, e.g. HDFC",
         )
-    }
-}
-
-/**
- * Refund on an expense (web: the same section). Off: one chip, "Add refund". On: full or partial,
- * then "Awaited" (confirmed, not here yet) or "Arrived" with the date and where it came back.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun RefundSection(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) -> Unit) {
-    val c = LocalLedgerColors.current
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        FieldLabel("Money back")
-        if (!s.refundOn) {
-            LedgerChip("+ Money back (refund, or someone paid you back)") { vm.onRefund { it.copy(refundOn = true) } }
-            return@Column
-        }
-        // who it comes from: a shop/service refund, or a person who covered it (not someone you split it with)
-        var addingName by remember { mutableStateOf(false) }
-        val shared = s.withPeople.map { it.lowercase() }.toSet()
-        val names = (listOfNotNull(s.refundFrom.takeIf { it.isNotBlank() }) + s.recentPeople).distinctBy { it.lowercase() }.filter { it.lowercase() !in shared }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LedgerChip("Shop refund", s.refundFrom.isBlank()) { vm.onRefund { it.copy(refundFrom = "") } }
-            names.forEach { n -> LedgerChip(n, s.refundFrom.equals(n, true)) { vm.onRefund { it.copy(refundFrom = n, refundArrived = true) } } }
-            if (!addingName) LedgerChip("+ Someone else") { addingName = true }
-        }
-        if (addingName) NewCategory(
-            onAdd = { n -> vm.onRefund { it.copy(refundFrom = n.trim(), refundArrived = true) }; addingName = false },
-            onCancel = { addingName = false }, onFocus = onFocus, hint = "Their name",
-        )
-        if (shared.isNotEmpty()) Text(
-            "Someone you split this with? Use \"paid their share\" on their page instead.", style = LedgerType.small, color = c.ink2,
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LedgerChip("Full", s.refundFull) { vm.onRefund { it.copy(refundFull = true) } }
-            LedgerChip("Partial", !s.refundFull) { vm.onRefund { it.copy(refundFull = false) } }
-            LedgerChip("Remove") { vm.onRefund { it.copy(refundOn = false, refundText = "", refundArrived = false, refundFrom = "") } }
-        }
-        if (!s.refundFull) LedgerTextField(
-            s.refundText, { v -> vm.onRefund { it.copy(refundText = v.filter { ch -> ch.isDigit() || ch == '.' }.take(10)) } },
-            placeholder = "How much is coming back, e.g. 1320",
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal, imeAction = ImeAction.Done,
-            modifier = Modifier.onFocusChanged { onFocus(it.isFocused) },
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LedgerChip("Awaited", !s.refundArrived) { vm.onRefund { it.copy(refundArrived = false) } }
-            LedgerChip("Arrived", s.refundArrived) { vm.onRefund { it.copy(refundArrived = true) } }
-        }
-        val back = if (s.refundFull) s.amount else s.refundText.toDoubleOrNull() ?: 0.0
-        if (back > 0 && s.amount > 0) Text(
-            "Counts as ${com.himalayasoni.ledger.core.money.formatRupees(maxOf(0.0, s.amount - back))} spent" +
-                if (!s.refundArrived) " · ${com.himalayasoni.ledger.core.money.formatRupees(minOf(back, s.amount))} shows as awaited until it arrives" else "",
-            style = LedgerType.small, color = c.ink2,
-        )
-        if (s.refundArrived) {
-            Column {
-                FieldLabel("Arrived on")
-                DateChips(s.refundReceived) { d -> vm.onRefund { it.copy(refundReceived = d) } }
-            }
-            Column {
-                FieldLabel("Came back to")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Card", "UPI", "Bank", "Cash").forEach { t -> LedgerChip(t, s.refundTo == t) { vm.onRefund { it.copy(refundTo = t) } } }
-                }
-            }
-            if (s.refundTo == "Card") CardPicker(s, vm, "Which card", onFocus, selected = s.refundCard.ifBlank { s.card }) { name ->
-                vm.onRefund { it.copy(refundCard = name) }
-            }
-        }
     }
 }
 
@@ -591,7 +610,7 @@ private fun LinkSection(s: AddEntryState, vm: AddEntryActions) {
 
 /** "+ New" category: a small box that opens with the keyboard, like the web's new-category field. */
 @Composable
-private fun NewCategory(onAdd: (String) -> Unit, onCancel: () -> Unit, onFocus: (Boolean) -> Unit, hint: String = "New category, e.g. Pets") {
+internal fun NewCategory(onAdd: (String) -> Unit, onCancel: () -> Unit, onFocus: (Boolean) -> Unit, hint: String = "New category, e.g. Pets") {
     var name by remember { mutableStateOf("") }
     val requester = remember { androidx.compose.ui.focus.FocusRequester() }
     LaunchedEffect(Unit) { requester.requestFocus() }
@@ -647,7 +666,7 @@ private fun PersonField(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun DateChips(date: LocalDate, onDate: (LocalDate) -> Unit) {
+internal fun DateChips(date: LocalDate, onDate: (LocalDate) -> Unit) {
     val today = LocalDate.now()
     var picking by remember { mutableStateOf(false) }
     val other = date != today && date != today.minusDays(1)
@@ -680,7 +699,7 @@ private fun DateChips(date: LocalDate, onDate: (LocalDate) -> Unit) {
  * key, so saving never needs a separate row (like a calculator's = key).
  */
 @Composable
-private fun Keypad(onKey: (String) -> Unit, onHide: () -> Unit, onSave: () -> Unit) {
+internal fun Keypad(onKey: (String) -> Unit, onHide: () -> Unit, onSave: () -> Unit) {
     val c = LocalLedgerColors.current
     val keyH = 46.dp; val gap = 6.dp
     Row(Modifier.padding(top = 6.dp).height(keyH * 4 + gap * 3), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -716,7 +735,7 @@ private fun Key(k: String, modifier: Modifier, onClick: () -> Unit) {
 }
 
 /** "123456.5" → "1,23,456.5" while typing. */
-private fun amountDisplay(text: String): String {
+internal fun amountDisplay(text: String): String {
     if (text.isEmpty()) return "0"
     val whole = text.substringBefore('.').ifEmpty { "0" }.toLongOrNull() ?: 0
     return groupIndian(whole) + if (text.contains('.')) "." + text.substringAfter('.') else ""

@@ -120,37 +120,98 @@ fun DaySection(day: DayGroup, onOpen: (String) -> Unit) {
     }
 }
 
+/**
+ * What a row can do besides opening: the long-press menu and the "Mark arrived" chip.
+ * AppShell provides one for the whole app, so every list (Home, Search, a person, Insights, a card)
+ * gets the same actions without passing them through each screen. Null (screenshots): no menu.
+ */
+interface RowActions {
+    fun markArrived(id: String)
+    fun moneyBack(id: String)
+    fun duplicate(id: String)
+    fun delete(id: String)
+}
+
+val LocalRowActions = androidx.compose.runtime.staticCompositionLocalOf<RowActions?> { null }
+
+/** One entry in a list. Tap: its page. Long-press: a small menu. An awaited refund gets a "Mark arrived" chip. */
 @Composable
 fun EntryRowItem(row: EntryRow, onClick: () -> Unit) {
     val c = LocalLedgerColors.current
+    val actions = LocalRowActions.current
+    var menu by remember { mutableStateOf(false) }
     val tint = when (row.kind) {
         RowKind.LOAN_OUT, RowKind.LOAN_IN -> c.loan
         RowKind.IN -> c.income
         RowKind.OUT -> categoryColor(row.category)
         RowKind.CARD_BILL -> c.ink2
     }
-    Row(
-        Modifier.fillMaxWidth().pressable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        when (row.kind) {
-            RowKind.LOAN_OUT -> IconTile(tint, icon = LedgerIcons.Out)
-            RowKind.LOAN_IN -> IconTile(tint, icon = LedgerIcons.In)
-            RowKind.CARD_BILL -> IconTile(tint, icon = LedgerIcons.Card)
-            else -> IconTile(tint, letter = row.initial)
+    Box {
+        Row(
+            Modifier.fillMaxWidth().pressable(onLongClick = actions?.let { { menu = true } }, onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            when (row.kind) {
+                RowKind.LOAN_OUT -> IconTile(tint, icon = LedgerIcons.Out)
+                RowKind.LOAN_IN -> IconTile(tint, icon = LedgerIcons.In)
+                RowKind.CARD_BILL -> IconTile(tint, icon = LedgerIcons.Card)
+                else -> IconTile(tint, letter = row.initial)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(row.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = c.ink, style = LedgerType.body)
+                if (row.subtitle.isNotBlank()) Text(row.subtitle, style = LedgerType.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (row.note.isNotBlank()) Text("“${row.note}”", style = LedgerType.small, fontStyle = FontStyle.Italic, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    row.amount, style = LedgerType.amount,
+                    color = when (row.kind) { RowKind.IN -> c.income; RowKind.LOAN_IN, RowKind.LOAN_OUT -> c.loan; else -> c.ink },
+                )
+                row.badge?.let { Text(it.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.05.em, color = c.ink2, style = LedgerType.small) }
+                if (row.refundAwaited) MiniChip("Mark arrived", Modifier.padding(top = 6.dp)) { actions?.markArrived(row.id) }
+            }
         }
-        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(row.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = c.ink, style = LedgerType.body)
-            if (row.subtitle.isNotBlank()) Text(row.subtitle, style = LedgerType.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (row.note.isNotBlank()) Text("“${row.note}”", style = LedgerType.small, fontStyle = FontStyle.Italic, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                row.amount, style = LedgerType.amount,
-                color = when (row.kind) { RowKind.IN -> c.income; RowKind.LOAN_IN, RowKind.LOAN_OUT -> c.loan; else -> c.ink },
-            )
-            row.badge?.let { Text(it.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.05.em, color = c.ink2, style = LedgerType.small) }
-        }
+        if (actions != null) RowMenu(menu, row, actions) { menu = false }
     }
 }
 
+/** A small marigold pill inside a row ("Mark arrived"): one tap, no page. */
+@Composable
+fun MiniChip(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val c = LocalLedgerColors.current
+    Row(
+        modifier.height(28.dp).clip(CircleShape).background(c.accentSoft).pressable(onClick = onClick).padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(LedgerIcons.Check, null, tint = c.ink, modifier = Modifier.size(13.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = c.ink, style = LedgerType.small, maxLines = 1)
+    }
+}
+
+/** The long-press menu: only what makes sense for this row. */
+@Composable
+private fun RowMenu(open: Boolean, row: EntryRow, actions: RowActions, onDismiss: () -> Unit) {
+    val c = LocalLedgerColors.current
+    androidx.compose.material3.DropdownMenu(
+        expanded = open, onDismissRequest = onDismiss,
+        offset = androidx.compose.ui.unit.DpOffset(64.dp, (-8).dp),
+        shape = RoundedCornerShape(14.dp), containerColor = c.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, c.line),
+        tonalElevation = 0.dp, shadowElevation = 10.dp,
+    ) {
+        if (row.canMoneyBack) MenuItem("Got money back", c.ink) { onDismiss(); actions.moneyBack(row.id) }
+        if (row.refundAwaited) MenuItem("Mark arrived", c.ink) { onDismiss(); actions.markArrived(row.id) }
+        MenuItem("Duplicate", c.ink) { onDismiss(); actions.duplicate(row.id) }
+        MenuItem("Delete", c.spent) { onDismiss(); actions.delete(row.id) }
+    }
+}
+
+@Composable
+private fun MenuItem(label: String, color: Color, onClick: () -> Unit) =
+    androidx.compose.material3.DropdownMenuItem(
+        text = { Text(label, style = LedgerType.body, fontWeight = FontWeight.SemiBold, color = color) },
+        onClick = onClick,
+        modifier = Modifier.width(220.dp),
+    )

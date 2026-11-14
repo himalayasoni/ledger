@@ -66,6 +66,10 @@ data class EntryRow(
     val badge: String?,      // small caps under the amount: "LENT", "RECEIVED"
     val category: String,
     val initial: String,
+    /** A spend with no money back yet: the long-press menu offers "Got money back". */
+    val canMoneyBack: Boolean = false,
+    /** Money back is on its way: the row shows a small "Mark arrived" chip. */
+    val refundAwaited: Boolean = false,
 )
 
 private val ENGLISH = Locale.ENGLISH
@@ -179,6 +183,8 @@ fun entryRow(e: Entry, who: String? = null): EntryRow {
         },
         category = e.category,
         initial = (e.category.ifBlank { e.description }.trim().ifBlank { "?" }).take(1).uppercase(),
+        canMoneyBack = e.type == EntryType.SPENT && e.refund == null,
+        refundAwaited = refund?.status == RefundStatus.AWAITED,
     )
 }
 

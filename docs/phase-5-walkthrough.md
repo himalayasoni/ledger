@@ -74,3 +74,78 @@ notification, without the app itself opening. It can also remind you about four 
 - **Static shortcuts**: `res/xml/shortcuts.xml`, linked from the launcher activity with
   `android.app.shortcuts` meta-data. `targetPackage` must be the applicationId.
 - **POST_NOTIFICATIONS** (Android 13+): asked once, when you first switch a reminder on.
+
+## 0.10.0: an entry's page, row actions, money back, the mini quick add
+
+Tapping an entry no longer opens the edit form. It opens the entry's page; editing is one of its
+buttons. Money back moved out of the form (you only know about it after you've paid) into its own
+small card. And there's a much smaller quick add, with its own app icon for the S23's side key.
+
+| You see | What it is | Code |
+| --- | --- | --- |
+| Tap any entry (Home, Search, a person, Insights, a card) | **Entry page**: amount after money back ("₹1,500 paid" under it), what it was, date, category, payment (card spends link to the card), shares and who paid back, the loan's person, the comment, the money back | `ui/entry/EntryDetailState.kt` (pure builder), `EntryPage.kt` (stateless), wired in `ui/AppShell.kt` |
+| Its buttons: Edit · Got money back / Edit money back · Mark arrived · Duplicate · Delete (· Got it back / I paid back for a loan with a balance) | `EntryAction`, handled in `AppShell` | `ui/entry/EntryViewModel.kt` |
+| "Mark arrived" chip on a row whose refund is awaited | One tap, toast "Refund marked arrived · Undo" | `ui/components/EntryList.kt` (`MiniChip`) |
+| Long-press a row: Got money back · Mark arrived · Duplicate · Delete | `combinedClickable` + a haptic tick, a `DropdownMenu` in the app's colours | `EntryRowItem`, `RowActions`, `LocalRowActions` |
+| "Money back" card | From (shop refund, a person, someone else) · How much (full or part) · Awaited / Arrived (date, came back to, card) · "Counts as ₹180 spent" | `ui/entry/MoneyBackForm.kt` (pure), `MoneyBack.kt` |
+| Mini quick add | Amount, keypad with Save, "What was it?", up to 6 usual chips, mic, "More" for the full form | `MiniAddContent` in `ui/add/AddEntrySheet.kt` |
+| "Ledger +" app icon | An `activity-alias` of the quick add activity with its own label and marigold icon | `AndroidManifest.xml`, `mipmap-anydpi-v26/ic_launcher_plus.xml` |
+| 1×1 widget "Ledger: +" | A marigold "+" that opens the mini quick add | `widget/TinyWidget.kt`, `res/xml/widget_tiny.xml` |
+
+### The rules (shared with the web app)
+
+`core/domain/EntryActions.kt`, tested in `EntryActionsTest.kt`:
+
+- `withMoneyBack(amount, from, arrived, confirmed, received, to, card, now)`: spends only; the amount is
+  capped at what was paid; awaited money back has no arrival date or destination.
+- `markRefundArrived(today, now)`: arrived today, back to where it was set to come back, else to the
+  card for a card spend, else to the way it was paid (or UPI).
+- `duplicateAsNew(id, today, now)`: same amount, description, category, payment, card, person and
+  split, as a new entry today, without money back, paid-back shares, old-loan part or comment.
+- `withoutMoneyBack(now)`.
+
+Editing an entry keeps its money back exactly as it was (cut down if you lower the amount below it, and
+dropped if you change it into something other than a spend). The form no longer touches it.
+
+### How the pieces fit
+
+- **Navigation** is still plain state in `AppShell`: `entryId` sits on top of the tab, person or card
+  page you opened it from; Back closes it. If the entry disappears (deleted in its edit sheet, or on
+  another device), the page closes itself.
+- **Row actions without threading callbacks through every screen**: `AppShell` provides a `RowActions`
+  through a `CompositionLocal` (`LocalRowActions`). Every `EntryRowItem` reads it, so Home, Search,
+  People, Insights and the card page all get the menu. Screenshot tests provide none, so rows there
+  have no menu (the chip still draws).
+- **Undo**: `EntryViewModel` keeps the entry as it was before each change and saves it back (with a
+  fresh `updatedAt`, so the restored copy also wins on your other devices). Delete is a tombstone, and
+  Undo saves the entry again with `deleted = false`.
+- **Mini quick add**: `QuickAdd.requestFrom` opens the mini layout when there are no extras (the
+  "Ledger +" icon, the 1×1 widget, the small widget's +, the "Add" shortcut). A type, "say it" or a line
+  to finish open the full form. In mini mode the category is the one you used last time for the same
+  description, else what the voice parser makes of it (only categories you can see here), else Other.
+  Payment starts as your last spend's. "More" switches the same state to the full form, so nothing
+  typed is lost. Saying something that isn't a plain spend (a loan, a split) also opens the full form.
+- **activity-alias**: a second launcher entry for an existing activity. It shares the activity's code
+  and settings (its own task, not in recents) but has its own name and icon, so the launcher, and any
+  "open app" setting, treats it as a separate app.
+
+### Opening the mini quick add on a Galaxy S23
+
+All three of these can only open an app, so pick **Ledger +** (not Ledger β) in each.
+
+- **Side key, double press**: Settings → Advanced features → Side button → Double press → Open app →
+  Ledger +.
+- **Back tap** (Good Lock → RegiStar → Back-Tap action): turn it on, pick Double tap (or Triple tap)
+  → Open app → Ledger +. A light double tap on the back of the phone, near the camera, opens it.
+- **Edge panel**: Settings → Display → Edge panels → Panels → Apps (on) → Edit → add Ledger +.
+- **Home screen**: drag Ledger + from the app drawer, or add the 1×1 "Ledger: +" widget.
+
+### Concepts to look up
+
+- **`combinedClickable`**: `clickable` plus long-press and double-tap. `LocalHapticFeedback` gives the
+  little buzz a long press should have.
+- **`CompositionLocal`**: a value any composable below can read without it being passed as a parameter
+  (how `MaterialTheme` colours reach every `Text`). Good for app-wide services like the row actions;
+  not for screen data, which still goes in as parameters.
+- **`activity-alias`** and **adaptive icons** (`<adaptive-icon>`: background, foreground and a
+  `monochrome` layer for Android 13+ themed icons; keep the drawing inside the middle 66dp of 108dp).

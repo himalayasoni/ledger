@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the 1×1 widget looks like in the widget picker (Android 12+). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:padding="4dp">
+    <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/wp_accent_big">
+        <ImageView android:layout_width="30dp" android:layout_height="30dp" android:layout_gravity="center"
+            android:src="@drawable/ic_widget_plus" android:tint="@color/wp_deep" android:importantForAccessibility="no" />
+        <ImageView android:layout_width="12dp" android:layout_height="12dp" android:layout_gravity="top|start"
+            android:layout_margin="8dp" android:alpha="0.55"
+            android:src="@drawable/ic_stat" android:tint="@color/wp_deep" android:importantForAccessibility="no" />
+    </FrameLayout>
+</FrameLayout>

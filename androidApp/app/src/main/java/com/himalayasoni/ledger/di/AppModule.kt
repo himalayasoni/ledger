@@ -37,6 +37,7 @@ val appModule = module {
     viewModel { com.himalayasoni.ledger.ui.insights.InsightsViewModel(get()) }
     viewModel { com.himalayasoni.ledger.ui.cards.CardsViewModel(get(), get(), get()) }
     viewModel { AddEntryViewModel(get(), get(), get(), get()) }
+    viewModel { com.himalayasoni.ledger.ui.entry.EntryViewModel(get(), get()) }
 
     // Phase 5: logging from outside the app (widgets, notification replies, quick add pop-up) and reminders
     single { com.himalayasoni.ledger.data.prefs.ReminderPrefs(androidContext()) }

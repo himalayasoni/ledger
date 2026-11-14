@@ -76,3 +76,7 @@ class SmallWidgetReceiver : GlanceAppWidgetReceiver() {
 class MediumWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = MediumWidget()
 }
+
+class TinyWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget = TinyWidget()
+}

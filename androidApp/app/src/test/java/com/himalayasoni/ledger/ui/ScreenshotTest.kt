@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
@@ -106,7 +107,6 @@ class ScreenshotTest {
         override fun onCard(name: String) {}
         override fun useAmount(amount: Double) {}
         override fun linkTo(id: String?) {}
-        override fun onRefund(change: (AddEntryState) -> AddEntryState) {}
     }
 
     /** A tab inside the app frame (background + bottom bar), like AppShell draws it. */
@@ -193,11 +193,6 @@ class ScreenshotTest {
     @Test fun add_typed() = sheet(false, fresh.copy(amountText = "1200", description = "Dinner", withPeople = listOf("Rahul", "Amit"), category = "Food"))
     @Test fun add_heard() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "200", person = "Ashish",
         heard = "lent 200 to ashish", heardNote = "Check it and tap Save.", keypadOn = false))
-    @Test fun add_refund() = sheet(false, fresh.copy(
-        editing = entries.first { it.id == "18" }, type = EntryType.SPENT, typeTouched = true, amountText = "1500",
-        description = "Train to Jaipur", category = "Travel", keypadOn = false,
-        refundOn = true, refundFull = false, refundText = "1320", cards = listOf("HDFC", "SBI"),
-    ))
     @Test fun add_cardbill() = sheet(false, fresh.copy(
         type = EntryType.CARD_BILL, typeTouched = true, amountText = "12000", card = "HDFC", cards = listOf("HDFC", "SBI"), keypadOn = false,
     ))
@@ -209,9 +204,9 @@ class ScreenshotTest {
         type = EntryType.RECEIVED, typeTouched = true, amountText = "1500", person = "Dad", keypadOn = false,
         linkable = listOf(com.himalayasoni.ledger.ui.add.LinkOption("6", "Dinner at Toit", "₹3,200 · 4 Nov")), linkTo = "6",
     ))
-    @Test fun add_moneyback_person() = sheet(false, fresh.copy(
-        editing = entries.first { it.id == "2" }, type = EntryType.SPENT, typeTouched = true, amountText = "1500", description = "Birthday treat",
-        category = "Food", keypadOn = false, refundOn = true, refundFrom = "Dad", refundArrived = true, refundTo = "UPI",
+    @Test fun add_edit_spend() = sheet(false, fresh.copy(
+        editing = entries.first { it.id == "18" }, type = EntryType.SPENT, typeTouched = true, amountText = "1500",
+        description = "Train to Jaipur", category = "Travel", keypadOn = false,
     ))
     @Test fun add_lent() = sheet(false, fresh.copy(type = EntryType.LENT, typeTouched = true, amountText = "500", person = "", keypadOn = false))
 
@@ -236,6 +231,88 @@ class ScreenshotTest {
     @Test fun quickadd_light() = popup(false, fresh)
     @Test fun quickadd_dark() = popup(true, fresh)
     @Test fun quickadd_cardbill() = popup(false, fresh.copy(type = EntryType.CARD_BILL, typeTouched = true, cards = listOf("HDFC", "SBI")))
+
+    /* ---------- entry page, row actions, money back card, mini quick add ---------- */
+
+    private val treat = e("21", 1, EntryType.SPENT, 1500.0, "Birthday treat", "Food", note = "Dad said he'd cover it").copy(
+        refund = com.himalayasoni.ledger.core.model.Refund(1500.0, com.himalayasoni.ledger.core.model.RefundStatus.RECEIVED,
+            today.minusDays(1), today, to = "UPI", from = "Dad"))
+    private val dinner = entries.first { it.id == "6" }.copy(paidBack = mapOf("rahul" to 1066.67, "amit" to 500.0))
+    private val train = entries.first { it.id == "18" }
+
+    private fun entryPage(e: Entry, dark: Boolean = false) = framed(dark, Tab.HOME) {
+        com.himalayasoni.ledger.ui.entry.EntryPage(
+            com.himalayasoni.ledger.ui.entry.buildEntryDetail(e, entries + e, today), onBack = {}, onAction = {}, onCard = {}, backLabel = "Home",
+        )
+    }
+
+    @Test fun entry_moneyback_person() = entryPage(treat)
+    @Test fun entry_shared() = entryPage(dinner)
+    @Test fun entry_refund_awaited() = entryPage(train)
+    @Test fun entry_refund_awaited_dark() = entryPage(train, dark = true)
+    @Test fun entry_card_spend() = entryPage(entries.first { it.id == "19" })
+    @Test fun entry_lent() = entryPage(entries.first { it.id == "16" })
+
+    /** A day's rows with an awaited refund: the "Mark arrived" chip sits under its amount. */
+    private fun rows(dark: Boolean) = paparazzi.snapshot {
+        LedgerTheme(dark = dark) {
+            Box(Modifier.fillMaxSize().background(LocalLedgerColors.current.bg).padding(16.dp)) {
+                androidx.compose.foundation.layout.Column {
+                    com.himalayasoni.ledger.ui.home.dayGroups(listOf(train, entries.first { it.id == "5" }, treat.copy(date = today.minusDays(2))), today)
+                        .forEach { com.himalayasoni.ledger.ui.components.DaySection(it) {} }
+                }
+            }
+        }
+    }
+    @Test fun rows_mark_arrived() = rows(false)
+    @Test fun rows_mark_arrived_dark() = rows(true)
+
+    private fun moneyBackCard(dark: Boolean, f: com.himalayasoni.ledger.ui.entry.MoneyBackForm) = paparazzi.snapshot {
+        LedgerTheme(dark = dark) {
+            val c = LocalLedgerColors.current
+            Box(Modifier.fillMaxSize().background(c.scrim)) {
+                Box(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(c.surface)
+                        .padding(top = 20.dp),
+                ) { com.himalayasoni.ledger.ui.entry.MoneyBackContent(f, {}, {}, {}, {}) }
+            }
+        }
+    }
+    private val names = listOf("Dad", "Sneha", "Rahul", "Priya")
+    @Test fun moneyback_new() = moneyBackCard(false, com.himalayasoni.ledger.ui.entry.moneyBackForm(train, names, listOf("HDFC"), LocalDate.now()))
+    @Test fun moneyback_part_dark() = moneyBackCard(true,
+        com.himalayasoni.ledger.ui.entry.moneyBackForm(train, names, listOf("HDFC"), LocalDate.now()).typePart("1320"))
+    @Test fun moneyback_person_card() = moneyBackCard(false,
+        com.himalayasoni.ledger.ui.entry.moneyBackForm(entries.first { it.id == "19" }, names, listOf("HDFC", "SBI"), LocalDate.now())
+            .pickFrom("Sneha").pickTo("Card"))
+    @Test fun moneyback_shared() = moneyBackCard(false,
+        com.himalayasoni.ledger.ui.entry.moneyBackForm(dinner.copy(refund = treat.refund), names, emptyList(), LocalDate.now()))
+
+    /** The mini quick add over the home screen: sized to its content, at the bottom. */
+    private fun mini(dark: Boolean, s: AddEntryState, typing: Boolean = false) = paparazzi.snapshot {
+        LedgerTheme(dark = dark) {
+            val c = LocalLedgerColors.current
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(androidx.compose.ui.graphics.Color(0xFF3D6E8F), androidx.compose.ui.graphics.Color(0xFF9C7A5B))))) {
+                Box(Modifier.fillMaxSize().background(c.scrim))
+                androidx.compose.foundation.layout.Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(c.surface),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(40.dp, 4.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).background(c.line))
+                    com.himalayasoni.ledger.ui.add.MiniAddContent(s, NoActions, typing = typing, onFocus = {}, onShowKeypad = {}, onSave = {}, onMic = {})
+                }
+            }
+        }
+    }
+    private val miniFresh = fresh.copy(mini = true, mode = "UPI")
+    @Test fun mini_light() = mini(false, miniFresh)
+    @Test fun mini_dark() = mini(true, miniFresh)
+    @Test fun mini_typed() = mini(false, miniFresh.copy(amountText = "240", description = "Uber"))
+    @Test fun mini_typing_dark() = mini(true, miniFresh.copy(amountText = "180", description = "Medicines", keypadOn = false), typing = true)
 
     @Test fun reminders_settings() = paparazzi.snapshot {
         LedgerTheme(dark = false) {
