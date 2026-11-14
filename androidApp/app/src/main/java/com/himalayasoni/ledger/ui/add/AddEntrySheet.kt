@@ -260,8 +260,8 @@ internal fun AddEntryContent(
 
 
 /**
- * The mini quick add ("Ledger +", the 1×1 widget): just the amount, the keypad with its Save key, one
- * "What was it?" line with your usual spends as one-tap chips, and the mic. Category comes from what you
+ * The mini quick add (the 1×1 widget, the Quick add shortcut, the tile): just the amount, the keypad with
+ * its Save key, one "What was it?" line, your categories as one-tap chips (most used first), and the mic. Category comes from what you
  * typed ([AddEntryState.miniCategory]), payment from your last spend. "More" opens the full form in place.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -293,22 +293,21 @@ internal fun MiniAddContent(
             imeAction = ImeAction.Done, onDone = { focus.clearFocus() },
             modifier = Modifier.padding(top = 8.dp).onFocusChanged { onFocus(it.isFocused) },
         )
-        if (s.miniUsuals.isNotEmpty()) Row(
-            Modifier.padding(top = 10.dp).fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // categories as one-tap chips, most used first; typing "chai" picks Food by itself
+        val picked = if (s.category.isNotBlank() || s.description.isNotBlank()) s.miniCategory else ""
+        FlowRow(
+            Modifier.padding(top = 10.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 4,
         ) {
-            s.miniUsuals.forEach { u ->
-                val on = s.description.trim().equals(u.description, true) && s.amount == u.amount
-                LedgerChip(u.description, selected = on, soft = !on, trailing = "₹" + groupIndian(u.amount.toLong())) { actions.pickUsual(u) }
+            s.miniCategories.forEach { cat ->
+                LedgerChip(cat, selected = picked.equals(cat, true), swatch = categoryColor(cat)) { actions.onCategory(cat) }
             }
         }
         // what it will be saved as, and the way to the full form
         Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(categoryColor(s.miniCategory)))
             Text(
                 listOfNotNull(
-                    s.miniCategory,
-                    if (s.mode.equals("Card", true) && s.card.isNotBlank()) "${s.card} card" else s.mode,
+                    "Paid with " + if (s.mode.equals("Card", true) && s.card.isNotBlank()) "${s.card} card" else s.mode,
                     s.withPeople.takeIf { it.isNotEmpty() }?.let { "with " + it.joinToString(", ") },
                 ).joinToString(" · "),
                 style = LedgerType.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis,

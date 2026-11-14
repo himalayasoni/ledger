@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.himalayasoni.ledger.core.domain.peopleIndex
 import com.himalayasoni.ledger.core.domain.allCategories
+import com.himalayasoni.ledger.core.domain.categoriesByUse
 import com.himalayasoni.ledger.core.domain.cardNames
 import com.himalayasoni.ledger.core.model.Refund
 import com.himalayasoni.ledger.core.model.RefundStatus
@@ -49,7 +50,7 @@ internal fun nextAmount(t: String, key: String): String = when (key) {
 
 private data class VoiceInputs(
     val usuals: List<Usual>, val recent: List<String>, val cats: List<String>,
-    val people: List<String>, val voiceCats: List<String>, val cards: List<String>,
+    val people: List<String>, val voiceCats: List<String>, val cards: List<String>, val byUse: List<String>,
     val lastMode: String, val lastCard: String,
 )
 
@@ -91,6 +92,7 @@ data class AddEntryState(
     val mini: Boolean = false,               // the small quick add layout
     val modeTouched: Boolean = false,        // picked a payment mode (or a usual did): don't replace it with the last used one
     val lastMode: String = "UPI",            // how your latest spend was paid (the mini quick add starts with it)
+    val categoriesByUse: List<String> = emptyList(), // categories, most used in the last 90 days first
     val lastCard: String = "",
     val error: String? = null,
     val done: String? = null,                // set after saving/deleting: the sheet closes and shows this
@@ -119,8 +121,8 @@ data class AddEntryState(
         return recentPeople.filter { it.lowercase() !in taken }
     }
 
-    /** The mini quick add's one-tap row: your most used spends. */
-    val miniUsuals: List<Usual> get() = allUsuals.top(EntryType.SPENT)
+    /** The mini quick add's chips: your categories, the ones you use most first (private ones never). */
+    val miniCategories: List<String> get() = categoriesByUse.ifEmpty { categories }.take(8)
 
     /**
      * The category the mini quick add saves with (it has no category chips): the one you used last time
@@ -230,12 +232,14 @@ class AddEntryViewModel(
                 val voiceCats = (used + (if (show) emptySet() else private) + DEFAULT_CATEGORIES).distinctBy { it.lowercase() }
                 val last = visible.filter { it.type == EntryType.SPENT && !it.deleted }.maxByOrNull { it.createdAt }
                 VoiceInputs(visible.usuals(), visible.recentPeople(), cats, names, voiceCats, visible.cardNames(),
+                    visible.categoriesByUse(LocalDate.now().minusDays(90), cats),
                     last?.mode?.ifBlank { null } ?: "UPI", if (last?.mode.equals("Card", true)) last?.card.orEmpty() else "")
             }.collect { v ->
                 _state.update {
                     // the mini quick add starts with how you paid last time (history can arrive after it opens)
                     val useLast = it.mini && !it.modeTouched
                     it.copy(allUsuals = v.usuals, recentPeople = v.recent, categories = v.cats, voicePeople = v.people, voiceCategories = v.voiceCats,
+                        categoriesByUse = v.byUse,
                         cards = (v.cards + it.cards).distinctBy { c -> c.lowercase() }, lastMode = v.lastMode, lastCard = v.lastCard,
                         mode = if (useLast) v.lastMode else it.mode, card = if (useLast) v.lastCard else it.card)
                 }

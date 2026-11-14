@@ -9,14 +9,13 @@
     <string name="widget_medium_desc">This month\'s spending, plus your usuals as one-tap buttons</string>
     <string name="tile_label">Add to Ledger</string>
     <string name="quick_add_label">Add to Ledger</string>
-    <string name="sc_add_short">Add</string>
-    <string name="sc_add_long">Add an entry</string>
+    <string name="sc_add_short">Quick add</string>
+    <string name="sc_add_long">Quick add an expense</string>
     <string name="sc_say_short">Say it</string>
     <string name="sc_say_long">Say an entry</string>
     <string name="sc_card_short">Card bill</string>
     <string name="sc_card_long">Log a card bill</string>
     <!-- The second launcher icon: opens the mini quick add straight away (for side-key / back-tap "open app") -->
-    <string name="launcher_plus">Ledger +</string>
     <string name="widget_tiny_name">Ledger: +</string>
     <string name="widget_tiny_desc">One tap opens the mini quick add</string>
 </resources>

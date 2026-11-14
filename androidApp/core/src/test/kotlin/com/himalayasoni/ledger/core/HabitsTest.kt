@@ -1,6 +1,7 @@
 package com.himalayasoni.ledger.core
 
 import com.himalayasoni.ledger.core.domain.matching
+import com.himalayasoni.ledger.core.domain.categoriesByUse
 import com.himalayasoni.ledger.core.domain.recentPeople
 import com.himalayasoni.ledger.core.domain.spentInUntil
 import com.himalayasoni.ledger.core.domain.streak
@@ -15,9 +16,9 @@ import java.time.YearMonth
 
 class HabitsTest {
     private var t = 1_000L
-    private fun e(desc: String, amount: Double, type: EntryType = EntryType.SPENT, date: String = "2026-11-05", person: String = "", with: List<String> = emptyList()) =
+    private fun e(desc: String, amount: Double, type: EntryType = EntryType.SPENT, date: String = "2026-11-05", person: String = "", with: List<String> = emptyList(), cat: String = "Food") =
         Entry(id = "e${t}", type = type, amount = amount, date = LocalDate.parse(date), description = desc, person = person,
-            withPeople = with, category = "Food", createdAt = ++t, updatedAt = t)
+            withPeople = with, category = cat, createdAt = ++t, updatedAt = t)
 
     @Test fun `usuals keep the latest amount and rank by how often`() {
         val list = listOf(e("Chai", 15.0), e("Uber", 240.0), e("chai ", 20.0), e("Chai", 20.0))
@@ -54,5 +55,11 @@ class HabitsTest {
         assertEquals(2, streak(days, today))
         assertEquals(3, streak(days + today, today))
         assertEquals(0, streak(emptySet(), today))
+    }
+
+    @Test fun `quick add categories come in the order you use them`() {
+        val list = listOf(e("Uber", 200.0, cat = "Transport"), e("Chai", 20.0), e("Lunch", 150.0), e("Old", 999.0, date = "2026-01-01", cat = "Rent"))
+        val order = list.categoriesByUse(LocalDate.parse("2026-08-01"), listOf("Food", "Groceries", "Transport", "Rent", "Secret"))
+        assertEquals(listOf("Food", "Transport", "Groceries", "Rent", "Secret"), order)
     }
 }

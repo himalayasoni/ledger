@@ -89,7 +89,6 @@ small card. And there's a much smaller quick add, with its own app icon for the 
 | Long-press a row: Got money back · Mark arrived · Duplicate · Delete | `combinedClickable` + a haptic tick, a `DropdownMenu` in the app's colours | `EntryRowItem`, `RowActions`, `LocalRowActions` |
 | "Money back" card | From (shop refund, a person, someone else) · How much (full or part) · Awaited / Arrived (date, came back to, card) · "Counts as ₹180 spent" | `ui/entry/MoneyBackForm.kt` (pure), `MoneyBack.kt` |
 | Mini quick add | Amount, keypad with Save, "What was it?", up to 6 usual chips, mic, "More" for the full form | `MiniAddContent` in `ui/add/AddEntrySheet.kt` |
-| "Ledger +" app icon | An `activity-alias` of the quick add activity with its own label and marigold icon | `AndroidManifest.xml`, `mipmap-anydpi-v26/ic_launcher_plus.xml` |
 | 1×1 widget "Ledger: +" | A marigold "+" that opens the mini quick add | `widget/TinyWidget.kt`, `res/xml/widget_tiny.xml` |
 
 ### The rules (shared with the web app)
@@ -120,25 +119,30 @@ dropped if you change it into something other than a spend). The form no longer 
   fresh `updatedAt`, so the restored copy also wins on your other devices). Delete is a tombstone, and
   Undo saves the entry again with `deleted = false`.
 - **Mini quick add**: `QuickAdd.requestFrom` opens the mini layout when there are no extras (the
-  "Ledger +" icon, the 1×1 widget, the small widget's +, the "Add" shortcut). A type, "say it" or a line
-  to finish open the full form. In mini mode the category is the one you used last time for the same
-  description, else what the voice parser makes of it (only categories you can see here), else Other.
+  1×1 widget, the small widget's +, the "Quick add" shortcut, the tile). A type, "say it" or a line
+  to finish open the full form. Mini mode shows your categories as chips, most used in the last 90 days
+  first (`categoriesByUse` in :core). If you type a description without picking one, it guesses: the
+  category you used last time for the same description, else what the voice parser makes of it, else Other.
   Payment starts as your last spend's. "More" switches the same state to the full form, so nothing
   typed is lost. Saying something that isn't a plain spend (a loan, a split) also opens the full form.
-- **activity-alias**: a second launcher entry for an existing activity. It shares the activity's code
-  and settings (its own task, not in recents) but has its own name and icon, so the launcher, and any
-  "open app" setting, treats it as a separate app.
+- **No second icon**: an early version added a "Ledger +" launcher icon (an `activity-alias`). Samsung's
+  side-key list shows one entry per app, so it couldn't be picked there; it was removed in favour of the
+  "Quick add" app shortcut, which RegiStar can open directly.
 
 ### Opening the mini quick add on a Galaxy S23
 
-All three of these can only open an app, so pick **Ledger +** (not Ledger β) in each.
+The quick add is the **Quick add** app shortcut (long-press the Ledger icon to see it). Samsung tools that
+can open an app *shortcut* (not just the app) can open it from anywhere:
 
-- **Side key, double press**: Settings → Advanced features → Side button → Double press → Open app →
-  Ledger +.
-- **Back tap** (Good Lock → RegiStar → Back-Tap action): turn it on, pick Double tap (or Triple tap)
-  → Open app → Ledger +. A light double tap on the back of the phone, near the camera, opens it.
-- **Edge panel**: Settings → Display → Edge panels → Panels → Apps (on) → Edit → add Ledger +.
-- **Home screen**: drag Ledger + from the app drawer, or add the 1×1 "Ledger: +" widget.
+- **Back tap** (Good Lock → RegiStar → Back-Tap action): turn it on → Double tap → Open app → Ledger β →
+  choose the **Quick add** shortcut. A light double tap on the back of the phone opens the pop-up.
+- **Side key, press and hold** (RegiStar → Side key press and hold action): Open app → Ledger β →
+  **Quick add**. Samsung's own Settings → Side button → Double press → Open app → Ledger β: if a gear icon
+  next to Ledger lists in-app actions on your One UI version, pick Quick add there; otherwise double press
+  can only open the full app.
+- **Quick settings tile**: swipe down → edit → drag "Add to Ledger" into the panel.
+- **Home screen**: long-press the Ledger icon and drag "Quick add" out as its own one-tap icon, or add the
+  1×1 widget.
 
 ### Concepts to look up
 

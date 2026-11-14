@@ -97,3 +97,17 @@ fun List<Entry>.allCategories(custom: Collection<String>, removed: Collection<St
     return (com.himalayasoni.ledger.core.model.DEFAULT_CATEGORIES.filter { it.lowercase() !in gone } + custom.sortedBy { it.lowercase() } + used + extra)
         .distinctBy { it.lowercase() }
 }
+
+/**
+ * Categories in the order you use them: how many spends each had since [since] (most first, then
+ * most money), followed by the rest of [all] in their usual order. Used for the quick add's chips.
+ */
+fun List<Entry>.categoriesByUse(since: LocalDate, all: List<String>): List<String> {
+    val recent = filter { !it.deleted && it.type == EntryType.SPENT && !it.date.isBefore(since) && it.category.isNotBlank() }
+        .groupBy { it.category.lowercase() }
+        .map { (_, l) -> Triple(l.first().category, l.size, l.sumOf { it.amount }) }
+        .sortedWith(compareByDescending<Triple<String, Int, Double>> { it.second }.thenByDescending { it.third })
+        .map { it.first }
+    val allowed = all.map { it.lowercase() }.toSet()
+    return (recent.filter { it.lowercase() in allowed } + all).distinctBy { it.lowercase() }
+}
