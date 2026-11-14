@@ -258,6 +258,61 @@ h1.page{font-family:var(--f-display);font-weight:800;font-size:28px;letter-spaci
 .amt.in{color:var(--in)} .amt.lend{color:var(--lend)}
 .tag.awaited{background:color-mix(in srgb,var(--lend) 15%,transparent);color:var(--lend)}
 .tag.refunded{background:color-mix(in srgb,var(--in) 15%,transparent);color:var(--in)}
+/* rows: a long press opens a small menu, so no text selection or phone callout on them */
+.row{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+/* a row with money back still awaited: the row, then a "Mark arrived" chip under its text */
+.rw{border-top:1px solid var(--line)}
+.rw:first-child{border-top:0}
+.rw .row{border-top:0;padding-bottom:4px}
+.row-act{display:flex;gap:8px;padding:0 14px 11px 64px}
+.mchip{height:30px;padding:0 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;
+  color:var(--lend);background:color-mix(in srgb,var(--lend) 13%,transparent)}
+.mchip svg{width:14px;height:14px}
+.btn svg{width:18px;height:18px;flex:0 0 auto}
+.pill.wait{background:color-mix(in srgb,var(--lend) 15%,transparent);color:var(--lend)}
+
+/* entry page: one entry, everything about it, and what you can do with it */
+.eh-top{display:flex;align-items:center;gap:12px}
+.eh-t{font-family:var(--f-display);font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.2;overflow-wrap:anywhere}
+.eh-s{font-size:13px;color:var(--ink-2);margin-top:1px}
+.eh-amt{font-family:var(--f-display);font-weight:800;font-size:42px;line-height:1.05;letter-spacing:-.03em;margin-top:16px}
+.eh-paid{font-size:14px;color:var(--ink-2);margin-top:4px}
+.entry-hero .bal{margin-top:8px}
+.entry-hero .btns{margin-top:16px;gap:8px}
+.entry-hero .btn{padding:0 14px}
+.card .kv{align-items:center}
+.card .kv > span{flex:0 0 auto}
+.card .kv > b{text-align:right;min-width:0;overflow-wrap:anywhere;display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.kv .sw{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.go{display:inline-flex;align-items:center;gap:2px;font-weight:700;color:var(--ink);text-align:left}
+.go svg{width:16px;height:16px;color:var(--ink-2);flex:0 0 auto}
+.card .crow .cn.go{display:flex}
+.es-line{margin:-4px 0 6px;font-size:13px}
+.es-ppl .pill{min-width:112px;text-align:center} /* same width, so the shares line up */
+.es-tot{border-top:1px solid var(--line)!important;padding-top:10px!important;margin-top:4px}
+.e-note{margin:0;font-style:italic;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.mb-foot-line{margin:10px 0 0;font-size:13px}
+.card .btns{justify-content:flex-start;margin-top:12px}
+
+/* long-press menu: a small sheet with the entry's actions */
+.sh-sub{font-size:13px;color:var(--ink-2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-head .ttl{flex:1;min-width:0}
+.sh-head .ttl h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menu .sh-body{gap:0;padding-top:8px}
+.mi{display:flex;align-items:center;gap:12px;width:100%;padding:10px 2px;font-weight:600;font-size:16px;text-align:left;border-top:1px solid var(--line)}
+.mi:first-child{border-top:0}
+.mi i{flex:0 0 38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);color:var(--ink-2)}
+.mi i svg{width:18px;height:18px}
+.mi.danger{color:var(--spent)}
+.mi.danger i{background:color-mix(in srgb,var(--spent) 14%,transparent);color:var(--spent)}
+
+/* Money back card: who it's from, how much, and whether it has arrived */
+.mb .sh-body{gap:16px;padding-top:10px}
+.mb-part{width:130px}
+.mb-hint{margin:0;font-size:13px}
+.mb-foot{display:flex;gap:10px;padding-top:8px;flex:0 0 auto}
+.mb-foot .save{margin-top:0;flex:1;width:auto}
+.mb-foot .btn{height:54px;border-radius:14px}
 
 /* empty */
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:22px;padding:28px 22px;text-align:center}
@@ -554,7 +609,6 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
       <div class="chips" id="mode-chips"></div>
     </div>
     <div id="spend-card" hidden></div>
-    <div id="refund-wrap" hidden></div>
     <div id="link-wrap" hidden></div>
     <label class="fld"><span>Comment</span>
       <textarea class="inp" id="f-note" rows="2" placeholder="Anything you want to remember"></textarea></label>
@@ -577,6 +631,28 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
     <button class="icon-btn" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
   <div class="sh-body" id="pn-body"></div>
+</section>
+
+<!-- long-press on a row: a small menu of what you can do with that entry -->
+<section class="sheet menu" id="rowmenu" hidden role="dialog" aria-modal="true" aria-labelledby="rm-title">
+  <div class="grab"></div>
+  <div class="sh-head">
+    <div class="ttl"><h2 id="rm-title"></h2><div class="sh-sub" id="rm-sub"></div></div>
+    <button class="icon-btn" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="sh-body" id="rm-body"></div>
+</section>
+
+<!-- Money back on a spend that's already logged: a shop's refund, or someone paying you back for it -->
+<section class="sheet mb" id="mbsheet" hidden role="dialog" aria-modal="true" aria-labelledby="mb-title">
+  <div class="grab"></div>
+  <div class="sh-head">
+    <div class="ttl"><h2 id="mb-title">Money back</h2><div class="sh-sub" id="mb-sub"></div></div>
+    <button class="icon-btn" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="sh-body" id="mb-body"></div>
+  <div class="sh-err" id="mb-err" role="alert" hidden></div>
+  <div class="mb-foot" id="mb-foot"></div>
 </section>
 
 <div class="pin" id="pin" hidden role="dialog" aria-modal="true" aria-labelledby="pin-title">
@@ -619,7 +695,7 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v19';
+const APP_VERSION = 'v20';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
@@ -636,6 +712,10 @@ const ICON = {
   del:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12zM17 9l-6 6M11 9l6 6"/></svg>',
   card:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3 10h18M7 15h3"/></svg>',
   next:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/></svg>',
+  refund:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
 };
 
 /* ---------- state ---------- */
@@ -644,6 +724,7 @@ const S = {
   f: freshFilters(),
   im: null,            // insights month {y,m}
   card: null, cardPick: false, duePick: false, cardOpen: {},  // card page: which card, statement-day / due-day picker open, periods opened/closed
+  entryId: null, base: 'home',  // entry page: which entry; base: the tab page under the pages opened on top
   flashId: null,
 };
 function freshFilters(){ return {q:'', types:[], range:'all', from:'', to:'', person:'', cat:'', mode:'', min:'', max:'', note:false, sort:'date-desc'}; }
@@ -855,6 +936,42 @@ function refundsAwaited(list = S.entries, today = todayKey()){
   return list.filter(e => e.type === 'spent' && e.refund && e.refund.status === 'awaited')
     .map(e => ({e, amount: +e.refund.amount || 0, days: daysBetween(e.refund.confirmed || e.date, today)}))
     .sort((a, b) => b.days - a.days);
+}
+/* ---------- money back on a spend, added after it's logged (the same rules as the Android app) ----------
+   Each one takes an entry and returns a changed copy, ready to save. */
+const round2 = n => Math.round(n * 100) / 100;
+/* set or change the money back. m: {amount, status: 'awaited' or 'received', received, to, card, from}
+   The amount can't be more than was paid; editing keeps the day it was first confirmed. */
+function withMoneyBack(e, m, today = todayKey()){
+  const old = e.refund || {};
+  const r = {amount: round2(Math.min(Math.max(0, +m.amount || 0), e.amount)), status: m.status === 'received' ? 'received' : 'awaited',
+             confirmed: old.confirmed || today};
+  if (r.status === 'received') r.received = m.received || today;
+  if (m.to) r.to = m.to;
+  if (m.to === 'Card' && m.card) r.card = m.card;           // which card only when it came back to a card
+  if ((m.from || '').trim()) r.from = m.from.trim();       // a person; left out for a shop's refund
+  return {...cleanRec(e), refund: r, updatedAt: Date.now()};
+}
+/* the awaited money back came in today. It goes where it was headed, else back the way the money went out */
+function markRefundArrived(e, today = todayKey()){
+  const r = e.refund; if (!r) return e;
+  const to = r.to || (lc(e.mode) === 'card' ? 'Card' : e.mode || 'UPI');
+  const card = r.to ? r.card : e.card;
+  const out = {...r, status: 'received', received: today, to};
+  if (to === 'Card' && card) out.card = card; else delete out.card;
+  return {...cleanRec(e), refund: out, updatedAt: Date.now()};
+}
+function withoutMoneyBack(e){ const c = {...cleanRec(e), updatedAt: Date.now()}; delete c.refund; return c; }
+/* a new entry like this one, for today: same what, amount, category, payment and people. No money back,
+   no paid back shares, no loan from before Ledger, no comment. */
+function duplicateAsNew(e, today = todayKey()){
+  const now = Date.now();
+  const c = {id: uid(), type: e.type, amount: e.amount, desc: e.desc || '', person: e.person || '', cat: e.cat || '', mode: e.mode || '',
+             date: today, note: '', createdAt: now, updatedAt: now};
+  if (e.card) c.card = e.card;
+  if (e.with && e.with.length) c.with = [...e.with];
+  if (typeof e.incMe === 'boolean') c.incMe = e.incMe;
+  return c;
 }
 function allPeople(){ return [...peopleIndex().values()].sort((a,b)=>b.last.localeCompare(a.last)).map(p=>p.name); }
 function canonPerson(n){
@@ -1154,13 +1271,21 @@ function installBanner(){
 }
 
 /* ---------- row html ---------- */
+/* how an entry looks in a list and on its page: its colour, the icon (HTML) and the title (plain text) */
+function entryLook(e){
+  const t = TYPES[e.type], isDebt = t.kind === 'debt', isBill = e.type === 'cardbill';
+  return {
+    color: isDebt ? 'var(--lend)' : e.type==='received' ? 'var(--in)' : isBill ? 'var(--ink-2)' : catColor(e.cat),
+    icon: isDebt ? (t.sign < 0 ? ICON.out : ICON.in) : isBill ? ICON.card : esc(initial(e.cat || e.desc)),
+    title: e.desc || (isBill ? (e.card ? `${e.card} card bill` : t.label) : isDebt ? (e.person ? `${t.person} ${e.person}` : t.label) : (e.cat || t.label)),
+  };
+}
+/* one entry in a list. Tapping it opens its page; a long press opens a small menu (see "rows" under events) */
 function rowHtml(e, opts={}){
   const t = TYPES[e.type];
   const isDebt = t.kind === 'debt', isBill = e.type === 'cardbill';
   const refund = e.type === 'spent' ? e.refund : null;
-  const color = isDebt ? 'var(--lend)' : e.type==='received' ? 'var(--in)' : isBill ? 'var(--ink-2)' : catColor(e.cat);
-  const icon = isDebt ? (t.sign < 0 ? ICON.out : ICON.in) : isBill ? ICON.card : esc(initial(e.cat || e.desc));
-  const title = e.desc || (isBill ? (e.card ? `${e.card} card bill` : t.label) : isDebt ? (e.person ? `${t.person} ${e.person}` : t.label) : (e.cat || t.label));
+  const {color, icon, title} = entryLook(e);
   // small labels after the title
   const tags = [];
   // money back from a person (they covered it) reads differently from a shop's refund
@@ -1185,13 +1310,17 @@ function rowHtml(e, opts={}){
   if (opts.showDate) meta.push(esc(fmtDate(e.date)));
   const cls = e.type==='received' ? 'in' : (isDebt ? 'lend' : '');
   const sign = t.sign < 0 ? '−' : '+';
-  return `<button class="row${S.flashId===e.id?' flash':''}" data-act="open" data-id="${esc(e.id)}">
+  const row = `<button class="row${S.flashId===e.id?' flash':''}" data-act="open" data-id="${esc(e.id)}">
     <span class="ic" style="--c:${color}">${icon}</span>
     <span class="mid"><span class="t">${esc(title)}${tags.join('')}${S.unlocked && isPrivate(e) ? '<span class="tag priv">Private</span>' : ''}${e.sample?'<span class="tag">Example</span>':''}</span>
       ${meta.length?`<span class="m">${meta.join(' · ')}</span>`:''}
       ${e.note?`<span class="n">“${esc(e.note)}”</span>`:''}</span>
     <span class="amt ${cls}">${sign}${rupee(refund ? netOf(e) : e.amount)}${theirs ? `<small>${theirs}</small>` : (isDebt||e.type==='received'?`<small>${t.label}</small>`:'')}</span>
   </button>`;
+  // money back still on its way: one tap under the row says it came in (a button can't sit inside the row's button)
+  if (refund && refund.status === 'awaited') return `<div class="rw">${row}<div class="row-act">
+    <button class="mchip" data-act="arrived" data-id="${esc(e.id)}">${ICON.check}Mark arrived</button></div></div>`;
+  return row;
 }
 function groupedList(list, opts={}){
   const groups = new Map();
@@ -1372,6 +1501,98 @@ function viewPerson(){
     <div class="person-hero"><div class="nm">${esc(p.name)}</div><div class="bal">${line}</div>${treat}${fix}<div class="btns">${btns.join('')}</div></div>
     <div class="sec-h"><h2>History</h2><span class="muted" style="font-size:13px">${list.length} entries</span></div>
     ${groupedList(list, {who:key})}`;
+}
+
+/* ---------- one entry's page: everything about it, and what you can do with it ---------- */
+const longDate = k => { const d = parseKey(k); return `${WD[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`; };
+/* the back link on a page opened on top of another one is named after the page it goes back to */
+function backLabel(){
+  const top = layers[layers.length - 1], d = top && top.data;
+  if (!d) return 'Back';
+  return {home: 'Home', people: 'People', search: 'Search', insights: 'Insights', person: d.person, card: d.card}[d.view] || 'Back';
+}
+function viewEntry(){
+  const e = S.entries.find(x => x.id === S.entryId);
+  const back = `<button class="back" data-act="back">${ICON.back}${esc(backLabel())}</button>`;
+  if (!e) return back + `<div class="empty"><h2>This entry isn't here any more</h2><p>It was deleted, or it's in a private category that's locked.</p></div>`;
+  const t = TYPES[e.type], spend = e.type === 'spent', bill = e.type === 'cardbill', isDebt = t.kind === 'debt';
+  const r = spend ? e.refund : null, w = withOf(e), id = esc(e.id), {color, icon, title} = entryLook(e);
+  const tone = e.type === 'received' ? 'var(--in)' : isDebt ? 'var(--lend)' : 'var(--ink)';
+  const kv = (k, v) => `<div class="kv"><span class="muted">${k}</span><b>${v}</b></div>`;
+  // a value that opens another page (a card, a person)
+  const goBtn = (act, attr, label) => `<button class="go" data-act="${act}" ${attr}>${label}${ICON.next}</button>`;
+  const cardBtn = name => goBtn('cardpage', `data-c="${esc(name)}"`, esc(name) + ' card');
+  // only people Ledger has a page for (someone named only on money back, like "Dad", has none)
+  const ppl = peopleIndex(), personBtn = name => ppl.has(lc(name)) ? goBtn('person', `data-name="${esc(name)}"`, esc(name)) : esc(name);
+
+  // the facts
+  const facts = [kv('Type', esc(t.label) + (bill ? ' <span class="muted">· not spending</span>' : '')), kv('Date', esc(longDate(e.date)))];
+  if (t.kind === 'flow') facts.push(kv('Category', `<span class="sw" style="background:${catColor(e.cat || 'Other')}"></span>${esc(e.cat || 'Other')}`));
+  if (bill && e.card) facts.push(kv('Card', cardBtn(e.card)));
+  if (e.mode) facts.push(kv(bill ? 'Paid from' : 'Paid with', spend && lc(e.mode) === 'card' && e.card ? cardBtn(e.card) : esc(e.mode)));
+  if (e.person && !spend) facts.push(kv(esc(t.person), personBtn(e.person)));
+  if (e.prior > 0) facts.push(kv('From before Ledger', rupee(e.prior)));
+
+  // a loan: where it stands with that person now
+  let bal = '', p = null;
+  if (isDebt && e.person && (p = ppl.get(lc(e.person))))
+    bal = p.bal > 0 ? `${esc(p.name)} owes you <b class="num" style="color:var(--in)">${rupee(p.bal)}</b>`
+      : p.bal < 0 ? `You owe ${esc(p.name)} <b class="num" style="color:var(--spent)">${rupee(p.bal)}</b>` : `You and ${esc(p.name)} are settled`;
+
+  // a shared spend: everyone's share and who has paid theirs back
+  let shared = '';
+  if (spend && w.length){
+    const sh = shareOf(e), me = e.incMe !== false, ways = w.length + (me ? 1 : 0);
+    const people = w.map(n => {
+      const got = repaidOf(e, n), done = got >= sh - 0.5;
+      return `<div class="crow"><button class="cn go" data-act="person" data-name="${esc(n)}">${esc(n)}</button><span class="cc">share ${rupee(sh)}</span>
+        ${done ? '<span class="pill owe-you">paid back</span>' : got > 0 ? `<span class="pill even">paid ${rupee(got)}</span>` : '<span class="pill even">not paid back</span>'}</div>`;
+    }).join('');
+    shared = `<div class="card"><h3>Shared with ${w.length === 1 ? esc(w[0]) : w.length + ' people'}</h3>
+      <p class="muted es-line">${me ? `${ways} shares of ${rupee(sh)}, one of them yours` : `Not on you: ${rupee(sh)} on each of them`}${r ? ', after the money back' : ''}</p>
+      <div class="clist es-ppl">${people}</div>
+      <div class="kv es-tot"><span class="muted">Cost you so far</span><b class="num">${rupee(cost(e))}</b></div></div>`;
+  }
+
+  // money back: from whom, how much, and whether it has arrived
+  let moneyBack = '';
+  if (r){
+    const amt = +r.amount || 0, awaited = r.status === 'awaited';
+    const rows = [kv('From', r.from ? personBtn(r.from) : 'Shop refund'),
+      kv('Amount', `<span class="num">${rupee(amt)}</span><span class="muted">${amt < e.amount ? `of ${rupee(e.amount)}` : '· full'}</span>`),
+      kv('Status', awaited ? '<span class="pill wait">Awaited</span>' : '<span class="pill owe-you">Arrived</span>')];
+    if (awaited){ const days = daysBetween(r.confirmed || e.date, todayKey()); rows.push(kv('Waiting since', `${esc(dayMon(r.confirmed || e.date))} <span class="muted">· ${days} day${days === 1 ? '' : 's'}</span>`)); }
+    else {
+      if (r.received) rows.push(kv('Arrived on', esc(longDate(r.received))));
+      if (r.to) rows.push(kv('Came back to', r.to === 'Card' && r.card ? cardBtn(r.card) : esc(r.to)));
+    }
+    moneyBack = `<div class="card"><h3>Money back</h3>${rows.join('')}
+      <p class="muted mb-foot-line">Counts as ${rupee(netOf(e))} spent</p>
+      <div class="btns">${awaited ? `<button class="btn primary" data-act="arrived" data-id="${id}">${ICON.check}Mark arrived</button>` : ''}
+        <button class="btn" data-act="mbopen" data-id="${id}">${ICON.pencil}Edit money back</button></div></div>`;
+  }
+
+  const btns = [];
+  if (e.type === 'lent' && p && p.bal > 0) btns.push(`<button class="btn primary" data-act="add" data-type="gotback" data-person="${esc(p.name)}" data-amount="${p.bal}">Got it back</button>`);
+  if (e.type === 'borrowed' && p && p.bal < 0) btns.push(`<button class="btn primary" data-act="add" data-type="paidback" data-person="${esc(p.name)}" data-amount="${-p.bal}">I paid back</button>`);
+  btns.push(`<button class="btn${btns.length ? '' : ' primary'}" data-act="edit" data-id="${id}">${ICON.pencil}Edit</button>`);
+  if (spend && !r) btns.push(`<button class="btn" data-act="mbopen" data-id="${id}">${ICON.refund}Got money back</button>`);
+  btns.push(`<button class="btn" data-act="dup" data-id="${id}">${ICON.copy}Duplicate</button>`);
+  btns.push(`<button class="btn danger" data-act="delentry" data-id="${id}">${ICON.trash}Delete</button>`);
+
+  return `${back}
+    <div class="person-hero entry-hero">
+      <div class="eh-top"><span class="ic" style="--c:${color}">${icon}</span>
+        <div style="min-width:0"><div class="eh-t">${esc(title)}${S.unlocked && isPrivate(e) ? '<span class="tag priv">Private</span>' : ''}</div>
+        <div class="eh-s">${esc(t.label)} · ${esc(dayLabel(e.date))}</div></div></div>
+      <div class="eh-amt num" style="color:${tone}">${rupee(netOf(e))}</div>
+      ${r ? `<div class="eh-paid num">${rupee(e.amount)} paid</div>` : ''}
+      ${bal ? `<div class="bal">${bal}</div>` : ''}
+      <div class="btns">${btns.join('')}</div>
+    </div>
+    ${moneyBack}${shared}
+    <div class="card">${facts.join('')}</div>
+    ${e.note ? `<div class="card"><h3>Comment</h3><p class="e-note">${esc(e.note)}</p></div>` : ''}`;
 }
 
 /* search keeps its controls mounted so typing never loses focus */
@@ -1685,32 +1906,51 @@ function viewInsights(){
 /* ---------- render ---------- */
 function render(){
   const main = $('#main');
-  const tab = S.view === 'person' ? 'people' : S.view === 'card' ? 'home' : S.view;
+  // a page opened on top keeps the tab it was opened from lit (an entry opened from Search keeps Search)
+  const tab = S.view === 'person' ? 'people' : S.view === 'card' ? 'home' : S.view === 'entry' ? S.base : S.view;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === tab));
   if (S.view === 'search'){
     if (!main.querySelector('#q')) main.innerHTML = searchShell();
     refreshResults();
   } else {
-    main.innerHTML = S.view==='people' ? viewPeople() : S.view==='person' ? viewPerson() : S.view==='card' && S.card ? viewCard() : S.view==='insights' ? viewInsights() : viewHome();
+    main.innerHTML = S.view==='people' ? viewPeople() : S.view==='person' ? viewPerson() : S.view==='card' && S.card ? viewCard() : S.view==='entry' ? viewEntry() : S.view==='insights' ? viewInsights() : viewHome();
   }
   S.flashId = null;
 }
-function go(view, fromBack){
-  if (!fromBack){
-    const top = () => layers[layers.length - 1];
+// a person's page, a card's page or an entry's page sits on top of the page it was opened from (see openSub)
+const isSubPage = t => t === 'person' || t === 'card' || t === 'entry';
+/* show a page. layersDone: the caller has already updated the Back layers (Back itself, or openSub) */
+function go(view, layersDone){
+  if (!layersDone){
     let n = 0;
-    // a person's page or a card's page sits on top of the page it was opened from
-    const sub = t => t === 'person' || t === 'card';
-    if (view === 'home'){ for (let i = layers.length - 1; i >= 0 && (layers[i].type === 'view' || sub(layers[i].type)); i--) n++; dropLayers(n); }
-    else if (sub(view)){ pushLayer(view, S.view); }
+    if (view === 'home'){ for (let i = layers.length - 1; i >= 0 && (layers[i].type === 'view' || isSubPage(layers[i].type)); i--) n++; dropLayers(n); }
     else {
-      for (let i = layers.length - 1; i >= 0 && sub(layers[i].type); i--) n++;
+      for (let i = layers.length - 1; i >= 0 && isSubPage(layers[i].type); i--) n++;
       if (n) dropLayers(n);
       if (!layers.some(l => l.type === 'view')) pushLayer('view');
     }
   }
   if (S.view === 'search' && view !== 'search') $('#main').innerHTML = '';
+  if (!isSubPage(view)) S.base = view;
   S.view = view; render(); window.scrollTo({top:0});
+}
+/* open a page on top of this one, e.g. openSub('entry', {entryId}). Its Back layer remembers this page
+   (which person, card or entry, and how far down it was scrolled), so Back returns to exactly here. */
+function openSub(view, patch){
+  pushLayer(view, {view: S.view, person: S.person, card: S.card, entryId: S.entryId, scroll: window.scrollY});
+  Object.assign(S, patch);
+  go(view, true);
+}
+function restoreSub(d = {}){
+  S.person = d.person ?? null; S.card = d.card ?? null; S.entryId = d.entryId ?? null;
+  go(d.view || 'home', true);
+  if (d.scroll) window.scrollTo({top: d.scroll});
+}
+/* the "‹ Back" link on an entry's page: the same as the phone's Back */
+function leaveSub(){
+  const top = layers[layers.length - 1];
+  if (top && isSubPage(top.type)){ dropLayers(1); restoreSub(top.data); }
+  else go('home');
 }
 
 /* ---------- toast ---------- */
@@ -1736,8 +1976,7 @@ window.addEventListener('popstate', () => {
   if (top.type === 'pin'){ if (Pin.mode === 'code'){ pushLayer('pin'); return; } pinDone(false, true); }
   else if (top.type === 'pad') setPad(false);
   else if (top.type === 'sheet') closeSheet(true);
-  else if (top.type === 'person'){ S.person = null; go(top.data || 'people', true); }
-  else if (top.type === 'card'){ S.card = null; go(top.data || 'home', true); }
+  else if (isSubPage(top.type)) restoreSub(top.data);
   else if (top.type === 'view') go('home', true);
   else if (top.type === 'quick') closeQuick(true);
 });
@@ -1764,32 +2003,27 @@ function closeSheet(fromBack){
 function trimAmt(n){ return String(Math.round(n*100)/100); }
 function openEntry(pref = {}, editId = null){
   const e = editId ? S.entries.find(x=>x.id===editId) : null;
+  const src = e || pref.copy || null; // the entry being edited, or a copy to save as a new entry (Duplicate, see duplicateAsNew)
   const multi0 = (pref.type || 'spent') === 'spent';
-  D = e ? {...e, amountStr: trimAmt(e.amount), editId, catTouched:true, typeTouched:true, prior: e.prior || 0, priorAsked: !!e.prior, priorShown: !!e.prior,
-           with: withOf(e).slice(), incMe: e.incMe !== false, paidBack: {...(e.paidBack || {})}, person: e.type === 'spent' ? '' : (e.person || ''),
-           card: e.card || '', newCards: [], ...refundDraft(e)}
+  // an edit keeps the entry's money back (D.refund) as it was: that's changed on the entry's page, not here
+  D = src ? {...src, amountStr: trimAmt(src.amount), editId: e ? editId : null, catTouched:true, typeTouched:true, prior: src.prior || 0, priorAsked: !!src.prior, priorShown: !!src.prior,
+           with: withOf(src).slice(), incMe: src.incMe !== false, paidBack: {...(src.paidBack || {})}, person: src.type === 'spent' ? '' : (src.person || ''),
+           card: src.card || '', newCards: [], linkTo: null, linkOpen: false}
         : {type: pref.type || 'spent', amountStr: pref.amount ? trimAmt(+pref.amount) : '', desc:'',
            person: multi0 ? '' : (pref.person || ''), with: (multi0 && pref.person) ? [pref.person] : [], incMe:true, paidBack:{}, cat:'',
            mode: lsGet(LS_MODE) || 'UPI', date: todayKey(), note:'', catTouched:false, typeTouched:!!pref.type, prior: 0, priorAsked: false, priorShown: false,
-           card: pref.card || '', newCards: [], ...refundDraft(null)};
+           card: pref.card || '', newCards: [],
+           linkTo: null, linkOpen: false};  // money in: the expense it was for (it saves as money back on that one)
   if (D.type === 'cardbill' && D.mode === 'Card') D.mode = 'UPI'; // a bill is paid to the card, from somewhere else
   $('#f-desc').value = D.desc || ''; $('#f-person').value = D.person || ''; $('#f-note').value = D.note || ''; $('#f-date').value = D.date;
-  $('#desc-sugg').innerHTML = ''; $('#sh-title').textContent = e ? 'Edit entry' : 'New entry';
+  $('#desc-sugg').innerHTML = ''; $('#sh-title').textContent = e ? 'Edit entry' : pref.copy ? 'Duplicate entry' : 'New entry';
   $('#sh-del').hidden = !e; $('#done').hidden = true;
-  $('#say').hidden = !!e; $('#mic-btn').hidden = !!e; $('#heard').hidden = true; $('#f-say').value = ''; setErr('');
+  $('#say').hidden = !!src; $('#mic-btn').hidden = !!src; $('#heard').hidden = true; $('#f-say').value = ''; setErr('');
   syncSheet(); showSheet($('#sheet'));
-  setPad(!e && !pref.amount);
+  setPad(!src && !pref.amount);
   $('#sh-body').scrollTop = 0;
   if (pref.focusWith) setTimeout(() => $('#f-person').focus(), 320);
   else if (!matchMedia('(pointer:coarse)').matches) $('#sh-amount').focus();
-}
-/* the refund part of the form, filled from an entry's saved refund (or empty for a new entry) */
-function refundDraft(e){
-  const r = e && e.type === 'spent' ? e.refund : null, t = todayKey();
-  return {refundOn: !!r, refundFull: !r || r.amount >= e.amount, refundStr: r && r.amount < e.amount ? trimAmt(r.amount) : '',
-          refundArrived: !!r && r.status === 'received', refundReceived: (r && r.received) || t, refundTo: (r && r.to) || '', refundCard: (r && r.card) || '',
-          refundFrom: (r && r.from) || '', // who gave it back: '' for a shop's refund, or a person's name
-          linkTo: null, linkOpen: false};  // money in: the expense it was for (saves as money back on it)
 }
 const CHEV = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${d ? 'M6 9l6 6 6-6' : 'M6 15l6-6 6 6'}"/></svg>`;
 function setPad(on){
@@ -1824,13 +2058,14 @@ function syncAmount(bump){
   if (bump){ a.classList.remove('bump'); void a.offsetWidth; a.classList.add('bump'); }
   const v = parseFloat(D.amountStr);
   $('#sh-save').textContent = D.editId ? 'Save changes' : v > 0 ? `Save ${rupee(v)}` : 'Save';
-  renderWith(); updateRefundHint();
+  renderWith();
 }
 function syncSheet(){
   const t = TYPES[D.type], multi = D.type === 'spent', bill = D.type === 'cardbill';
   // two rows of four (the last slot stays empty); what the chosen type means shows under the amount
   $('#sh-types').innerHTML = Object.entries(TYPES).map(([k,x])=>`<button class="tbtn${D.type===k?' on':''}" data-act="type" data-t="${k}" aria-pressed="${D.type===k}" title="${x.cap}">${x.label}</button>`).join('');
-  $('#amt-cap').textContent = t.cap;
+  // the line under the amount only where the type needs explaining: a card bill isn't spending
+  $('#amt-cap').textContent = bill ? t.cap : ''; $('#amt-cap').hidden = !bill;
   $('#person-wrap').hidden = bill; // a card bill has no person and no category
   $('#f-desc').placeholder = bill ? 'Optional, e.g. October statement' : 'Chai, Uber, Rent, Movie tickets';
   $('#person-lbl').textContent = multi ? 'Spent with (optional)' : t.person + (t.kind==='debt' ? '' : ' (optional)');
@@ -1851,12 +2086,12 @@ function syncSheet(){
   $('#f-date').classList.toggle('on', D.date !== tk && D.date !== addDays(tk,-1));
   $('#mode-lbl').textContent = bill ? 'Paid from' : 'Paid with';
   $('#mode-chips').innerHTML = MODES.filter(m => !(bill && m === 'Card')).map(m=>`<button class="chip${D.mode===m?' on':''}" data-act="mode" data-m="${m}">${m}</button>`).join('');
-  renderQuick(); renderPersonSugg(); renderCards(); renderRefund(); renderLink();
+  renderQuick(); renderPersonSugg(); renderCards(); renderLink();
 }
 /* "Which card" chips: the cards you've named, plus a way to name a new one */
 const tidyCard = v => String(v || '').trim().replace(/\s+/g, ' ').slice(0, 24);
-function cardPicker(label, act, selected){
-  const names = uniqCI([...cardNames(), ...D.newCards, D.card, D.refundCard]);
+function cardPicker(label, act, selected, newCards = D.newCards){
+  const names = uniqCI([...cardNames(), ...newCards, selected]);
   return `<div class="quick-h">${label}</div><div class="chips">${names.map(n => `<button class="chip${lc(n) === lc(selected) ? ' on' : ''}" data-act="${act}" data-c="${esc(n)}">${esc(n)}</button>`).join('')}`
     + `<button class="chip" data-act="newcard" data-for="${act}">${names.length ? '+ New card' : '+ Name your card'}</button></div>`;
 }
@@ -1869,47 +2104,6 @@ function renderCards(){
     + (h ? `<div class="billhint"><span>${esc(h.text)}</span><button class="chip" data-act="usebill" data-v="${h.amount}">Use ${rupee(h.amount)}</button></div>` : '');
   $('#spend-card').hidden = !onCard;
   $('#spend-card').innerHTML = onCard ? cardPicker('Which card (optional)', 'card', D.card) : '';
-}
-/* how much is coming back: the whole amount, or what was typed for a partial refund */
-function refundBack(){ return D.refundFull ? (parseFloat(D.amountStr) || 0) : (parseFloat(D.refundStr) || 0); }
-function refundHint(){
-  const amt = parseFloat(D.amountStr) || 0, back = Math.min(refundBack(), amt);
-  if (!(amt > 0 && back > 0)) return '';
-  return `Counts as ${rupee(amt - back)} spent` + (D.refundArrived ? '' : ` · ${rupee(back)} shows as awaited until it arrives`);
-}
-/* the money back has arrived; it usually comes back the way it went out */
-function setArrived(){
-  D.refundArrived = true;
-  if (!D.refundTo && ['Card', 'UPI', 'Cash'].includes(D.mode)) D.refundTo = D.mode;
-}
-function updateRefundHint(){ const h = $('#refund-hint'); if (h){ h.textContent = refundHint(); h.hidden = !h.textContent; } }
-/* Money back on a spend: a shop's refund (cancelled ticket, returned order) or a person paying you back for it
-   (Dad covered the treat). Off is one chip; on is who it's from, full or partial, awaited or arrived. */
-function renderRefund(){
-  const box = $('#refund-wrap');
-  box.hidden = D.type !== 'spent';
-  if (box.hidden){ box.innerHTML = ''; return; }
-  const chip = (act, v, label, on) => `<button class="chip${on ? ' on' : ''}" data-act="${act}" data-v="${esc(v)}">${label}</button>`;
-  if (!D.refundOn){ box.innerHTML = `<div class="quick-h">Money back</div><div class="chips">${chip('refund', 'on', '+ Money back (refund, or someone paid you back)', false)}</div>`; return; }
-  // who it's from: people you split this with are left out (their share is "paid their share" on their page)
-  const shared = new Set(D.with.map(lc));
-  const names = uniqCI([D.refundFrom, ...allPeople()]).filter(n => !shared.has(lc(n))).slice(0, 7);
-  const from = `<div class="chips">${chip('rfrom', '', 'Shop refund', !D.refundFrom)}${names.map(n => chip('rfrom', n, esc(n), lc(n) === lc(D.refundFrom))).join('')}`
-    + `<button class="chip" data-act="rfromnew">+ Someone else</button></div>`
-    + (shared.size ? `<div class="hint" style="margin:0">Someone you split this with? Use "paid their share" on their page instead.</div>` : '');
-  const tk = todayKey(), yk = addDays(tk, -1), rd = D.refundReceived, hint = refundHint();
-  const arrived = !D.refundArrived ? '' : `
-      <div><div class="quick-h">Arrived on</div><div class="chips">${chip('rdate', 0, 'Today', rd === tk)}${chip('rdate', 1, 'Yesterday', rd === yk)}
-        <input type="date" class="date-inp${rd !== tk && rd !== yk ? ' on' : ''}" id="f-rdate" value="${esc(rd)}" aria-label="Pick the day it arrived"></div></div>
-      <div><div class="quick-h">Came back to</div><div class="chips">${['Card', 'UPI', 'Bank', 'Cash'].map(m => chip('rto', m, m, D.refundTo === m)).join('')}</div></div>
-      ${D.refundTo === 'Card' ? `<div>${cardPicker('Which card', 'rcard', D.refundCard || D.card)}</div>` : ''}`;
-  box.innerHTML = `<div class="quick-h">Money back</div><div class="stack">
-      ${from}
-      <div class="chips">${chip('refund', 'full', 'Full', D.refundFull)}${chip('refund', 'partial', 'Partial', !D.refundFull)}${chip('refund', 'off', 'Remove', false)}</div>
-      ${D.refundFull ? '' : `<input class="inp" id="f-refund" inputmode="decimal" autocomplete="off" enterkeyhint="done" aria-label="Refund amount" placeholder="How much is coming back, e.g. 1320" value="${esc(D.refundStr)}">`}
-      <div class="chips">${chip('refund', 'awaited', 'Awaited', !D.refundArrived)}${chip('refund', 'arrived', 'Arrived', D.refundArrived)}</div>
-      <div class="hint" id="refund-hint" style="margin:0"${hint ? '' : ' hidden'}>${esc(hint)}</div>${arrived}
-      </div>`;
 }
 /* recent expenses that money in can be linked to: spent, no money back on them yet, from the last 120 days, newest first */
 function linkableExpenses(){
@@ -1960,8 +2154,8 @@ function renderWith(){
   wrap.hidden = D.type !== 'spent' || !D.with.length;
   if (wrap.hidden) return;
   $('#with-chips').innerHTML = D.with.map(n => `<button class="chip wp" data-act="unwith" data-p="${esc(n)}" aria-label="Remove ${esc(n)}">${esc(n)} <span aria-hidden="true">×</span></button>`).join('');
-  // shares are of what the bill came to after any refund
-  const full = parseFloat(D.amountStr) || 0, amt = D.refundOn ? full - Math.min(refundBack(), full) : full;
+  // shares are of what the bill came to after any money back (kept from the saved entry when editing)
+  const full = parseFloat(D.amountStr) || 0, amt = full - Math.min(D.refund ? +D.refund.amount || 0 : 0, full);
   const n = D.with.length, ways = n + (D.incMe ? 1 : 0), each = amt / ways;
   $('#with-hint').innerHTML = !(full > 0) ? 'Enter the full bill. Each share is worked out for you.'
     : D.incMe ? `${ways} people including you, <b>${rupee(each)}</b> each. <b>${rupee(each*n)}</b> of this was on ${n===1 ? esc(D.with[0]) : 'them'}.`
@@ -1977,7 +2171,7 @@ function renderWith(){
   }).join('')}</div>`;
 }
 function addWithName(n){ n = canonPerson(n); if (n && !D.with.some(x => x.toLowerCase() === n.toLowerCase())) D.with.push(n); }
-function addWith(n){ addWithName(n); const i = $('#f-person'); i.value = ''; D.person = ''; i.placeholder = 'Add another name'; renderWith(); renderPersonSugg(); renderRefund(); }
+function addWith(n){ addWithName(n); const i = $('#f-person'); i.value = ''; D.person = ''; i.placeholder = 'Add another name'; renderWith(); renderPersonSugg(); }
 function applyTemplate(key){
   const t = templates().find(x => x.key === key); if (!t) return;
   D.desc = t.desc; $('#f-desc').value = t.desc;
@@ -2028,7 +2222,6 @@ async function saveEntry(){
     setPad(false); buzz(); shake(field); field.scrollIntoView({block: 'center', behavior: 'smooth'});
   };
   if (bill && !D.card){ formError('#bill-card', 'Pick which card this bill is for'); return; }
-  if (multi && D.refundOn && !(refundBack() > 0)){ formError('#refund-wrap', 'Type how much is coming back'); return; }
   setErr('');
   if (D.type === 'received' && D.linkTo){ saveAsMoneyBack(amount, person); return; }
   if (D.type === 'gotback' || D.type === 'paidback'){
@@ -2063,17 +2256,11 @@ async function saveEntry(){
   if (D.prior > 0) e.prior = Math.min(D.prior, amount);
   // which card: required on a card bill, optional on a spend paid by card, dropped everywhere else
   if ((bill || (multi && D.mode === 'Card')) && D.card) e.card = D.card;
-  if (multi && D.refundOn){
-    const r = {amount: Math.round(Math.min(refundBack(), amount) * 100) / 100, status: D.refundArrived ? 'received' : 'awaited',
-               confirmed: (prev && prev.refund && prev.refund.confirmed) || todayKey()}; // keeps the day it was first confirmed
-    if (D.refundArrived){
-      r.received = D.refundReceived || todayKey();
-      if (D.refundTo) r.to = D.refundTo;
-      const rc = D.refundTo === 'Card' ? (D.refundCard || D.card) : '';
-      if (rc) r.card = rc;
-    }
-    if (D.refundFrom.trim()) r.from = D.refundFrom.trim(); // a person paid you back (left out for a shop's refund)
-    e.refund = r;
+  // money back is set on the entry's page, so an edit keeps it untouched. It goes if this is no longer a spend,
+  // and can't be more than the new amount.
+  if (multi && prev && prev.type === 'spent' && prev.refund){
+    e.refund = {...prev.refund};
+    if ((+e.refund.amount || 0) > amount) e.refund.amount = amount;
   }
   saving = true;
   try { await store.put(e); }
@@ -2236,11 +2423,110 @@ function appSection(){
       <p class="muted" style="margin:8px 0 0;font-size:12px">App v${v}${appUpdate ? ` · <a href="${APK_URL}">v${appUpdate.version} available, download</a>` : ''}</p></div>`;
 }
 
-async function deleteEntry(){
-  const e = S.entries.find(x=>x.id===D.editId); if (!e) return;
-  closeSheet();
+/* Delete with Undo. Undo saves it again with a fresh updatedAt, so it wins over the deletion on every device */
+async function deleteWithUndo(e){
+  const before = cleanRec(e);
   try { await store.remove(e.id); } catch { toast("Couldn't delete. Try again."); return; }
-  toast(`Deleted ${rupee(e.amount)}${e.desc?' · '+e.desc:''}`, 'Undo', () => { store.put(e).catch(()=>toast("Couldn't restore it.")); });
+  toast('Deleted', 'Undo', () => { store.put(before).catch(() => toast("Couldn't restore it.")); });
+}
+/* the sheet's "Delete this entry" */
+function deleteEntry(){
+  const e = S.entries.find(x=>x.id===D.editId); if (!e) return;
+  // opened with Edit on the entry's own page: Back past the sheet and that page together, in one step
+  const i = layers.findIndex(l => l.type === 'sheet'), page = layers[i - 1];
+  if (i > 0 && page.type === 'entry' && S.view === 'entry' && S.entryId === e.id){ dropLayers(layers.length - i + 1); closeSheet(true); restoreSub(page.data); }
+  else closeSheet();
+  deleteWithUndo(e);
+}
+/* "Mark arrived": the awaited money back came in today */
+async function markArrived(id){
+  const e = S.entries.find(x => x.id === id);
+  if (!e || !e.refund || e.refund.status !== 'awaited') return;
+  const before = cleanRec(e);
+  buzz();
+  await store.put(markRefundArrived(e));
+  toast('Refund marked arrived', 'Undo', () => store.put(before));
+}
+
+/* ---------- long-press menu on a row ---------- */
+function openRowMenu(id){
+  const e = S.entries.find(x => x.id === id); if (!e) return;
+  const r = e.type === 'spent' ? e.refund : null;
+  const item = (act, icon, label, cls = '') => `<button class="mi${cls}" data-act="${act}" data-id="${esc(id)}"><i>${icon}</i>${label}</button>`;
+  $('#rm-title').textContent = entryLook(e).title;
+  $('#rm-sub').textContent = `${TYPES[e.type].label} · ${rupee(e.amount)} · ${dayLabel(e.date)}`;
+  $('#rm-body').innerHTML = [
+    e.type === 'spent' && !r ? item('mbopen', ICON.refund, 'Got money back') : '',
+    r && r.status === 'awaited' ? item('arrived', ICON.check, 'Mark arrived') : '',
+    item('dup', ICON.copy, 'Duplicate'),
+    item('delentry', ICON.trash, 'Delete', ' danger'),
+  ].join('');
+  buzz(); showSheet($('#rowmenu'));
+}
+
+/* ---------- the Money back card: set money back on a spend that's already logged ----------
+   MB is the card being filled in: {id, from ('' = a shop's refund), full, partStr, arrived, received, to, card, newCards, had} */
+let MB = null;
+const mbEntry = () => MB && S.entries.find(x => x.id === MB.id);
+function openMoneyBack(id){
+  const e = S.entries.find(x => x.id === id); if (!e || e.type !== 'spent') return;
+  const r = e.refund;
+  // a new one starts as: a shop's refund, the full amount, awaited
+  MB = {id, from: (r && r.from) || '', full: !r || +r.amount >= e.amount, partStr: r && +r.amount < e.amount ? trimAmt(r.amount) : '',
+        arrived: !!r && r.status === 'received', received: (r && r.received) || todayKey(), to: (r && r.to) || '', card: (r && r.card) || '',
+        newCards: [], had: !!r};
+  $('#mb-err').hidden = true;
+  renderMB(); showSheet($('#mbsheet'));
+  $('#mb-body').scrollTop = 0;
+}
+/* it has arrived: today, and back where the money went out (the same default as Mark arrived) */
+function mbArrive(){
+  MB.arrived = true;
+  if (!MB.to){ const d = markRefundArrived({...mbEntry(), refund: {}}).refund; MB.to = d.to; MB.card = d.card || MB.card; }
+}
+const mbBack = e => MB.full ? e.amount : Math.min(parseFloat(MB.partStr) || 0, e.amount);
+const mbHint = e => mbBack(e) > 0 ? `Counts as ${rupee(e.amount - mbBack(e))} spent` : 'Type how much came back';
+function renderMB(){
+  const e = mbEntry(); if (!e) return;
+  const chip = (act, v, label, on) => `<button class="chip${on ? ' on' : ''}" data-act="${act}" data-v="${esc(v)}">${label}</button>`;
+  // people you split this with are left out: their share is "paid back" on the entry instead
+  const shared = new Set(withOf(e).map(lc));
+  const names = uniqCI([MB.from, ...allPeople()]).filter(n => !shared.has(lc(n))).slice(0, 6);
+  const tk = todayKey(), yk = addDays(tk, -1), rd = MB.received;
+  $('#mb-sub').textContent = `${entryLook(e).title} · ${rupee(e.amount)} · ${dayMon(e.date)}`;
+  const arrived = !MB.arrived ? '' : `
+    <div><div class="quick-h">Arrived on</div><div class="chips">${chip('mbdate', 0, 'Today', rd === tk)}${chip('mbdate', 1, 'Yesterday', rd === yk)}
+      <input type="date" class="date-inp${rd !== tk && rd !== yk ? ' on' : ''}" id="mb-date" value="${esc(rd)}" max="${tk}" aria-label="Pick the day it arrived"></div></div>
+    <div><div class="quick-h">Came back to</div><div class="chips">${uniqCI(['Card', 'UPI', 'Bank', 'Cash', MB.to]).map(m => chip('mbto', m, esc(m), MB.to === m)).join('')}</div></div>
+    ${MB.to === 'Card' ? `<div>${cardPicker('Which card', 'mbcard', MB.card, MB.newCards)}</div>` : ''}`;
+  $('#mb-body').innerHTML = `
+    <div><div class="quick-h">From</div><div class="chips">${chip('mbfrom', '', 'Shop refund', !MB.from)}${names.map(n => chip('mbfrom', n, esc(n), lc(n) === lc(MB.from))).join('')}
+      <button class="chip" data-act="mbfromnew">+ Someone else</button></div></div>
+    <div><div class="quick-h">How much</div><div class="chips">${chip('mbamt', 'full', `Full ${rupee(e.amount)}`, MB.full)}${chip('mbamt', 'part', 'Part', !MB.full)}
+      ${MB.full ? '' : `<input class="date-inp mb-part" id="mb-part" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="₹ how much" aria-label="How much came back" value="${esc(MB.partStr)}">`}</div></div>
+    <div><div class="quick-h">Status</div><div class="chips">${chip('mbst', 'awaited', 'Awaited', !MB.arrived)}${chip('mbst', 'arrived', 'Arrived', MB.arrived)}</div></div>
+    ${arrived}
+    <p class="muted mb-hint" id="mb-hint">${esc(mbHint(e))}</p>`;
+  $('#mb-foot').innerHTML = (MB.had ? '<button class="btn danger" data-act="mbremove">Remove money back</button>' : '')
+    + '<button class="save" data-act="mbsave">Save</button>';
+}
+async function saveMoneyBack(){
+  const e = mbEntry(); if (!e) { closeSheet(); return; }
+  const back = mbBack(e);
+  if (!(back > 0)){ const err = $('#mb-err'); err.textContent = 'Type how much came back'; err.hidden = false; const i = $('#mb-part'); if (i){ shake(i); i.focus(); } buzz(); return; }
+  const before = cleanRec(e);
+  const next = withMoneyBack(e, {amount: back, status: MB.arrived ? 'received' : 'awaited', received: MB.received,
+    to: MB.arrived ? MB.to : '', card: MB.card, from: MB.from});
+  closeSheet(); buzz(); S.flashId = e.id;
+  await store.put(next);
+  toast(`${rupee(next.refund.amount)} back · counts as ${rupee(netOf(next))} spent`, 'Undo', () => store.put(before));
+}
+async function removeMoneyBack(){
+  const e = mbEntry(); if (!e) { closeSheet(); return; }
+  const before = cleanRec(e);
+  closeSheet();
+  await store.put(withoutMoneyBack(e));
+  toast('Money back removed', 'Undo', () => store.put(before));
 }
 
 /* ---------- data panel ---------- */
@@ -2336,14 +2622,27 @@ async function addSamples(){
 document.addEventListener('click', ev => {
   const el = ev.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
+  // an action picked in the long-press menu: close the menu first, then do it
+  const inMenu = openEl && openEl.id === 'rowmenu' && openEl.contains(el);
+  if (inMenu && a !== 'close') closeSheet();
   switch (a){
     case 'nav': S.person = null; go(el.dataset.v); break;
     case 'voice': openEntry({}); startVoice(); break;
     case 'mic': startVoice(); break;
     case 'add': if (el.dataset.lp){ delete el.dataset.lp; break; } openEntry({type: el.dataset.type, person: el.dataset.person, amount: el.dataset.amount, focusWith: el.dataset.with, card: el.dataset.card}); break;
-    case 'open': openEntry({}, el.dataset.id); break;
+    case 'open': openSub('entry', {entryId: el.dataset.id}); break; // a tap on a row opens the entry's page
+    case 'back': leaveSub(); break;
+    case 'edit': openEntry({}, el.dataset.id); break;
+    case 'dup': { const e = S.entries.find(x => x.id === el.dataset.id); if (e) openEntry({copy: duplicateAsNew(e)}); break; }
+    case 'delentry': {
+      const e = S.entries.find(x => x.id === el.dataset.id); if (!e) break;
+      if (!inMenu && S.view === 'entry') leaveSub(); // deleted from its own page: go back to where it was opened from
+      deleteWithUndo(e); break;
+    }
+    case 'arrived': markArrived(el.dataset.id); break;
+    case 'mbopen': openMoneyBack(el.dataset.id); break;
     case 'close': closeSheet(); break;
-    case 'person': S.person = el.dataset.name; go('person'); break;
+    case 'person': openSub('person', {person: el.dataset.name}); break;
     case 'sample': addSamples(); break;
     case 'settings': openPanel(); break;
     case 'type': {
@@ -2356,59 +2655,54 @@ document.addEventListener('click', ev => {
     }
     case 'card': D.card = lc(D.card) === lc(el.dataset.c) ? '' : el.dataset.c; setErr(''); renderCards(); break;
     case 'usebill': D.amountStr = trimAmt(+el.dataset.v); setErr(''); syncAmount(true); renderQuick(); break;
-    case 'cardpage': S.card = el.dataset.c; S.cardPick = false; S.duePick = false; S.cardOpen = {}; go('card'); break;
+    case 'cardpage': openSub('card', {card: el.dataset.c, cardPick: false, duePick: false, cardOpen: {}}); break;
     case 'stmtpick': S.cardPick = !S.cardPick; S.duePick = false; render(); break;
     case 'stmtday': S.cardPick = false; saveCardSettings(S.card, {statementDay: +el.dataset.d || null}); break;
     case 'duepick': S.duePick = !S.duePick; S.cardPick = false; render(); break;
     case 'dueday': S.duePick = false; saveCardSettings(S.card, {dueDay: +el.dataset.d || null}); break;
     case 'cyctoggle': { const k = el.dataset.k, i = +el.dataset.i; S.cardOpen[k] = !(S.cardOpen[k] ?? i === 0); render(); break; }
-    case 'rcard': D.refundCard = el.dataset.c; renderRefund(); break;
     case 'newcard': { // like "+ New" category: the chip turns into a small box
-      const forRefund = el.dataset.for === 'rcard';
+      const forMB = el.dataset.for === 'mbcard'; // in the Money back card, or the add sheet
       el.outerHTML = `<span class="newcard"><input class="date-inp" id="newcard" placeholder="Card name, e.g. HDFC" style="width:170px" maxlength="24" enterkeyhint="done"><button class="chip" data-act="newcardadd">Add</button></span>`;
       const i = $('#newcard'); i.focus();
       const done = () => {
         const v = tidyCard(i.value);
         if (v){
-          const name = uniqCI([...cardNames(), ...D.newCards]).find(c => lc(c) === lc(v)) || v; // reuse "HDFC" for "hdfc"
-          if (!D.newCards.some(c => lc(c) === lc(name))) D.newCards.push(name);
-          if (forRefund) D.refundCard = name; else { D.card = name; setErr(''); }
+          const pool = forMB ? MB.newCards : D.newCards;
+          const name = uniqCI([...cardNames(), ...pool]).find(c => lc(c) === lc(v)) || v; // reuse "HDFC" for "hdfc"
+          if (!pool.some(c => lc(c) === lc(name))) pool.push(name);
+          if (forMB) MB.card = name; else { D.card = name; setErr(''); }
         }
-        renderCards(); renderRefund();
+        if (forMB) renderMB(); else renderCards();
       };
       i.addEventListener('keydown', e2 => { if (e2.key === 'Enter'){ e2.preventDefault(); i.blur(); } });
       i.addEventListener('blur', done, {once: true}); // tapping Add also blurs the box, which saves it
       break;
     }
     case 'newcardadd': { const i = $('#newcard'); if (i) i.blur(); break; }
-    case 'refund': {
-      const v = el.dataset.v;
-      if (v === 'on') D.refundOn = true;
-      else if (v === 'off'){ D.refundOn = false; D.refundStr = ''; D.refundArrived = false; D.refundFrom = ''; }
-      else if (v === 'full' || v === 'partial') D.refundFull = v === 'full';
-      else if (v === 'arrived') setArrived();
-      else D.refundArrived = false;
-      renderRefund(); renderWith();
-      if (v === 'partial' && !D.refundStr) setTimeout(() => { const i = $('#f-refund'); if (i) i.focus(); }, 30);
-      break;
-    }
-    case 'rfrom': // who gave it back; a person usually pays you back straight away, so it starts as Arrived
-      D.refundFrom = el.dataset.v;
-      if (D.refundFrom) setArrived();
-      renderRefund(); break;
-    case 'rfromnew': { // like "+ New card": the chip turns into a small name box
-      el.outerHTML = `<span class="newcard"><input class="date-inp" id="rfrom-new" placeholder="Their name" style="width:150px" maxlength="24" enterkeyhint="done"><button class="chip" data-act="rfromadd">Add</button></span>`;
-      const i = $('#rfrom-new'); i.focus();
-      const done = () => { const v = canonPerson(i.value); if (v){ D.refundFrom = v; setArrived(); } renderRefund(); };
+    // the Money back card
+    case 'mbfrom': MB.from = el.dataset.v; if (MB.from) mbArrive(); renderMB(); break; // a person usually pays you back there and then
+    case 'mbfromnew': { // like "+ New card": the chip turns into a small name box
+      el.outerHTML = `<span class="newcard"><input class="date-inp" id="mb-from-new" placeholder="Their name" style="width:150px" maxlength="24" enterkeyhint="done"><button class="chip" data-act="mbfromadd">Add</button></span>`;
+      const i = $('#mb-from-new'); i.focus();
+      const done = () => { const v = canonPerson(i.value); if (v){ MB.from = v; mbArrive(); } if (MB) renderMB(); };
       i.addEventListener('keydown', e2 => { if (e2.key === 'Enter'){ e2.preventDefault(); i.blur(); } });
       i.addEventListener('blur', done, {once: true}); // tapping Add also blurs the box, which saves it
       break;
     }
-    case 'rfromadd': { const i = $('#rfrom-new'); if (i) i.blur(); break; }
+    case 'mbfromadd': { const i = $('#mb-from-new'); if (i) i.blur(); break; }
+    case 'mbamt':
+      MB.full = el.dataset.v === 'full'; $('#mb-err').hidden = true; renderMB();
+      if (!MB.full) setTimeout(() => { const i = $('#mb-part'); if (i) i.focus(); }, 30);
+      break;
+    case 'mbst': if (el.dataset.v === 'arrived') mbArrive(); else MB.arrived = false; renderMB(); break;
+    case 'mbdate': MB.received = addDays(todayKey(), -Number(el.dataset.v)); renderMB(); break;
+    case 'mbto': MB.to = el.dataset.v; if (MB.to === 'Card' && !MB.card) MB.card = (mbEntry() || {}).card || ''; renderMB(); break;
+    case 'mbcard': MB.card = lc(MB.card) === lc(el.dataset.c) ? '' : el.dataset.c; renderMB(); break;
+    case 'mbsave': saveMoneyBack(); break;
+    case 'mbremove': removeMoneyBack(); break;
     case 'linkopen': D.linkOpen = true; renderLink(); break;
     case 'link': D.linkTo = el.dataset.v || null; D.linkOpen = false; setErr(''); renderLink(); break;
-    case 'rdate': D.refundReceived = addDays(todayKey(), -Number(el.dataset.v)); renderRefund(); break;
-    case 'rto': D.refundTo = el.dataset.v; renderRefund(); break;
     case 'cat': D.cat = D.cat === el.dataset.c ? '' : el.dataset.c; D.catTouched = true; syncSheet(); break;
     case 'newcat': {
       el.outerHTML = `<input class="date-inp" id="newcat" placeholder="New category" style="width:150px" maxlength="24">`;
@@ -2425,7 +2719,7 @@ document.addEventListener('click', ev => {
       if (D.type === 'spent') addWith(el.dataset.p);
       else { D.person = el.dataset.p; $('#f-person').value = D.person; renderPersonSugg(); }
       setErr(''); break;
-    case 'unwith': D.with = D.with.filter(x => x !== el.dataset.p); renderWith(); renderPersonSugg(); renderRefund(); break;
+    case 'unwith': D.with = D.with.filter(x => x !== el.dataset.p); renderWith(); renderPersonSugg(); break;
     case 'fullamt': D.amountStr = trimAmt(+el.dataset.v); syncAmount(true); renderPersonSugg(); break;
     case 'key': keyPress(el.dataset.k); break;
     case 'prioryes': case 'priorno': {
@@ -2566,7 +2860,7 @@ document.addEventListener('click', ev => {
       (async () => { closeSheet(); await store.removeMany(S.entries.map(x=>x.id)); toast('All entries deleted'); })(); break;
   }
 });
-$('#scrim').addEventListener('click', closeSheet);
+$('#scrim').addEventListener('click', () => closeSheet()); // not closeSheet(event): that would read as "Back already closed it"
 $('#import-file').addEventListener('change', ev => { const f = ev.target.files[0]; ev.target.value = ''; if (f) doImport(f); });
 
 // keypad, in reading order: 1 2 3 ⌫ / 4 5 6 hide / 7 8 9 Save / . 0 00 (Save is two rows tall, see .k-save)
@@ -2623,15 +2917,18 @@ $('#f-person').addEventListener('input', e => {
   D.person = v; renderPersonSugg(); setErr('');
 });
 $('#f-incme').addEventListener('change', e => { D.incMe = e.target.checked; renderWith(); });
-// the refund section is redrawn often, so its fields are listened to on the box around them
-$('#refund-wrap').addEventListener('input', e => {
-  if (e.target.id !== 'f-refund') return;
-  const v = e.target.value.replace(/[^0-9.]/g, '').slice(0, 10);
+// the Money back card is redrawn often, so its fields are listened to on the box around them
+$('#mb-body').addEventListener('input', e => {
+  if (e.target.id !== 'mb-part' || !MB) return;
+  const ent = mbEntry();
+  let v = e.target.value.replace(/[^0-9.]/g, '').slice(0, 10);
+  if (ent && parseFloat(v) > ent.amount) v = trimAmt(ent.amount); // can't get back more than was paid
   if (v !== e.target.value) e.target.value = v;
-  D.refundStr = v; updateRefundHint(); renderWith(); setErr('');
+  MB.partStr = v; $('#mb-err').hidden = true;
+  if (ent) $('#mb-hint').textContent = mbHint(ent);
 });
-$('#refund-wrap').addEventListener('keydown', e => { if (e.target.id === 'f-refund' && e.key === 'Enter'){ e.preventDefault(); e.target.blur(); } });
-$('#refund-wrap').addEventListener('change', e => { if (e.target.id === 'f-rdate' && e.target.value){ D.refundReceived = e.target.value; renderRefund(); } });
+$('#mb-body').addEventListener('keydown', e => { if (e.target.id === 'mb-part' && e.key === 'Enter'){ e.preventDefault(); e.target.blur(); } });
+$('#mb-body').addEventListener('change', e => { if (e.target.id === 'mb-date' && e.target.value){ MB.received = e.target.value; renderMB(); } });
 $('#f-prior').addEventListener('change', e => {
   D.priorAsked = true;
   D.prior = e.target.checked ? Math.max(D.prior, settleExcess(D.type, canonPerson($('#f-person').value), parseFloat(D.amountStr) || 0, D.editId)) || (parseFloat(D.amountStr) || 0) : 0;
@@ -3166,6 +3463,29 @@ document.addEventListener('keydown', e => {
 });
 $('#f-say').addEventListener('focus', () => { if (listening) stopVoice(); });
 $('#f-say').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); runLine(e.target.value); } });
+/* ---------- rows: a tap opens the entry's page; a long press (or right-click) opens its menu ----------
+   Some browsers end a long press with a click where the finger lifts, which would land on the menu that just
+   opened (or the dimmed screen behind it, closing it). swallowClick says until when that one click is ignored:
+   Infinity while the finger is still down, then half a second after it lifts. */
+let press = null, swallowClick = 0;
+const endPress = () => { if (press){ clearTimeout(press.timer); press = null; } };
+function longPressed(row){ endPress(); swallowClick = Infinity; openRowMenu(row.dataset.id); }
+document.addEventListener('pointerdown', e => {
+  endPress(); swallowClick = 0;
+  const row = e.target.closest('.row[data-act=open]');
+  if (!row || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  press = {x: e.clientX, y: e.clientY, timer: setTimeout(() => longPressed(row), 500)};
+});
+// moving the finger (scrolling) before the half second is up makes it a scroll, not a long press
+document.addEventListener('pointermove', e => { if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) endPress(); });
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => { endPress(); if (swallowClick === Infinity) swallowClick = Date.now() + 500; }));
+window.addEventListener('click', e => { if (Date.now() < swallowClick){ swallowClick = 0; e.stopPropagation(); e.preventDefault(); } }, true);
+// a phone's own long press and a desktop right-click both arrive as contextmenu
+document.addEventListener('contextmenu', e => {
+  const row = e.target.closest('.row[data-act=open]'); if (!row) return;
+  e.preventDefault();
+  if (swallowClick !== Infinity) longPressed(row); // else the long press already opened the menu
+});
 // long-press the + button to speak straight away
 (() => {
   const fab = $('.fab'); let t = null;
