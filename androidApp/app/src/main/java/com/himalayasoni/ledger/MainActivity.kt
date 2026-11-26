@@ -30,12 +30,15 @@ class MainActivity : Activity() {
         val opener = referrer?.host ?: "unknown"
         val fromIcon = intent?.sourceBounds != null || opener == homeApp()
         LaunchPrefs.remember(this, opener, fromIcon)
-        val quick = when (LaunchPrefs.mode(this)) {
-            LaunchPrefs.Mode.APP -> false
-            LaunchPrefs.Mode.QUICK -> true
-            LaunchPrefs.Mode.SIDE -> !fromIcon
-        }
-        startActivity(if (quick) QuickAdd.intent(this) else appIntent(this))
+        val mode = LaunchPrefs.mode(this)
+        startActivity(
+            when {
+                mode == LaunchPrefs.Mode.QUICK || (mode == LaunchPrefs.Mode.SIDE && !fromIcon) -> QuickAdd.intent(this)
+                mode == LaunchPrefs.Mode.SCAN && !fromIcon -> Intent(this, com.himalayasoni.ledger.ui.scan.ScreenScanActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                else -> appIntent(this)
+            },
+        )
         // no animation for this invisible step
         @Suppress("DEPRECATION") overridePendingTransition(0, 0)
         finishAndRemoveTask()
@@ -62,6 +65,8 @@ object LaunchPrefs {
         APP("app"),
         /** Always quick add, even from the icon (the pop-up has a button to the full app). */
         QUICK("quick"),
+        /** The side button reads the payment on screen (asks Android each time); the icon opens the app. */
+        SCAN("scan"),
     }
 
     private fun prefs(c: Context) = c.getSharedPreferences("ledger", Context.MODE_PRIVATE)

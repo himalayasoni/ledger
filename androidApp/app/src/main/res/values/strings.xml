@@ -10,6 +10,8 @@
     <string name="tile_label">Add to Ledger</string>
     <string name="quick_add_label">Add to Ledger</string>
     <string name="share_label">Log in Ledger</string>
+    <string name="sc_scan_short">Scan screen</string>
+    <string name="sc_scan_long">Scan the screen for a payment</string>
     <string name="sc_add_short">Quick add</string>
     <string name="sc_add_long">Quick add an expense</string>
     <string name="sc_say_short">Say it</string>

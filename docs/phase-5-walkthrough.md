@@ -199,3 +199,21 @@ screenshot, reads it, and fills in amount, who, date and the UPI reference. You 
 ### Concepts to look up
 - **Share targets**: `Intent.ACTION_SEND`, `EXTRA_STREAM`, and the temporary read permission that comes with a shared URI.
 - **ML Kit bundled vs unbundled** models: APK size against first-run availability.
+
+## Screen scan (v20)
+
+Set Settings › Side button › **Scan screen** in Ledger (or use the "Scan screen" app shortcut, which RegiStar's
+back tap can open). On a payment's done screen, double-press the side button → Android asks "Start recording or
+casting with Ledger?" → **Start** → the quick add pop-up opens, filled in from what was on screen.
+
+- **Why Android asks every time:** an app can only see another app's screen as the phone's assistant, with
+  accessibility access, or through screen capture (`MediaProjection`). Ledger uses screen capture, so Gemini stays
+  your assistant and nothing is ever captured without that tap.
+- `ScreenScanActivity` is an invisible window (`Theme.Ledger.Invisible`) that asks for the capture.
+  `createConfigForDefaultDisplay()` (Android 14+) skips the "one app or entire screen?" step.
+- `ScreenCaptureService` is a foreground service of type `mediaProjection` (required before Android hands over the
+  capture). It mirrors the screen into an `ImageReader`, waits 0.7 s for the consent box to fade, keeps the newest
+  frame, stops, and saves a PNG in Ledger's cache.
+- The activity is still in front, which is what allows it to open the pop-up (Android blocks a background service
+  from opening screens). The pop-up reads the file with the same `ScreenshotReader` as a shared screenshot, then deletes it.
+- Screens that block screenshots (`FLAG_SECURE`) come out black; the pop-up then says so and suggests sharing a screenshot.

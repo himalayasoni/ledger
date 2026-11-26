@@ -71,16 +71,24 @@ class QuickAddActivity : ComponentActivity() {
      * pop-up from what it says. Anything else: as the intent asks.
      */
     private fun open(intent: Intent?) {
-        val shot = QuickAdd.sharedImage(intent)
-        if (shot == null) { request = QuickAdd.requestFrom(intent); return }
-        request = AddRequest(mini = true, scan = AddRequest.Scan.Reading)
+        // a screen scan (ScreenScanActivity) passes the frame it saved; "" = the capture didn't work
+        val screenFile = intent?.getStringExtra(QuickAdd.EXTRA_SCREEN_FILE)
+        val shot = QuickAdd.sharedImage(intent) ?: screenFile?.takeIf { it.isNotEmpty() }?.let { android.net.Uri.fromFile(java.io.File(it)) }
+        val source = if (screenFile != null) "screen" else "screenshot"
+        if (shot == null) {
+            request = if (screenFile != null) AddRequest(mini = true, scan = AddRequest.Scan.Unreadable, scanSource = source)
+            else QuickAdd.requestFrom(intent)
+            return
+        }
+        request = AddRequest(mini = true, scan = AddRequest.Scan.Reading, scanSource = source)
         lifecycleScope.launch {
             val scan = when (val r = ScreenshotReader.read(applicationContext, shot)) {
                 is ScreenshotReader.Result.Read -> AddRequest.Scan.Read(r.payment)
                 ScreenshotReader.Result.NotAPayment -> AddRequest.Scan.NotAPayment
                 ScreenshotReader.Result.Unreadable -> AddRequest.Scan.Unreadable
             }
-            request = AddRequest(mini = true, scan = scan)
+            screenFile?.let { java.io.File(it).delete() } // the frame was only needed for reading
+            request = AddRequest(mini = true, scan = scan, scanSource = source)
         }
     }
 }
@@ -130,6 +138,14 @@ object QuickAdd {
         val said = intent.getStringExtra(EXTRA_SAID)?.takeIf { it.isNotBlank() }
         return AddRequest(type = type, listen = listen, said = said, mini = type == null && !listen && said == null)
     }
+
+    /** A screen scan's saved frame (a file in Ledger's cache); "" when the capture failed. */
+    const val EXTRA_SCREEN_FILE = "screenFile"
+
+    fun screenIntent(context: Context, file: java.io.File?): Intent =
+        Intent(context, QuickAddActivity::class.java).setAction(Intent.ACTION_VIEW)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra(EXTRA_SCREEN_FILE, file?.absolutePath.orEmpty())
 
     /** The image in a "Share → Log in Ledger", if that's how we were opened. */
     fun sharedImage(intent: Intent?): android.net.Uri? {

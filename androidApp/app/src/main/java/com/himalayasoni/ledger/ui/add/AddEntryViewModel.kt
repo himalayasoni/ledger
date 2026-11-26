@@ -66,7 +66,8 @@ data class AddRequest(
     val said: String? = null,     // a notification reply that needs finishing: fill the form from it
     val prefill: Entry? = null,   // "Duplicate": a new entry with these details (see core's duplicateAsNew)
     val mini: Boolean = false,    // the small quick add (amount, keypad, usuals); "More" opens the full form
-    val scan: Scan? = null,       // a payment screenshot shared to Ledger
+    val scan: Scan? = null,       // a payment screenshot shared to Ledger, or the screen scanned
+    val scanSource: String = "screenshot", // "screenshot" or "screen": only changes the wording
 ) {
     /** Where reading a shared screenshot is up to. */
     sealed interface Scan {
@@ -278,7 +279,7 @@ class AddEntryViewModel(
                 amountText = req.amount?.let { plain(Math.abs(it)) }.orEmpty(),
                 card = req.card.orEmpty(),
             )
-            req.scan != null -> fromScan(fresh.copy(mini = true, mode = s.lastMode, card = s.lastCard), req.scan)
+            req.scan != null -> fromScan(fresh.copy(mini = true, mode = s.lastMode, card = s.lastCard), req.scan, req.scanSource)
             req.mini -> fresh.copy(mini = true, mode = s.lastMode, card = s.lastCard)
             else -> fresh
         }
@@ -288,12 +289,14 @@ class AddEntryViewModel(
      * Fill the pop-up from a screenshot. The UPI reference goes in the comment ("UPI ref 4330…"): it's on your
      * bank statement too, and it's how a second share of the same screenshot is spotted.
      */
-    private fun fromScan(base: AddEntryState, scan: AddRequest.Scan): AddEntryState = when (scan) {
-        AddRequest.Scan.Reading -> base.copy(heardFrom = "your screenshot", heard = "", heardNote = "Reading it…", keypadOn = false)
-        AddRequest.Scan.NotAPayment -> base.copy(heardFrom = "your screenshot", heard = "",
-            heardNote = "No amount found on it. Type it in, or share the payment's done screen.")
-        AddRequest.Scan.Unreadable -> base.copy(heardFrom = "your screenshot", heard = "",
-            heardNote = "Couldn't read it. Text reading may still be downloading; try again in a minute.")
+    private fun fromScan(base: AddEntryState, scan: AddRequest.Scan, source: String): AddEntryState = when (scan) {
+        AddRequest.Scan.Reading -> base.copy(heardFrom = "your $source", heard = "", heardNote = "Reading it…", keypadOn = false)
+        AddRequest.Scan.NotAPayment -> base.copy(heardFrom = "your $source", heard = "",
+            heardNote = if (source == "screen") "No amount found. Some payment screens block capture; take a screenshot and share it instead, or type it in."
+            else "No amount found on it. Type it in, or share the payment's done screen.")
+        AddRequest.Scan.Unreadable -> base.copy(heardFrom = "your $source", heard = "",
+            heardNote = if (source == "screen") "Couldn't capture the screen this time. Try again, or share a screenshot."
+            else "Couldn't read it. Text reading may still be downloading; try again in a minute.")
         is AddRequest.Scan.Read -> {
             val p = scan.payment
             val fmt = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
@@ -314,7 +317,7 @@ class AddEntryViewModel(
                 note = p.ref?.let { "UPI ref $it" }.orEmpty(),
                 mode = if (p.viaCreditCard) "Card" else "UPI", modeTouched = true,
                 keypadOn = p.amount == null,
-                heardFrom = (p.app ?: "payment") + " screenshot", heard = "",
+                heardFrom = (p.app ?: "payment") + " " + source, heard = "",
                 heardNote = if (notes.isEmpty()) "Check it, pick a category and tap Save." else notes.joinToString(" · ").replaceFirstChar { it.uppercase() },
             )
         }

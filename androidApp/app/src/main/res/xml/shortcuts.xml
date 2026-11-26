@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Long-press the app icon: these three open the quick add pop-up directly.
+  Long-press the app icon: the first three open the quick add pop-up directly; "Scan screen" reads what's on screen.
   targetPackage is the applicationId (app/build.gradle.kts: appPackage), targetClass the class's full name.
 -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
@@ -40,5 +40,16 @@
             android:targetClass="com.himalayasoni.ledger.ui.quickadd.QuickAddActivity">
             <extra android:name="type" android:value="cardbill" />
         </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="scan"
+        android:enabled="true"
+        android:icon="@drawable/sc_scan"
+        android:shortcutShortLabel="@string/sc_scan_short"
+        android:shortcutLongLabel="@string/sc_scan_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.himalayasoni.ledger.beta"
+            android:targetClass="com.himalayasoni.ledger.ui.scan.ScreenScanActivity" />
     </shortcut>
 </shortcuts>

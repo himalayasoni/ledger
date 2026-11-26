@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Alarms are forgotten when the phone restarts; this lets Ledger set them again -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Screen scan: a few seconds of screen capture, only after you tap "Start" in Android's own box -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <application
         android:name=".LedgerApp"
         android:allowBackup="true"
@@ -56,6 +59,19 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
+
+        <!-- Screen scan: asks Android for one screen capture, grabs one frame, opens the pop-up with what it read -->
+        <activity
+            android:name=".ui.scan.ScreenScanActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Ledger.Invisible"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask" />
+        <service
+            android:name=".ui.scan.ScreenCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <!-- Ask Play services to fetch the text-recognition model when Ledger is installed, not on first use -->
         <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="ocr" />

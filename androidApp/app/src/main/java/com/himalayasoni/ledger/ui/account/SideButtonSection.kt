@@ -39,12 +39,13 @@ internal fun SideButtonContent(mode: LaunchPrefs.Mode, last: Pair<String, Boolea
             Text("Side button", style = LedgerType.title, color = c.ink)
             Text(
                 "Set Settings › Advanced features › Side button › Double press › Open app › Ledger β. " +
-                    "Then a double press shows the quick add pop-up over whatever you're doing.",
+                    "Then a double press does what you pick here, over whatever you're doing.",
                 style = LedgerType.body, color = c.ink2,
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     LaunchPrefs.Mode.SIDE to "Quick add",
+                    LaunchPrefs.Mode.SCAN to "Scan screen",
                     LaunchPrefs.Mode.APP to "Full app",
                     LaunchPrefs.Mode.QUICK to "Quick add, icon too",
                 ).forEach { (m, label) -> LedgerChip(label, mode == m) { onMode(m) } }
@@ -54,6 +55,7 @@ internal fun SideButtonContent(mode: LaunchPrefs.Mode, last: Pair<String, Boolea
                     LaunchPrefs.Mode.SIDE -> "The app icon still opens the full app."
                     LaunchPrefs.Mode.APP -> "The side button opens the full app, like the icon."
                     LaunchPrefs.Mode.QUICK -> "The icon opens the pop-up too. Its home button takes you to the full app."
+                    LaunchPrefs.Mode.SCAN -> "A double press reads the payment on screen. Android asks first each time: tap Start. The icon still opens the full app."
                 },
                 style = LedgerType.small, color = c.ink2,
             )
