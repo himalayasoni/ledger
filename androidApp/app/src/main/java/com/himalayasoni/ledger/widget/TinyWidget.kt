@@ -26,7 +26,7 @@ import androidx.glance.layout.size
 import com.himalayasoni.ledger.R
 import com.himalayasoni.ledger.ui.quickadd.QuickAdd
 
-/** The 1×1 widget: a marigold square with a "+", one tap to the mini quick add (like the "Ledger +" icon). */
+/** The 1×1 widget: a marigold square with a "+", one tap to the mini quick add (like the side button). */
 class TinyWidget : GlanceAppWidget() {
     override val sizeMode: SizeMode = SizeMode.Exact
 

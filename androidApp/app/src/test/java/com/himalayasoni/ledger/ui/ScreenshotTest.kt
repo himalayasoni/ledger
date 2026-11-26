@@ -303,7 +303,7 @@ class ScreenshotTest {
                 ) {
                     Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(40.dp, 4.dp)
                         .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).background(c.line))
-                    com.himalayasoni.ledger.ui.add.MiniAddContent(s, NoActions, typing = typing, onFocus = {}, onShowKeypad = {}, onSave = {}, onMic = {})
+                    com.himalayasoni.ledger.ui.add.MiniAddContent(s, NoActions, typing = typing, onFocus = {}, onShowKeypad = {}, onSave = {}, onMic = {}, onOpenApp = {})
                 }
             }
         }
@@ -320,6 +320,16 @@ class ScreenshotTest {
                 com.himalayasoni.ledger.ui.account.RemindersContent(
                     com.himalayasoni.ledger.data.prefs.ReminderSettings(daily = true, weeklyPeople = true),
                     notificationsAllowed = false, onChange = {}, onAllow = {},
+                )
+            }
+        }
+    }
+
+    @Test fun side_button_settings() = paparazzi.snapshot {
+        LedgerTheme(dark = false) {
+            Box(Modifier.fillMaxSize().background(LocalLedgerColors.current.surface).padding(16.dp)) {
+                com.himalayasoni.ledger.ui.account.SideButtonContent(
+                    com.himalayasoni.ledger.LaunchPrefs.Mode.SIDE, "android" to false, onMode = {},
                 )
             }
         }

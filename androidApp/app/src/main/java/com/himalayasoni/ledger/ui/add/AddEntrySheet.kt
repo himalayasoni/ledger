@@ -106,6 +106,7 @@ fun AddEntrySheet(
     onSaved: (String) -> Unit,
     viewModel: AddEntryViewModel = koinViewModel(),
     heightFraction: Float = 0.94f,   // the quick add pop-up is a little shorter, so the home screen shows above it
+    onOpenApp: (() -> Unit)? = null,  // the pop-up only: a button to the full app
 ) {
     val s by viewModel.state.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -178,7 +179,7 @@ fun AddEntrySheet(
         // Back lowers the keypad first (like a phone keyboard); a second Back closes the sheet
         androidx.activity.compose.BackHandler(enabled = s.keypadOn && !typing && !s.mini) { viewModel.setKeypad(false) }
         if (s.mini) MiniAddContent(
-            s, viewModel, typing, onFocus = onFocus, onShowKeypad = ::showKeypad, onMic = listen,
+            s, viewModel, typing, onFocus = onFocus, onShowKeypad = ::showKeypad, onMic = listen, onOpenApp = onOpenApp,
             modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars).imePadding().keepSheetOpen(),
             onSave = { focus.clearFocus(); viewModel.save() },
         ) else AddEntryContent(
@@ -275,12 +276,16 @@ internal fun MiniAddContent(
     onSave: () -> Unit,
     onMic: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenApp: (() -> Unit)? = null,
 ) {
     val c = LocalLedgerColors.current
     val focus = LocalFocusManager.current
     Column(modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Spacer(Modifier.width(44.dp))
+            if (onOpenApp == null) Spacer(Modifier.width(44.dp)) else Box(
+                Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(c.surface2).pressable(onClick = onOpenApp),
+                Alignment.Center,
+            ) { Icon(LedgerIcons.Home, "Open Ledger", tint = c.ink, modifier = Modifier.size(20.dp)) }
             Box(Modifier.weight(1f)) { AmountDisplay(s.amountText, s.type, compact = typing, onTap = onShowKeypad) }
             Box(
                 Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(c.deep).pressable(onClick = onMic),

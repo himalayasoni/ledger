@@ -22,8 +22,8 @@ import org.koin.core.qualifier.named
 /**
  * The quick add pop-up: the add sheet on its own, over whatever is on screen (usually the home
  * screen), without opening the rest of Ledger. Opened by the widgets, the app icon's long-press
- * shortcuts, the Quick Settings tile, the reminder notification and the "Ledger +" launcher icon
- * (an activity-alias in the manifest, so a side-key or back-tap "open app" action can open it).
+ * shortcuts ("Quick add", which Good Lock RegiStar can also open), the Quick Settings tile, the
+ * reminder notification, and the side button (MainActivity sends it here; see LaunchPrefs).
  * Plain opens show the mini layout; see [QuickAdd.requestFrom].
  *
  * How it stays out of the way (see the manifest):
@@ -50,6 +50,8 @@ class QuickAddActivity : ComponentActivity() {
                     onSaved = { msg -> Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show() },
                     viewModel = koinViewModel<AddEntryViewModel>(qualifier = named(QuickAdd.VIEWMODEL)),
                     heightFraction = 0.88f,
+                    // the pop-up's home button: on to the full app
+                    onOpenApp = { startActivity(com.himalayasoni.ledger.MainActivity.appIntent(this)); finish() },
                 )
             }
         }
@@ -97,7 +99,7 @@ object QuickAdd {
 
     /**
      * Reads the extras back. Shortcut XML may send "true" as text, so both forms are accepted.
-     * No extras (the "Ledger +" icon, the 1×1 widget, the + button, the Add shortcut): the mini quick add.
+     * No extras (the side button, the 1×1 widget, the + button, the Add shortcut): the mini quick add.
      * A type, "say it" or a line to finish: the full form, since those need more than an amount.
      */
     fun requestFrom(intent: Intent?): AddRequest {

@@ -1,80 +1,77 @@
 package com.himalayasoni.ledger
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import androidx.fragment.app.FragmentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.mutableStateOf
-import com.himalayasoni.ledger.data.sync.FirestoreSync
-import org.koin.android.ext.android.inject
-import com.himalayasoni.ledger.ui.AppShell
-import com.himalayasoni.ledger.ui.theme.LedgerTheme
+import com.himalayasoni.ledger.ui.quickadd.QuickAdd
 
-/** The single activity. Everything visible is Compose, starting from [AppShell]. */
-/** A FragmentActivity (not plain ComponentActivity) because the fingerprint prompt needs one. */
-class MainActivity : FragmentActivity() {
-    private val sync: FirestoreSync by inject()
-    /** Something a notification asked to open (an entry, a card), until AppShell has opened it. */
-    private val open = mutableStateOf<OpenRequest?>(null)
-
+/**
+ * What the app icon, the side button and every "open an app" setting start. It never shows
+ * anything: it decides where to go, starts that, and closes in the same moment.
+ *
+ * Why it exists: Samsung's side button (double press) can only open an app, and it opens the app's
+ * launcher entry, so the only way to get the quick add pop-up from it is for the launcher entry to
+ * choose. It keeps the name MainActivity so the home-screen icon and the side-button choice you
+ * already made keep pointing at the right thing.
+ *
+ * How it tells the two apart: a tap on the icon comes from the home screen app (the "referrer"),
+ * and the home screen also passes where the icon was (sourceBounds, for the opening animation).
+ * The side button is the phone's system, with neither. [LaunchPrefs] lets you change the behaviour,
+ * and records who opened Ledger last so Settings can show it.
+ *
+ * Manifest: a see-through theme with no window (Theme.NoDisplay), an empty taskAffinity and
+ * excludeFromRecents, so it runs in its own throwaway task each time. That matters: if it shared the
+ * app's task, a second side-button press would just bring the app back and never reach this code.
+ */
+class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        if (savedInstanceState == null) open.value = OpenRequest.from(intent)
-        setContent { LedgerTheme { AppShell(openRequest = open.value, onOpened = { open.value = null }) } }
-        askForNotificationsOnce()
-    }
-
-    private val notificationPermission =
-        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
-
-    /**
-     * Refund and card-bill reminders are on by default, so on Android 13+ ask once for permission to
-     * show notifications (the first time this version opens). Saying no is respected: we never ask again
-     * here; Settings > Reminders explains how to turn them on later.
-     */
-    private fun askForNotificationsOnce() {
-        if (android.os.Build.VERSION.SDK_INT < 33) return
-        val prefs = getSharedPreferences("ledger", MODE_PRIVATE)
-        if (prefs.getBoolean("askedNotifications", false)) return
-        prefs.edit().putBoolean("askedNotifications", true).apply()
-        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        val opener = referrer?.host ?: "unknown"
+        val fromIcon = intent?.sourceBounds != null || opener == homeApp()
+        LaunchPrefs.remember(this, opener, fromIcon)
+        val quick = when (LaunchPrefs.mode(this)) {
+            LaunchPrefs.Mode.APP -> false
+            LaunchPrefs.Mode.QUICK -> true
+            LaunchPrefs.Mode.SIDE -> !fromIcon
         }
+        startActivity(if (quick) QuickAdd.intent(this) else appIntent(this))
+        // no animation for this invisible step
+        @Suppress("DEPRECATION") overridePendingTransition(0, 0)
+        finishAndRemoveTask()
     }
 
-    /** A notification tapped while the app was already open. */
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        OpenRequest.from(intent)?.let { open.value = it }
-    }
+    /** The phone's home screen app, e.g. com.sec.android.app.launcher on a Samsung. */
+    private fun homeApp(): String? = packageManager.resolveActivity(
+        Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY,
+    )?.activityInfo?.packageName
 
-    override fun onResume() {
-        super.onResume()
-        sync.syncNow()
+    companion object {
+        /** The full app, brought forward as it was left (it's single-task, so never a second copy). */
+        fun appIntent(context: Context): Intent = Intent(context, LedgerActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
     }
 }
 
-/** "Open the app on this": an entry (a refund reminder) or a card's page (a bill reminder). */
-data class OpenRequest(val entry: String? = null, val card: String? = null) {
-    companion object {
-        private const val EXTRA_ENTRY = "openEntry"
-        private const val EXTRA_CARD = "openCard"
-
-        fun intent(context: Context, open: OpenRequest?): Intent =
-            Intent(context, MainActivity::class.java)
-                // bring the app's existing screen forward (or start it), rather than stacking a second copy
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                .apply {
-                    open?.entry?.let { putExtra(EXTRA_ENTRY, it) }
-                    open?.card?.let { putExtra(EXTRA_CARD, it) }
-                }
-
-        fun from(intent: Intent?): OpenRequest? {
-            val r = OpenRequest(intent?.getStringExtra(EXTRA_ENTRY), intent?.getStringExtra(EXTRA_CARD))
-            return if (r.entry == null && r.card == null) null else r
-        }
+/** What opening Ledger does, kept in plain SharedPreferences because [MainActivity] reads it before anything else starts. */
+object LaunchPrefs {
+    enum class Mode(val key: String) {
+        /** Default: the icon opens the app; the side button (or anything else) opens quick add. */
+        SIDE("side"),
+        /** Always the full app. */
+        APP("app"),
+        /** Always quick add, even from the icon (the pop-up has a button to the full app). */
+        QUICK("quick"),
     }
+
+    private fun prefs(c: Context) = c.getSharedPreferences("ledger", Context.MODE_PRIVATE)
+
+    fun mode(c: Context): Mode = prefs(c).getString("launchMode", null).let { k -> Mode.entries.firstOrNull { it.key == k } ?: Mode.SIDE }
+    fun setMode(c: Context, m: Mode) = prefs(c).edit().putString("launchMode", m.key).apply()
+
+    /** Who opened Ledger last, and whether it counted as the icon: shown in Settings to check the side button. */
+    fun remember(c: Context, opener: String, fromIcon: Boolean) =
+        prefs(c).edit().putString("lastOpener", opener).putBoolean("lastFromIcon", fromIcon).apply()
+    fun lastOpener(c: Context): Pair<String, Boolean>? =
+        prefs(c).getString("lastOpener", null)?.let { it to prefs(c).getBoolean("lastFromIcon", true) }
 }

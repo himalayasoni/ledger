@@ -131,20 +131,30 @@ dropped if you change it into something other than a spend). The form no longer 
 
 ### Opening the mini quick add on a Galaxy S23
 
-The quick add is the **Quick add** app shortcut (long-press the Ledger icon to see it). Samsung tools that
-can open an app *shortcut* (not just the app) can open it from anywhere:
+Samsung's Settings → Advanced features → Side button → Double press → Open app only opens an app's
+*launcher entry*: no shortcuts, no second icons. So the launcher entry itself decides.
 
-- **Back tap** (Good Lock → RegiStar → Back-Tap action): turn it on → Double tap → Open app → Ledger β →
-  choose the **Quick add** shortcut. A light double tap on the back of the phone opens the pop-up.
-- **Side key, press and hold** (RegiStar → Side key press and hold action): Open app → Ledger β →
-  **Quick add**. Samsung's own Settings → Side button → Double press → Open app → Ledger β: if a gear icon
-  next to Ledger lists in-app actions on your One UI version, pick Quick add there; otherwise double press
-  can only open the full app.
-- **Quick settings tile**: swipe down → edit → drag "Add to Ledger" into the panel.
-- **Home screen**: long-press the Ledger icon and drag "Quick add" out as its own one-tap icon, or add the
-  1×1 widget.
+- `MainActivity` is now an invisible router (`Theme.NoDisplay`). The real app moved to `LedgerActivity`.
+  The name `MainActivity` stayed so the home-screen icon and the side-button choice keep working.
+- A tap on the icon comes from the home screen app: `getReferrer()` is the launcher's package
+  (`com.sec.android.app.launcher`), and `intent.sourceBounds` is set for the opening animation.
+  The side button is started by the system, with neither. Icon → `LedgerActivity`; anything else →
+  the quick add pop-up.
+- The router has `taskAffinity=""` and `excludeFromRecents`, so each launch gets a fresh, throwaway task.
+  If it lived in the app's task, a second press would just bring the app back without running the router.
+  `LedgerActivity` is `singleTask`, so the icon, widgets and notifications always reach the one copy.
+- Settings → Side button: "Quick add" (default), "Full app", or "Quick add, icon too". It also shows who
+  opened Ledger last and how that was counted, to check the detection on a real phone. The pop-up's
+  home button opens the full app.
+
+Other ways in: RegiStar (back tap, side-key press and hold) can open the **Quick add** app shortcut,
+the Quick settings tile "Add to Ledger", the "Quick add" shortcut dragged to the home screen, or the 1×1 widget.
 
 ### Concepts to look up
+
+- **Trampoline activity**: an activity that only starts another and finishes. `Theme.NoDisplay` requires
+  calling `finish()` before `onResume`.
+- **`getReferrer()`** and **task affinity**: who started you, and which task an activity lands in.
 
 - **`combinedClickable`**: `clickable` plus long-press and double-tap. `LocalHapticFeedback` gives the
   little buzz a long press should have.
