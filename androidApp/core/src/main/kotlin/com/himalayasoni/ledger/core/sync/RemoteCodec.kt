@@ -72,6 +72,7 @@ fun decodeRemote(id: String, data: Map<String, Any?>): RemoteDoc {
             prior = (data["prior"] as? Number)?.toDouble() ?: 0.0,
             card = data.str("card"),
             refund = decodeRefund(data["refund"], date),
+            parts = decodeParts(data["parts"]),
             createdAt = data.long("createdAt"),
             updatedAt = updatedAt,
         ),
@@ -97,6 +98,7 @@ fun Entry.encodeRemote(): Map<String, Any?> {
         if (paidBack.isNotEmpty()) put("paidBack", paidBack)
         if (prior > 0) put("prior", prior)
         if (card.isNotBlank()) put("card", card)
+        if (parts.isNotEmpty()) put("parts", parts.map { mapOf("amount" to it.amount, "cat" to it.category) })
         refund?.let { r ->
             put("refund", buildMap {
                 put("amount", r.amount); put("status", r.status.key); put("confirmed", r.confirmed.toString())
@@ -107,6 +109,16 @@ fun Entry.encodeRemote(): Map<String, Any?> {
             })
         }
     }
+}
+
+/** A split's parts: [{amount, cat}]. Anything malformed is skipped; fewer than two parts means no split. */
+private fun decodeParts(raw: Any?): List<com.himalayasoni.ledger.core.model.Part> {
+    val ps = (raw as? List<*>)?.mapNotNull { p ->
+        val m = p as? Map<*, *> ?: return@mapNotNull null
+        val amount = (m["amount"] as? Number)?.toDouble()?.takeIf { it > 0 } ?: return@mapNotNull null
+        com.himalayasoni.ledger.core.model.Part(amount, m["cat"] as? String ?: "")
+    } ?: emptyList()
+    return if (ps.size >= 2) ps else emptyList()
 }
 
 /** A refund block, if present and sensible. Dates fall back to the entry's date rather than failing. */

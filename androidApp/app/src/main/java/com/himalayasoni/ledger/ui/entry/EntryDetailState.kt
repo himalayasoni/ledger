@@ -1,5 +1,6 @@
 package com.himalayasoni.ledger.ui.entry
 
+import com.himalayasoni.ledger.core.domain.isSplit
 import com.himalayasoni.ledger.core.domain.balances
 import com.himalayasoni.ledger.core.domain.cost
 import com.himalayasoni.ledger.core.domain.net
@@ -77,7 +78,11 @@ fun buildEntryDetail(e: Entry, all: List<Entry>, today: LocalDate): EntryDetail 
 
     val facts = buildList {
         add(Fact("Date", e.date.format(LONG_DATE)))
-        if (e.type.hasCategory && e.category.isNotBlank()) add(Fact("Category", e.category, swatch = e.category))
+        if (e.type.hasCategory && e.isSplit) e.parts.forEachIndexed { i, p ->
+            // one line per part: "Split · ● Cigarettes ₹350", then "● Munchies ₹150"
+            add(Fact(if (i == 0) "Split" else "", "${p.category.ifBlank { "Other" }} ${formatRupees(p.amount)}", swatch = p.category.ifBlank { "Other" }))
+        }
+        else if (e.type.hasCategory && e.category.isNotBlank()) add(Fact("Category", e.category, swatch = e.category))
         if (e.type.isDebt && e.person.isNotBlank()) add(Fact(e.type.personLabel, e.person))
         if (e.type == EntryType.RECEIVED && e.person.isNotBlank()) add(Fact("Received from", e.person))
         when {

@@ -19,7 +19,6 @@ import kotlin.math.sqrt
  */
 
 private fun Entry.isSpend() = !deleted && type == EntryType.SPENT
-private fun Entry.cat() = category.ifBlank { "Other" }
 
 fun List<Entry>.spends(): List<Entry> = filter { it.isSpend() }
 fun List<Entry>.costSum(): Double = sumOf { it.cost() }
@@ -53,19 +52,20 @@ fun List<Entry>.perDay(m: YearMonth): DoubleArray {
 /** Heatmap shade 0–4 for a day's spending, on a square-root scale so small days still show. */
 fun heatLevel(v: Double, max: Double): Int = if (v <= 0 || max <= 0) 0 else max(1, ceil(sqrt(v / max) * 4).toInt())
 
-/** Spending by category, biggest first. */
+/** Spending by category, biggest first. A payment split across categories counts each part in its own. */
 fun List<Entry>.byCategory(): List<Pair<String, Double>> =
-    spends().groupBy { it.cat() }.mapValues { (_, l) -> l.costSum() }.toList().sortedByDescending { it.second }
+    spends().flatMap { it.costByCategory() }.groupBy({ it.first }, { it.second })
+        .mapValues { (_, l) -> l.sum() }.toList().sortedByDescending { it.second }
 
 fun List<Entry>.categoryIn(cat: String, m: YearMonth): Double =
-    filter { it.isSpend() && it.cat() == cat && YearMonth.from(it.date) == m }.costSum()
+    filter { it.isSpend() && YearMonth.from(it.date) == m }.sumOf { it.costIn(cat) }
 
 /** What you spent on within a category: description, times, total. Top [limit] by total. */
 data class ItemGroup(val name: String, val count: Int, val total: Double)
 
-fun List<Entry>.topItems(limit: Int = 4): List<ItemGroup> =
+fun List<Entry>.topItems(limit: Int = 4, costOf: (Entry) -> Double = { it.cost() }): List<ItemGroup> =
     groupBy { it.description.ifBlank { "No description" } }
-        .map { (k, l) -> ItemGroup(k, l.size, l.costSum()) }
+        .map { (k, l) -> ItemGroup(k, l.size, l.sumOf(costOf)) }
         .sortedByDescending { it.total }.take(limit)
 
 /** Things you buy again and again (at least twice), most frequent first. */
@@ -121,8 +121,9 @@ fun List<Entry>.trendCategories(): List<String> = byCategory().map { it.first }
 
 /** The 12 months ending at [end], each with the same month a year before. [cat] empty = all spending. */
 fun List<Entry>.monthTrend(end: YearMonth, cat: String): List<TrendGroup> {
-    val s = spends().filter { cat.isEmpty() || it.cat() == cat }
-    fun sum(m: YearMonth) = s.filter { YearMonth.from(it.date) == m }.costSum()
+    val s = spends().filter { cat.isEmpty() || it.costByCategory().any { (c, _) -> c == cat } }
+    fun List<Entry>.total() = if (cat.isEmpty()) costSum() else sumOf { it.costIn(cat) }
+    fun sum(m: YearMonth) = s.filter { YearMonth.from(it.date) == m }.total()
     return (11 downTo 0).map { i ->
         val m = end.minusMonths(i.toLong())
         TrendGroup(monthShort(m.monthValue), "${monthFull(m.monthValue)} ${m.year}", sum(m), sum(m.minusYears(1)), "${monthShort(m.monthValue)} ${m.year - 1}")
@@ -131,11 +132,12 @@ fun List<Entry>.monthTrend(end: YearMonth, cat: String): List<TrendGroup> {
 
 /** Up to the last 6 years with spending; this year also compares with last year to the same date. */
 fun List<Entry>.yearTrend(cat: String, today: LocalDate): List<TrendGroup> {
-    val s = spends().filter { cat.isEmpty() || it.cat() == cat }
+    val s = spends().filter { cat.isEmpty() || it.costByCategory().any { (c, _) -> c == cat } }
+    fun List<Entry>.total() = if (cat.isEmpty()) costSum() else sumOf { it.costIn(cat) }
     val years = s.map { it.date.year }.distinct().sorted().takeLast(6)
     return years.map { y ->
-        val total = s.filter { it.date.year == y }.costSum()
-        val prev = if (y == today.year) s.filter { it.date.year == y - 1 && it.date.withYear(y) <= today }.costSum() else null
+        val total = s.filter { it.date.year == y }.total()
+        val prev = if (y == today.year) s.filter { it.date.year == y - 1 && it.date.withYear(y) <= today }.total() else null
         TrendGroup("$y", if (y == today.year) "$y so far" else "$y", total, prev, "${y - 1} by the same date")
     }
 }

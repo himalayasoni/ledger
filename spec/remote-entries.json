@@ -4,93 +4,418 @@
     {
       "name": "simple expense",
       "id": "m3k9a1b2c3",
-      "remote": {"id": "m3k9a1b2c3", "type": "spent", "amount": 20, "desc": "Chai", "person": "", "cat": "Food", "mode": "UPI", "date": "2026-11-04", "note": "", "createdAt": 1793785200000, "updatedAt": 1793785200000},
-      "expect": {"kind": "entry", "type": "spent", "amount": 20, "date": "2026-11-04", "description": "Chai", "category": "Food", "mode": "UPI", "cost": 20}
+      "remote": {
+        "id": "m3k9a1b2c3",
+        "type": "spent",
+        "amount": 20,
+        "desc": "Chai",
+        "person": "",
+        "cat": "Food",
+        "mode": "UPI",
+        "date": "2026-11-04",
+        "note": "",
+        "createdAt": 1793785200000,
+        "updatedAt": 1793785200000
+      },
+      "expect": {
+        "kind": "entry",
+        "type": "spent",
+        "amount": 20,
+        "date": "2026-11-04",
+        "description": "Chai",
+        "category": "Food",
+        "mode": "UPI",
+        "cost": 20
+      }
     },
     {
       "name": "shared dinner, one person paid back their share",
       "id": "m3k9d4e5f6",
-      "remote": {"id": "m3k9d4e5f6", "type": "spent", "amount": 1200.0, "desc": "Dinner", "person": "", "cat": "Food", "mode": "Card", "date": "2026-11-03", "note": "Birthday", "with": ["Rahul", "Amit"], "incMe": true, "paidBack": {"rahul": 400}, "createdAt": 1793698800000, "updatedAt": 1793790000000},
-      "expect": {"kind": "entry", "type": "spent", "amount": 1200, "people": ["Rahul", "Amit"], "includesMe": true, "share": 400, "cost": 800, "note": "Birthday"}
+      "remote": {
+        "id": "m3k9d4e5f6",
+        "type": "spent",
+        "amount": 1200.0,
+        "desc": "Dinner",
+        "person": "",
+        "cat": "Food",
+        "mode": "Card",
+        "date": "2026-11-03",
+        "note": "Birthday",
+        "with": [
+          "Rahul",
+          "Amit"
+        ],
+        "incMe": true,
+        "paidBack": {
+          "rahul": 400
+        },
+        "createdAt": 1793698800000,
+        "updatedAt": 1793790000000
+      },
+      "expect": {
+        "kind": "entry",
+        "type": "spent",
+        "amount": 1200,
+        "people": [
+          "Rahul",
+          "Amit"
+        ],
+        "includesMe": true,
+        "share": 400,
+        "cost": 800,
+        "note": "Birthday"
+      }
     },
     {
       "name": "older shared expense stored the person instead of a list",
       "id": "m1aaaa0001",
-      "remote": {"id": "m1aaaa0001", "type": "spent", "amount": 600, "desc": "Movie", "person": "Priya", "cat": "Fun", "mode": "UPI", "date": "2026-10-20", "note": "", "createdAt": 1792400000000, "updatedAt": 1792400000000},
-      "expect": {"kind": "entry", "type": "spent", "people": ["Priya"], "share": 300}
+      "remote": {
+        "id": "m1aaaa0001",
+        "type": "spent",
+        "amount": 600,
+        "desc": "Movie",
+        "person": "Priya",
+        "cat": "Fun",
+        "mode": "UPI",
+        "date": "2026-10-20",
+        "note": "",
+        "createdAt": 1792400000000,
+        "updatedAt": 1792400000000
+      },
+      "expect": {
+        "kind": "entry",
+        "type": "spent",
+        "people": [
+          "Priya"
+        ],
+        "share": 300
+      }
     },
     {
       "name": "repayment of a loan from before Ledger",
       "id": "m3k9g7h8i9",
-      "remote": {"id": "m3k9g7h8i9", "type": "paidback", "amount": 700, "desc": "", "person": "Kanika", "cat": "", "mode": "UPI", "date": "2026-10-30", "note": "", "prior": 700, "createdAt": 1793300000000, "updatedAt": 1793300000000},
-      "expect": {"kind": "entry", "type": "paidback", "person": "Kanika", "prior": 700}
+      "remote": {
+        "id": "m3k9g7h8i9",
+        "type": "paidback",
+        "amount": 700,
+        "desc": "",
+        "person": "Kanika",
+        "cat": "",
+        "mode": "UPI",
+        "date": "2026-10-30",
+        "note": "",
+        "prior": 700,
+        "createdAt": 1793300000000,
+        "updatedAt": 1793300000000
+      },
+      "expect": {
+        "kind": "entry",
+        "type": "paidback",
+        "person": "Kanika",
+        "prior": 700
+      }
     },
     {
       "name": "deleted entry (tombstone)",
       "id": "m3k9zzzz01",
-      "remote": {"id": "m3k9zzzz01", "deleted": true, "updatedAt": 1793800000000},
-      "expect": {"kind": "tombstone", "updatedAt": 1793800000000}
+      "remote": {
+        "id": "m3k9zzzz01",
+        "deleted": true,
+        "updatedAt": 1793800000000
+      },
+      "expect": {
+        "kind": "tombstone",
+        "updatedAt": 1793800000000
+      }
     },
     {
       "name": "private categories setting",
       "id": "cfg-private",
-      "remote": {"id": "cfg-private", "privateCats": ["Sutta", "Beer"], "pinHash": "ab12", "salt": "cd34", "pinLen": 4, "updatedAt": 1793700000000},
-      "expect": {"kind": "privacy", "privateCategories": ["Sutta", "Beer"]}
+      "remote": {
+        "id": "cfg-private",
+        "privateCats": [
+          "Sutta",
+          "Beer"
+        ],
+        "pinHash": "ab12",
+        "salt": "cd34",
+        "pinLen": 4,
+        "updatedAt": 1793700000000
+      },
+      "expect": {
+        "kind": "privacy",
+        "privateCategories": [
+          "Sutta",
+          "Beer"
+        ]
+      }
     },
     {
       "name": "train ticket cancelled, refund confirmed but not here yet",
       "id": "m3k9rf0001",
-      "remote": {"id": "m3k9rf0001", "type": "spent", "amount": 1500, "desc": "Train to Jaipur", "person": "", "cat": "Travel", "mode": "UPI",
-                 "date": "2026-11-02", "note": "", "createdAt": 1793600000000, "updatedAt": 1793700000000,
-                 "refund": {"amount": 1320, "status": "awaited", "confirmed": "2026-11-05"}},
-      "expect": {"kind": "entry", "type": "spent", "amount": 1500, "cost": 180, "refundAmount": 1320, "refundStatus": "awaited"}
+      "remote": {
+        "id": "m3k9rf0001",
+        "type": "spent",
+        "amount": 1500,
+        "desc": "Train to Jaipur",
+        "person": "",
+        "cat": "Travel",
+        "mode": "UPI",
+        "date": "2026-11-02",
+        "note": "",
+        "createdAt": 1793600000000,
+        "updatedAt": 1793700000000,
+        "refund": {
+          "amount": 1320,
+          "status": "awaited",
+          "confirmed": "2026-11-05"
+        }
+      },
+      "expect": {
+        "kind": "entry",
+        "type": "spent",
+        "amount": 1500,
+        "cost": 180,
+        "refundAmount": 1320,
+        "refundStatus": "awaited"
+      }
     },
     {
       "name": "shared dinner on a named card, part refunded back to the card",
       "id": "m3k9rf0002",
-      "remote": {"id": "m3k9rf0002", "type": "spent", "amount": 1200, "desc": "Dinner", "person": "", "cat": "Food", "mode": "Card", "card": "HDFC",
-                 "date": "2026-11-01", "note": "", "with": ["Rahul"], "incMe": true, "createdAt": 1793600000000, "updatedAt": 1793700000000,
-                 "refund": {"amount": 200, "status": "received", "confirmed": "2026-11-02", "received": "2026-11-06", "to": "Card", "card": "HDFC"}},
-      "expect": {"kind": "entry", "card": "HDFC", "share": 500, "cost": 1000, "refundStatus": "received", "refundReceived": "2026-11-06", "refundTo": "Card", "refundCard": "HDFC"}
+      "remote": {
+        "id": "m3k9rf0002",
+        "type": "spent",
+        "amount": 1200,
+        "desc": "Dinner",
+        "person": "",
+        "cat": "Food",
+        "mode": "Card",
+        "card": "HDFC",
+        "date": "2026-11-01",
+        "note": "",
+        "with": [
+          "Rahul"
+        ],
+        "incMe": true,
+        "createdAt": 1793600000000,
+        "updatedAt": 1793700000000,
+        "refund": {
+          "amount": 200,
+          "status": "received",
+          "confirmed": "2026-11-02",
+          "received": "2026-11-06",
+          "to": "Card",
+          "card": "HDFC"
+        }
+      },
+      "expect": {
+        "kind": "entry",
+        "card": "HDFC",
+        "share": 500,
+        "cost": 1000,
+        "refundStatus": "received",
+        "refundReceived": "2026-11-06",
+        "refundTo": "Card",
+        "refundCard": "HDFC"
+      }
     },
     {
       "name": "a treat someone paid me back for (money back from a person)",
       "id": "m3k9mb0001",
-      "remote": {"id": "m3k9mb0001", "type": "spent", "amount": 1500, "desc": "Birthday treat", "person": "", "cat": "Food", "mode": "UPI",
-                 "date": "2026-10-28", "note": "", "createdAt": 1793600000000, "updatedAt": 1793700000000,
-                 "refund": {"amount": 1500, "status": "received", "confirmed": "2026-11-02", "received": "2026-11-02", "to": "UPI", "from": "Dad"}},
-      "expect": {"kind": "entry", "cost": 0, "refundAmount": 1500, "refundStatus": "received", "refundFrom": "Dad"}
+      "remote": {
+        "id": "m3k9mb0001",
+        "type": "spent",
+        "amount": 1500,
+        "desc": "Birthday treat",
+        "person": "",
+        "cat": "Food",
+        "mode": "UPI",
+        "date": "2026-10-28",
+        "note": "",
+        "createdAt": 1793600000000,
+        "updatedAt": 1793700000000,
+        "refund": {
+          "amount": 1500,
+          "status": "received",
+          "confirmed": "2026-11-02",
+          "received": "2026-11-02",
+          "to": "UPI",
+          "from": "Dad"
+        }
+      },
+      "expect": {
+        "kind": "entry",
+        "cost": 0,
+        "refundAmount": 1500,
+        "refundStatus": "received",
+        "refundFrom": "Dad"
+      }
     },
     {
       "name": "credit card bill paid (not spending)",
       "id": "m3k9cb0001",
-      "remote": {"id": "m3k9cb0001", "type": "cardbill", "amount": 12000, "desc": "", "person": "", "cat": "", "mode": "UPI", "card": "HDFC",
-                 "date": "2026-11-07", "note": "", "createdAt": 1793600000000, "updatedAt": 1793700000000},
-      "expect": {"kind": "entry", "type": "cardbill", "amount": 12000, "card": "HDFC"}
+      "remote": {
+        "id": "m3k9cb0001",
+        "type": "cardbill",
+        "amount": 12000,
+        "desc": "",
+        "person": "",
+        "cat": "",
+        "mode": "UPI",
+        "card": "HDFC",
+        "date": "2026-11-07",
+        "note": "",
+        "createdAt": 1793600000000,
+        "updatedAt": 1793700000000
+      },
+      "expect": {
+        "kind": "entry",
+        "type": "cardbill",
+        "amount": 12000,
+        "card": "HDFC"
+      }
     },
     {
       "name": "card settings: statement days",
       "id": "cfg-cards",
-      "remote": {"id": "cfg-cards", "cards": [{"name": "HDFC", "statementDay": 15, "dueDay": 3}, {"name": "SBI"}], "updatedAt": 1793700000000},
-      "expect": {"kind": "cards", "cards": [{"name": "HDFC", "statementDay": 15, "dueDay": 3}, {"name": "SBI"}]}
+      "remote": {
+        "id": "cfg-cards",
+        "cards": [
+          {
+            "name": "HDFC",
+            "statementDay": 15,
+            "dueDay": 3
+          },
+          {
+            "name": "SBI"
+          }
+        ],
+        "updatedAt": 1793700000000
+      },
+      "expect": {
+        "kind": "cards",
+        "cards": [
+          {
+            "name": "HDFC",
+            "statementDay": 15,
+            "dueDay": 3
+          },
+          {
+            "name": "SBI"
+          }
+        ]
+      }
     },
     {
       "name": "custom categories from the web",
       "id": "cfg-cats",
-      "remote": {"id": "cfg-cats", "custom": ["Pets", "Gym"], "removed": ["Gifts"], "updatedAt": 1793700000000},
-      "expect": {"kind": "categories", "custom": ["Pets", "Gym"], "removed": ["Gifts"]}
+      "remote": {
+        "id": "cfg-cats",
+        "custom": [
+          "Pets",
+          "Gym"
+        ],
+        "removed": [
+          "Gifts"
+        ],
+        "updatedAt": 1793700000000
+      },
+      "expect": {
+        "kind": "categories",
+        "custom": [
+          "Pets",
+          "Gym"
+        ],
+        "removed": [
+          "Gifts"
+        ]
+      }
     },
     {
       "name": "other settings documents are not entries",
       "id": "cfg-quick",
-      "remote": {"id": "cfg-quick", "cats": ["Food", "Transport"], "mode": "UPI", "updatedAt": 1793700000000},
-      "expect": {"kind": "other"}
+      "remote": {
+        "id": "cfg-quick",
+        "cats": [
+          "Food",
+          "Transport"
+        ],
+        "mode": "UPI",
+        "updatedAt": 1793700000000
+      },
+      "expect": {
+        "kind": "other"
+      }
     },
     {
       "name": "unknown type is ignored rather than crashing",
       "id": "m9future01",
-      "remote": {"id": "m9future01", "type": "invested", "amount": 5000, "date": "2026-11-01", "createdAt": 1, "updatedAt": 1},
-      "expect": {"kind": "other"}
+      "remote": {
+        "id": "m9future01",
+        "type": "invested",
+        "amount": 5000,
+        "date": "2026-11-01",
+        "createdAt": 1,
+        "updatedAt": 1
+      },
+      "expect": {
+        "kind": "other"
+      }
+    },
+    {
+      "name": "one Blinkit order split across two categories, with money back",
+      "id": "m4split001",
+      "remote": {
+        "id": "m4split001",
+        "type": "spent",
+        "amount": 500.0,
+        "desc": "Blinkit",
+        "person": "",
+        "cat": "Cigarettes",
+        "mode": "UPI",
+        "date": "2026-11-26",
+        "note": "",
+        "parts": [
+          {
+            "amount": 350.0,
+            "cat": "Cigarettes"
+          },
+          {
+            "amount": 150.0,
+            "cat": "Munchies"
+          }
+        ],
+        "refund": {
+          "amount": 100.0,
+          "status": "received",
+          "confirmed": "2026-11-26",
+          "received": "2026-11-26",
+          "to": "UPI"
+        },
+        "createdAt": 1795680000000,
+        "updatedAt": 1795680000000
+      },
+      "expect": {
+        "kind": "entry",
+        "amount": 500,
+        "category": "Cigarettes",
+        "cost": 400,
+        "parts": [
+          {
+            "amount": 350,
+            "category": "Cigarettes"
+          },
+          {
+            "amount": 150,
+            "category": "Munchies"
+          }
+        ],
+        "costByCategory": {
+          "Cigarettes": 280,
+          "Munchies": 120
+        }
+      }
     }
   ]
 }

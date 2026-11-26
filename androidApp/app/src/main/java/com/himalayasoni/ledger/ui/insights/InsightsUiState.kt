@@ -4,6 +4,8 @@ import com.himalayasoni.ledger.core.domain.ItemGroup
 import com.himalayasoni.ledger.core.domain.TrendGroup
 import com.himalayasoni.ledger.core.domain.biggest
 import com.himalayasoni.ledger.core.domain.byCategory
+import com.himalayasoni.ledger.core.domain.costByCategory
+import com.himalayasoni.ledger.core.domain.costIn
 import com.himalayasoni.ledger.core.domain.byMode
 import com.himalayasoni.ledger.core.domain.categoryIn
 import com.himalayasoni.ledger.core.domain.costSum
@@ -190,12 +192,13 @@ private fun common(
     val cats = spentL.byCategory()
     val catRows = cats.map { (c, v) ->
         val open = sel.openCategory == c
-        val items = spentL.filter { it.category.ifBlank { "Other" } == c }
+        // a split payment shows up in each of its parts' categories, with just that part's money
+        val items = spentL.filter { e -> e.costByCategory().any { it.first == c } }
         CatRow(
             c, formatRupees(v), if (spent > 0) (v / spent * 100).roundToInt() else 0, (v / cats.first().second).toFloat(), open,
             if (open) catPoints(c) else emptyList(),
-            "${items.size} entr${if (items.size == 1) "y" else "ies"} · average ${formatRupees((items.costSum() / items.size).roundToInt().toDouble())} each",
-            if (open) items.topItems() else emptyList(),
+            "${items.size} entr${if (items.size == 1) "y" else "ies"} · average ${formatRupees((v / items.size).roundToInt().toDouble())} each",
+            if (open) items.topItems { it.costIn(c) } else emptyList(),
         )
     }
 

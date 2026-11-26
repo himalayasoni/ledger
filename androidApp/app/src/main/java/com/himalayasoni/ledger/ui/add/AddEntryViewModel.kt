@@ -1,5 +1,9 @@
 package com.himalayasoni.ledger.ui.add
 
+import com.himalayasoni.ledger.core.domain.isSplit
+import com.himalayasoni.ledger.core.domain.mainCategory
+import com.himalayasoni.ledger.core.domain.cleanParts
+import com.himalayasoni.ledger.core.model.Part
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.himalayasoni.ledger.core.data.EntryRepository
@@ -35,6 +39,16 @@ import java.time.LocalDate
 /** Everything the sheet derives from your history, recomputed when entries change. */
 /** A recent expense you can link money in to. */
 data class LinkOption(val id: String, val title: String, val detail: String)
+
+/** One part of a payment split across categories, as typed. A blank amount means "whatever's left". */
+data class SplitPart(val amountText: String = "", val category: String = "") {
+    val amount: Double get() = amountText.toDoubleOrNull() ?: 0.0
+    val splitting: Boolean get() = splits.isNotEmpty()
+    /** What the one blank part gets: the total less the typed parts (0 if none or more than one is blank). */
+    val splitRest: Double get() = if (splits.count { it.amountText.isBlank() } == 1) maxOf(0.0, amount - splits.sumOf { it.amount }) else 0.0
+    /** Total less every part, the blank one included: 0 when it adds up. */
+    val splitLeft: Double get() = Math.round((amount - splits.sumOf { it.amount } - splitRest) * 100) / 100.0
+}
 
 /** One key press applied to the amount being typed. */
 internal fun nextAmount(t: String, key: String): String = when (key) {
@@ -84,6 +98,8 @@ data class AddEntryState(
     val type: EntryType = EntryType.SPENT,
     val typeTouched: Boolean = false,
     val amountText: String = "",
+    val splits: List<SplitPart> = emptyList(), // a spend split across categories; empty = one category
+    val activePart: Int = 0,                   // which part the category chips set
     val description: String = "",
     val person: String = "",                 // one name (loans, received) or the name being typed (spent)
     val withPeople: List<String> = emptyList(),
@@ -186,6 +202,14 @@ interface AddEntryActions {
     fun expand() {}
     /** Received: "this was for that expense" (null unlinks). */
     fun linkTo(id: String?)
+    /** "Split into categories": this category becomes part one, and a second part is ready for the next. */
+    fun startSplit() {}
+    fun stopSplit() {}
+    fun addPart() {}
+    fun removePart(i: Int) {}
+    /** Which part the category chips set (tapping a part, or typing its amount). */
+    fun onPartActive(i: Int) {}
+    fun onPartAmount(i: Int, text: String) {}
 }
 
 /**
@@ -269,6 +293,7 @@ class AddEntryViewModel(
                 editing = req.edit, type = e.type, typeTouched = true, amountText = plain(e.amount),
                 description = e.description, person = if (e.type == EntryType.SPENT) "" else e.person,
                 withPeople = e.people(), includesMe = e.includesMe, category = e.category,
+                splits = if (e.isSplit) e.parts.map { SplitPart(plain(it.amount), it.category) } else emptyList(),
                 mode = e.mode.ifBlank { "UPI" }, date = e.date, note = e.note, keypadOn = false,
                 card = e.card, modeTouched = true,
             )
@@ -324,7 +349,32 @@ class AddEntryViewModel(
     }
 
     override fun onType(t: EntryType) = _state.update { it.copy(type = t, typeTouched = true, error = null) }
-    override fun onCategory(c: String) = _state.update { it.copy(category = if (it.category == c) "" else c) }
+    override fun onCategory(c: String) = _state.update {
+        if (it.splitting) it.copy(splits = it.splits.mapIndexed { i, p ->
+            if (i == it.activePart) p.copy(category = if (p.category == c) "" else c) else p
+        }, error = null)
+        else it.copy(category = if (it.category == c) "" else c)
+    }
+
+    override fun startSplit() = _state.update {
+        it.copy(splits = listOf(SplitPart("", it.category), SplitPart()), activePart = 1, error = null)
+    }
+    /** Back to one category: the biggest part's (or the one you were on). */
+    override fun stopSplit() = _state.update {
+        val keep = it.splits.maxByOrNull { p -> p.amount }?.category?.ifBlank { null } ?: it.splits.getOrNull(it.activePart)?.category.orEmpty()
+        it.copy(splits = emptyList(), activePart = 0, category = keep, error = null)
+    }
+    override fun addPart() = _state.update { it.copy(splits = it.splits + SplitPart(), activePart = it.splits.size, error = null) }
+    override fun removePart(i: Int) = _state.update {
+        val left = it.splits.filterIndexed { j, _ -> j != i }
+        if (left.size < 2) it.copy(splits = emptyList(), activePart = 0, category = left.firstOrNull()?.category.orEmpty())
+        else it.copy(splits = left, activePart = it.activePart.coerceAtMost(left.size - 1))
+    }
+    override fun onPartActive(i: Int) = _state.update { it.copy(activePart = i) }
+    override fun onPartAmount(i: Int, text: String) = _state.update {
+        val t = text.filter { c -> c.isDigit() || c == '.' }.let { v -> if (v.count { c -> c == '.' } > 1) v.dropLast(1) else v }.take(9)
+        it.copy(splits = it.splits.mapIndexed { j, p -> if (j == i) p.copy(amountText = t) else p }, activePart = i, error = null)
+    }
     override fun onDescription(v: String) = _state.update { it.copy(description = v) }
     override fun onMode(m: String) = _state.update { it.copy(mode = m, modeTouched = true) }
     // keeps everything typed; the category the mini layout would have used shows as picked
@@ -382,6 +432,19 @@ class AddEntryViewModel(
             s.type.isDebt && s.person.isBlank() -> { _state.update { it.copy(error = "Add who this was with, so the balance adds up") }; return }
             s.type == EntryType.CARD_BILL && s.card.isBlank() -> { _state.update { it.copy(error = "Pick which card this bill is for") }; return }
         }
+        // a split: one blank part takes what's left; every part needs a category; they must add up to the total
+        val parts: List<Part> = if (s.type != EntryType.SPENT || !s.splitting) emptyList() else {
+            val filled = s.splits.map { p -> Part(if (p.amountText.isBlank()) s.splitRest else p.amount, p.category) }.filter { it.amount > 0 }
+            when {
+                s.splits.count { it.amountText.isBlank() } > 1 -> { _state.update { it.copy(error = "Type each part's amount (one can stay blank for the rest)") }; return }
+                filled.any { it.category.isBlank() } -> { _state.update { it.copy(error = "Pick a category for each part") }; return }
+            }
+            cleanParts(filled, Math.round(s.amount * 100) / 100.0) ?: run {
+                val left = s.splitLeft
+                _state.update { it.copy(error = if (left > 0) "The parts are ${formatRupees(left)} short of ${formatRupees(s.amount)}" else "The parts are ${formatRupees(-left)} more than ${formatRupees(s.amount)}") }
+                return
+            }
+        }
         val now = System.currentTimeMillis()
         val base = s.editing
         if (s.type == EntryType.RECEIVED && s.linkTo != null) { saveAsMoneyBack(s, now); return }
@@ -389,8 +452,10 @@ class AddEntryViewModel(
             id = base?.id ?: newEntryId(now), type = s.type, amount = Math.round(s.amount * 100) / 100.0, date = s.date,
             description = s.description.trim(),
             person = if (s.type == EntryType.SPENT) "" else s.person.trim(),
+            parts = parts,
             category = when {
                 !s.type.hasCategory -> ""
+                parts.isNotEmpty() -> mainCategory(parts)
                 s.mini -> s.miniCategory
                 else -> s.category.ifBlank { if (s.type == EntryType.SPENT) "Other" else "" }
             },
@@ -491,7 +556,11 @@ class AddEntryViewModel(
         if (n.isEmpty()) return
         val existing = _state.value.categories.firstOrNull { it.equals(n, true) }
         if (existing == null) sync.addCategory(n)
-        _state.update { it.copy(category = existing ?: n, categories = if (existing == null) it.categories + n else it.categories) }
+        _state.update {
+            val cats = if (existing == null) it.categories + n else it.categories
+            if (it.splitting) it.copy(categories = cats, splits = it.splits.mapIndexed { i, p -> if (i == it.activePart) p.copy(category = existing ?: n) else p })
+            else it.copy(category = existing ?: n, categories = cats)
+        }
     }
 
     override fun delete() {

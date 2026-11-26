@@ -1,5 +1,8 @@
 package com.himalayasoni.ledger.ui.home
 
+import com.himalayasoni.ledger.core.domain.partsLine
+import com.himalayasoni.ledger.core.domain.categories
+import com.himalayasoni.ledger.core.domain.isSplit
 import com.himalayasoni.ledger.core.domain.balances
 import com.himalayasoni.ledger.core.domain.cost
 import com.himalayasoni.ledger.core.domain.loggedDays
@@ -138,6 +141,7 @@ fun entryRow(e: Entry, who: String? = null): EntryRow {
         when {
             e.type == EntryType.CARD_BILL -> if (e.card.isNotBlank()) "${e.card} card bill" else "Card bill"
             e.type.isDebt -> if (e.person.isNotBlank()) "${e.type.personLabel} ${e.person}" else e.type.label
+            e.isSplit -> e.categories().joinToString(" + ")
             else -> e.category.ifBlank { e.type.label }
         }
     }
@@ -157,7 +161,9 @@ fun entryRow(e: Entry, who: String? = null): EntryRow {
                 else -> "${formatRupees(refund.amount)} refunded"
             },
         )
-        if (e.category.isNotBlank() && e.type.hasCategory) add(e.category)
+        // a split payment lists its parts ("Cigarettes ₹350 · Munchies ₹150"); otherwise its one category
+        if (e.isSplit && e.type.hasCategory) add(e.partsLine { formatRupees(it) })
+        else if (e.category.isNotBlank() && e.type.hasCategory) add(e.category)
         if (e.type == EntryType.CARD_BILL) add("not spending")
         val payment = if (e.mode.equals("Card", true) && e.card.isNotBlank()) "${e.card} card" else e.mode
         if (payment.isNotBlank()) add(payment)

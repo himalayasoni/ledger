@@ -1,6 +1,7 @@
 package com.himalayasoni.ledger.core.domain
 
 import com.himalayasoni.ledger.core.model.Entry
+import com.himalayasoni.ledger.core.model.Part
 import com.himalayasoni.ledger.core.model.EntryType
 import java.time.Instant
 import java.time.LocalDate
@@ -93,7 +94,7 @@ fun streak(days: Set<LocalDate>, today: LocalDate): Int {
  */
 fun List<Entry>.allCategories(custom: Collection<String>, removed: Collection<String>, extra: Collection<String> = emptyList()): List<String> {
     val gone = removed.map { it.lowercase() }.toSet()
-    val used = filter { !it.deleted && !it.type.isDebt && it.category.isNotBlank() }.map { it.category }
+    val used = filter { !it.deleted && !it.type.isDebt }.flatMap { it.categories() }
     return (com.himalayasoni.ledger.core.model.DEFAULT_CATEGORIES.filter { it.lowercase() !in gone } + custom.sortedBy { it.lowercase() } + used + extra)
         .distinctBy { it.lowercase() }
 }
@@ -103,7 +104,8 @@ fun List<Entry>.allCategories(custom: Collection<String>, removed: Collection<St
  * most money), followed by the rest of [all] in their usual order. Used for the quick add's chips.
  */
 fun List<Entry>.categoriesByUse(since: LocalDate, all: List<String>): List<String> {
-    val recent = filter { !it.deleted && it.type == EntryType.SPENT && !it.date.isBefore(since) && it.category.isNotBlank() }
+    val recent = filter { !it.deleted && it.type == EntryType.SPENT && !it.date.isBefore(since) }
+        .flatMap { e -> if (e.isSplit) e.parts.filter { it.category.isNotBlank() } else listOfNotNull(Part(e.amount, e.category).takeIf { e.category.isNotBlank() }) }
         .groupBy { it.category.lowercase() }
         .map { (_, l) -> Triple(l.first().category, l.size, l.sumOf { it.amount }) }
         .sortedWith(compareByDescending<Triple<String, Int, Double>> { it.second }.thenByDescending { it.third })

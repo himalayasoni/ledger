@@ -37,6 +37,12 @@ data class Refund(
     val from: String = "",
 )
 
+/**
+ * One part of a payment split across categories: one Blinkit order, ₹350 of it Cigarettes and ₹150 Munchies.
+ * The parts of an entry add up to its amount; each rupee counts once, in its own part's category.
+ */
+data class Part(val amount: Double, val category: String)
+
 data class Entry(
     val id: String,
     val type: EntryType,
@@ -55,6 +61,11 @@ data class Entry(
     val refund: Refund? = null,
     /** Which credit card: on a card spend (mode "Card") or a card bill. */
     val card: String = "",
+    /**
+     * A spend split across categories (two or more parts adding up to [amount]); empty when it isn't.
+     * [category] then holds the biggest part's category, so anything that knows one category still works.
+     */
+    val parts: List<Part> = emptyList(),
     val createdAt: Long,
     val updatedAt: Long,
     val deleted: Boolean = false,

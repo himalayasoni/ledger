@@ -78,9 +78,12 @@ fun List<Entry>.balances(): Map<String, PersonBalance> {
     }
 }
 
-/** Hides entries in private categories (loans have no category, so they always show). */
+/**
+ * Hides entries in private categories (loans have no category, so they always show). A split payment with
+ * any private part hides whole: showing the munchies while hiding the cigarettes would give it away.
+ */
 fun List<Entry>.withoutPrivate(privateCategories: Set<String>): List<Entry> {
     if (privateCategories.isEmpty()) return this
     val hidden = privateCategories.map { it.lowercase() }.toSet()
-    return filterNot { !it.type.isDebt && it.category.lowercase() in hidden }
+    return filterNot { !it.type.isDebt && (it.category.lowercase() in hidden || it.categories().any { c -> c.lowercase() in hidden }) }
 }

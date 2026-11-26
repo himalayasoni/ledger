@@ -72,6 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.himalayasoni.ledger.core.model.EntryType
 import com.himalayasoni.ledger.core.model.PAYMENT_MODES
 import com.himalayasoni.ledger.core.money.groupIndian
+import com.himalayasoni.ledger.core.money.formatRupees
 import com.himalayasoni.ledger.ui.components.CheckRow
 import com.himalayasoni.ledger.ui.components.FieldLabel
 import com.himalayasoni.ledger.ui.components.Hairline
@@ -586,9 +587,20 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
     }
 
     if (s.type.hasCategory) Column {
-        FieldLabel("Category")
+        val canSplit = s.type == EntryType.SPENT
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            FieldLabel(if (s.splitting) "Split into categories" else "Category", Modifier.weight(1f))
+            if (canSplit) Text(
+                if (s.splitting) "One category" else "Split ›",
+                style = LedgerType.small, fontWeight = FontWeight.Bold, color = c.ink2,
+                modifier = Modifier.clip(RoundedCornerShape(999.dp)).pressable(onClick = if (s.splitting) vm::stopSplit else vm::startSplit)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
+        if (canSplit && s.splitting) SplitParts(s, vm, onFocus)
+        val selected = if (canSplit && s.splitting) s.splits.getOrNull(s.activePart)?.category.orEmpty() else s.category
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            s.categories.forEach { cat -> LedgerChip(cat, s.category == cat, swatch = categoryColor(cat)) { vm.onCategory(cat) } }
+            s.categories.forEach { cat -> LedgerChip(cat, selected == cat, swatch = categoryColor(cat)) { vm.onCategory(cat) } }
             if (!addingCategory) LedgerChip("+ New") { addingCategory = true }
         }
         if (addingCategory) NewCategory(
@@ -632,6 +644,61 @@ private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) ->
         "Delete this entry", color = c.spent, fontWeight = FontWeight.Bold, style = LedgerType.body,
         modifier = Modifier.pressable(onClick = vm::delete).padding(vertical = 6.dp),
     )
+}
+
+/**
+ * The parts of a split payment: each row is a category (set by tapping a chip below while the row is picked)
+ * and an amount. One amount can stay blank: it takes whatever's left, shown in grey.
+ */
+@Composable
+private fun SplitParts(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) -> Unit) {
+    val c = LocalLedgerColors.current
+    Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        s.splits.forEachIndexed { i, p ->
+            val active = i == s.activePart
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                    .background(if (active) c.accentSoft else c.surface2)
+                    .pressable(onClick = { vm.onPartActive(i) })
+                    .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(10.dp).clip(RoundedCornerShape(999.dp)).background(if (p.category.isBlank()) c.line else categoryColor(p.category)))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    p.category.ifBlank { if (active) "Pick a category below" else "No category yet" },
+                    style = LedgerType.body, fontWeight = if (p.category.isBlank()) FontWeight.Normal else FontWeight.SemiBold,
+                    color = if (p.category.isBlank()) c.ink2 else c.ink, modifier = Modifier.weight(1f),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+                LedgerTextField(
+                    p.amountText, { vm.onPartAmount(i, it) },
+                    placeholder = if (p.amountText.isBlank() && s.splitRest > 0) groupIndian(s.splitRest.toLong()) else "0",
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                    leading = { Text("₹", style = LedgerType.body, color = c.ink2) },
+                    modifier = Modifier.width(112.dp).onFocusChanged { f -> if (f.isFocused) vm.onPartActive(i); onFocus(f.isFocused) },
+                )
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).pressable(onClick = { vm.removePart(i) }), Alignment.Center) {
+                    Icon(LedgerIcons.Close, "Remove this part", tint = c.ink2, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LedgerChip("+ Add a part") { vm.addPart() }
+            Spacer(Modifier.width(10.dp))
+            val left = s.splitLeft
+            Text(
+                when {
+                    s.amount <= 0 -> "Type the total first"
+                    left == 0.0 -> "Adds up to ${formatRupees(s.amount)} ✓"
+                    left > 0 -> "${formatRupees(left)} not in a part yet"
+                    else -> "${formatRupees(-left)} more than the total"
+                },
+                style = LedgerType.small, fontWeight = FontWeight.SemiBold,
+                color = if (left == 0.0 && s.amount > 0) c.income else c.ink2,
+            )
+        }
+    }
 }
 
 /** Your named cards as chips, plus "+ New card". Used for card spends, card bills and refunds to a card. */

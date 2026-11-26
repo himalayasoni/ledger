@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 import com.himalayasoni.ledger.core.model.Entry
 import com.himalayasoni.ledger.core.model.EntryType
 import com.himalayasoni.ledger.core.model.Refund
+import com.himalayasoni.ledger.core.model.Part
 import com.himalayasoni.ledger.core.model.RefundStatus
 import org.json.JSONArray
 import org.json.JSONObject
@@ -38,7 +39,17 @@ data class EntryEntity(
     val dirty: Boolean,        // changed here and not uploaded yet (used by sync in Phase 2)
     @ColumnInfo(defaultValue = "") val card: String = "",     // added in database version 2
     @ColumnInfo(defaultValue = "") val refund: String = "",   // JSON object, "" when none (version 2)
+    @ColumnInfo(defaultValue = "") val parts: String = "",    // JSON array of {amount, cat}, "" when not split (version 3)
 )
+
+private fun List<Part>.toJson(): String = if (isEmpty()) "" else
+    JSONArray(map { JSONObject().put("amount", it.amount).put("cat", it.category) }).toString()
+
+private fun partsFromJson(s: String): List<Part> {
+    if (s.isBlank()) return emptyList()
+    val a = JSONArray(s)
+    return List(a.length()) { i -> a.getJSONObject(i).let { Part(it.getDouble("amount"), it.optString("cat")) } }
+}
 
 private fun Refund.toJson(): String = JSONObject().apply {
     put("amount", amount); put("status", status.key); put("confirmed", confirmed.toString())
@@ -67,7 +78,7 @@ fun EntryEntity.toEntry(): Entry? {
         includesMe = includesMe,
         paidBack = JSONObject(paidBack).let { o -> o.keys().asSequence().associateWith { o.getDouble(it) } },
         prior = prior, createdAt = createdAt, updatedAt = updatedAt, deleted = deleted,
-        card = card, refund = refundFromJson(refund),
+        card = card, refund = refundFromJson(refund), parts = partsFromJson(parts),
     )
 }
 
@@ -78,5 +89,5 @@ fun Entry.toEntity(dirty: Boolean): EntryEntity = EntryEntity(
     includesMe = includesMe,
     paidBack = JSONObject(paidBack as Map<*, *>).toString(),
     prior = prior, createdAt = createdAt, updatedAt = updatedAt, deleted = deleted, dirty = dirty,
-    card = card, refund = refund?.toJson().orEmpty(),
+    card = card, refund = refund?.toJson().orEmpty(), parts = parts.toJson(),
 )

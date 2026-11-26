@@ -20,7 +20,7 @@ private val Context.syncStore by preferencesDataStore(name = "sync")
  * SharedPreferences: asynchronous, and observable as a Flow).
  */
 /** 2: refunds, named cards, card bills. */
-const val CURRENT_FORMAT = 2
+const val CURRENT_FORMAT = 3 // 3: split payments (parts)
 
 class SyncPrefs(private val context: Context) : SettingsRepository {
     private object Keys {

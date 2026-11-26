@@ -217,3 +217,22 @@ casting with Ledger?" → **Start** → the quick add pop-up opens, filled in fr
 - The activity is still in front, which is what allows it to open the pop-up (Android blocks a background service
   from opening screens). The pop-up reads the file with the same `ScreenshotReader` as a shared screenshot, then deletes it.
 - Screens that block screenshots (`FLAG_SECURE`) come out black; the pop-up then says so and suggests sharing a screenshot.
+
+## Split one payment across categories (v21 / web v23)
+
+One Blinkit order: ₹350 Cigarettes + ₹150 Munchies. It stays **one entry** (one row, one UPI reference, one card
+charge), with `parts: [{amount, cat}, …]` that add up to the amount.
+
+- **Counting**: anything that adds money up by category asks `costByCategory()` (web `costByCat`), which gives
+  each part its proportional slice of what the bill counts as. Money back or friends' paybacks shrink every part
+  the same way. Totals never double count. Pinned by `PartsTest` and a spec case in `remote-entries.json`.
+- **Compatibility**: `category` / `cat` keeps the biggest part's category, so an older app still shows the entry,
+  just under one category. Room v3 adds a `parts` column; `CURRENT_FORMAT = 3` re-downloads once to pick up parts
+  the web saved first.
+- **Privacy**: any private part hides the whole payment.
+- **Rename / delete a category** updates the parts too (web).
+- **Form**: "Split ›" next to Category. Part one starts with the category you had. The chips set whichever part
+  is picked. One amount can stay blank and takes the rest. Save checks that the parts add up.
+
+Next ideas: say "blinkit 500 cigarettes 350 munchies 150"; pick a second chip in the quick add pop-up to split;
+share only some parts with friends.

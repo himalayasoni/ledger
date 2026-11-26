@@ -196,6 +196,24 @@ class ScreenshotTest {
     @Test fun add_cardbill() = sheet(false, fresh.copy(
         type = EntryType.CARD_BILL, typeTouched = true, amountText = "12000", card = "HDFC", cards = listOf("HDFC", "SBI"), keypadOn = false,
     ))
+    @Test fun add_split() = sheet(false, fresh.copy(
+        amountText = "500", description = "Blinkit", keypadOn = false, activePart = 1,
+        categories = listOf("Food", "Groceries", "Cigarettes", "Munchies", "Transport", "Other"),
+        splits = listOf(com.himalayasoni.ledger.ui.add.SplitPart("350", "Cigarettes"), com.himalayasoni.ledger.ui.add.SplitPart("", "Munchies")),
+    ))
+    @Test fun entry_split() = entryPage(blinkit)
+    @Test fun rows_split() = paparazzi.snapshot {
+        LedgerTheme(dark = false) {
+            Box(Modifier.fillMaxSize().background(LocalLedgerColors.current.bg).padding(16.dp)) {
+                com.himalayasoni.ledger.ui.home.dayGroups(listOf(blinkit), today).forEach { com.himalayasoni.ledger.ui.components.DaySection(it) {} }
+            }
+        }
+    }
+    private val blinkit = Entry(
+        id = "b1", type = EntryType.SPENT, amount = 500.0, date = today, description = "Blinkit", category = "Cigarettes", mode = "UPI",
+        parts = listOf(com.himalayasoni.ledger.core.model.Part(350.0, "Cigarettes"), com.himalayasoni.ledger.core.model.Part(150.0, "Munchies")),
+        createdAt = 1, updatedAt = 1,
+    )
     @Test fun card_page() = framed(false, Tab.HOME) {
         com.himalayasoni.ledger.ui.cards.CardPage(com.himalayasoni.ledger.ui.cards.buildCardState(entries, "HDFC", 5, today, 3), onBack = {}, onStatementDay = {}, onOpen = {}, onPayBill = {})
     }

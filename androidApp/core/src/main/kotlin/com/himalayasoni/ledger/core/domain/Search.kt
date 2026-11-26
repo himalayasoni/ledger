@@ -48,7 +48,7 @@ private fun amountText(v: Double) = if (v == Math.floor(v)) v.toLong().toString(
 
 /** Every word you type must appear somewhere: description, people, category, comment, mode, type, amount or date. */
 private fun Entry.matches(words: List<String>): Boolean {
-    val hay = listOf(description, person, people().joinToString(" "), category, note, mode, card, type.label,
+    val hay = listOf(description, person, people().joinToString(" "), category, parts.joinToString(" ") { it.category }, note, mode, card, type.label,
         if (refund != null) "refund" else "", amountText(amount), date.format(SEARCH_DATE))
         .joinToString(" ").lowercase()
     return words.all { hay.contains(it) }
@@ -63,7 +63,7 @@ fun List<Entry>.search(f: Filters, today: LocalDate): List<Entry> {
             (from == null || !e.date.isBefore(from)) &&
             (to == null || !e.date.isAfter(to)) &&
             (f.person.isEmpty() || e.involves(f.person)) &&
-            (f.category.isEmpty() || e.category == f.category) &&
+            (f.category.isEmpty() || e.category == f.category || e.countsIn(f.category)) &&
             (f.mode.isEmpty() || e.mode == f.mode) &&
             (f.min == null || e.amount >= f.min) &&
             (f.max == null || e.amount <= f.max) &&

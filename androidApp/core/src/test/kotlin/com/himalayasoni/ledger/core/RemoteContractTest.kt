@@ -2,6 +2,7 @@ package com.himalayasoni.ledger.core
 
 import com.google.gson.Gson
 import com.himalayasoni.ledger.core.domain.cost
+import com.himalayasoni.ledger.core.domain.costByCategory
 import com.himalayasoni.ledger.core.domain.people
 import com.himalayasoni.ledger.core.domain.share
 import com.himalayasoni.ledger.core.sync.RemoteDoc
@@ -56,6 +57,13 @@ class RemoteContractTest {
                     expect["refundTo"]?.let { assertEquals(name, it, e.refund!!.to) }
                     expect["refundCard"]?.let { assertEquals(name, it, e.refund!!.card) }
                     expect["refundFrom"]?.let { assertEquals(name, it, e.refund!!.from) }
+                    expect["parts"]?.let { ps ->
+                        assertEquals(name, (ps as List<Map<String, Any?>>).map { (it["amount"] as Number).toDouble() to it["category"] }, e.parts.map { it.amount to it.category })
+                    }
+                    expect["costByCategory"]?.let { m ->
+                        val got = e.costByCategory().toMap()
+                        (m as Map<String, Number>).forEach { (k, v) -> assertEquals("$name: $k", v.toDouble(), got[k] ?: -1.0, 0.001) }
+                    }
                     // what the app writes back must read the same (nothing lost when the phone edits an entry)
                     val again = (decodeRemote(e.id, e.encodeRemote()) as RemoteDoc.EntryDoc).entry
                     assertEquals("$name (round trip)", e, again)
