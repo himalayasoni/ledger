@@ -43,11 +43,6 @@ data class LinkOption(val id: String, val title: String, val detail: String)
 /** One part of a payment split across categories, as typed. A blank amount means "whatever's left". */
 data class SplitPart(val amountText: String = "", val category: String = "") {
     val amount: Double get() = amountText.toDoubleOrNull() ?: 0.0
-    val splitting: Boolean get() = splits.isNotEmpty()
-    /** What the one blank part gets: the total less the typed parts (0 if none or more than one is blank). */
-    val splitRest: Double get() = if (splits.count { it.amountText.isBlank() } == 1) maxOf(0.0, amount - splits.sumOf { it.amount }) else 0.0
-    /** Total less every part, the blank one included: 0 when it adds up. */
-    val splitLeft: Double get() = Math.round((amount - splits.sumOf { it.amount } - splitRest) * 100) / 100.0
 }
 
 /** One key press applied to the amount being typed. */
@@ -133,6 +128,11 @@ data class AddEntryState(
     val categories: List<String> = DEFAULT_CATEGORIES,
 ) {
     val amount: Double get() = amountText.toDoubleOrNull() ?: 0.0
+    val splitting: Boolean get() = splits.isNotEmpty()
+    /** What the one blank part gets: the total less the typed parts (0 if none or more than one is blank). */
+    val splitRest: Double get() = if (splits.count { it.amountText.isBlank() } == 1) maxOf(0.0, amount - splits.sumOf { it.amount }) else 0.0
+    /** Total less every part, the blank one included: 0 when it adds up. */
+    val splitLeft: Double get() = Math.round((amount - splits.sumOf { it.amount } - splitRest) * 100) / 100.0
 
     /** "Your usuals · one tap": only on a fresh, untouched entry. */
     val usuals: List<Usual> get() =
