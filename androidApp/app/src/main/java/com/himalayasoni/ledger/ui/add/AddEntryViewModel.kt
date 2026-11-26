@@ -66,7 +66,16 @@ data class AddRequest(
     val said: String? = null,     // a notification reply that needs finishing: fill the form from it
     val prefill: Entry? = null,   // "Duplicate": a new entry with these details (see core's duplicateAsNew)
     val mini: Boolean = false,    // the small quick add (amount, keypad, usuals); "More" opens the full form
-)
+    val scan: Scan? = null,       // a payment screenshot shared to Ledger
+) {
+    /** Where reading a shared screenshot is up to. */
+    sealed interface Scan {
+        data object Reading : Scan
+        data class Read(val payment: com.himalayasoni.ledger.core.scan.ScannedPayment) : Scan
+        data object NotAPayment : Scan
+        data object Unreadable : Scan
+    }
+}
 
 /** What the add sheet is showing right now. Immutable: every change makes a new copy. */
 data class AddEntryState(
@@ -98,6 +107,7 @@ data class AddEntryState(
     val done: String? = null,                // set after saving/deleting: the sheet closes and shows this
     val heard: String? = null,               // the last thing said or typed in the say bar
     val heardNote: String? = null,           // "tap in the amount", "add who it was with"…
+    val heardFrom: String? = null,           // set when the form was filled from a screenshot, not a line: "Paytm screenshot"
     val voicePeople: List<String> = emptyList(),
     val voiceCategories: List<String> = DEFAULT_CATEGORIES,
     // from your history
@@ -268,8 +278,45 @@ class AddEntryViewModel(
                 amountText = req.amount?.let { plain(Math.abs(it)) }.orEmpty(),
                 card = req.card.orEmpty(),
             )
+            req.scan != null -> fromScan(fresh.copy(mini = true, mode = s.lastMode, card = s.lastCard), req.scan)
             req.mini -> fresh.copy(mini = true, mode = s.lastMode, card = s.lastCard)
             else -> fresh
+        }
+    }
+
+    /**
+     * Fill the pop-up from a screenshot. The UPI reference goes in the comment ("UPI ref 4330…"): it's on your
+     * bank statement too, and it's how a second share of the same screenshot is spotted.
+     */
+    private fun fromScan(base: AddEntryState, scan: AddRequest.Scan): AddEntryState = when (scan) {
+        AddRequest.Scan.Reading -> base.copy(heardFrom = "your screenshot", heard = "", heardNote = "Reading it…", keypadOn = false)
+        AddRequest.Scan.NotAPayment -> base.copy(heardFrom = "your screenshot", heard = "",
+            heardNote = "No amount found on it. Type it in, or share the payment's done screen.")
+        AddRequest.Scan.Unreadable -> base.copy(heardFrom = "your screenshot", heard = "",
+            heardNote = "Couldn't read it. Text reading may still be downloading; try again in a minute.")
+        is AddRequest.Scan.Read -> {
+            val p = scan.payment
+            val fmt = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
+            val dupe = p.ref?.let { ref -> latest.firstOrNull { !it.deleted && it.note.contains(ref) } }
+            val known = p.party?.let { who -> base.voicePeople.firstOrNull { n -> n.equals(who, true) || n.equals(who.substringBefore(' '), true) } }
+            val notes = buildList {
+                if (p.failed) add("it says the payment failed")
+                else if (p.pending) add("it says the payment is pending")
+                dupe?.let { add("already logged: ${it.description.ifBlank { it.category }} on ${it.date.format(fmt)}") }
+                if (known != null && !p.received) add("$known is in your People: if it was a loan, tap More")
+            }
+            base.copy(
+                type = if (p.received) EntryType.RECEIVED else EntryType.SPENT, typeTouched = true,
+                amountText = p.amount?.let(::plain).orEmpty(),
+                description = if (p.received) "" else p.party.orEmpty(),
+                person = if (p.received) (known ?: p.party.orEmpty()) else "",
+                date = p.date ?: LocalDate.now(),
+                note = p.ref?.let { "UPI ref $it" }.orEmpty(),
+                mode = if (p.viaCreditCard) "Card" else "UPI", modeTouched = true,
+                keypadOn = p.amount == null,
+                heardFrom = (p.app ?: "payment") + " screenshot", heard = "",
+                heardNote = if (notes.isEmpty()) "Check it, pick a category and tap Save." else notes.joinToString(" · ").replaceFirstChar { it.uppercase() },
+            )
         }
     }
 
@@ -417,7 +464,7 @@ class AddEntryViewModel(
                 // the mini quick add is for plain spends: anything else (a loan, a split, a card bill) needs the full form
                 mini = s.mini && r.type == EntryType.SPENT && r.withPeople.isEmpty(),
                 modeTouched = s.modeTouched || r.mode.isNotBlank(),
-                heard = line,
+                heard = line, heardFrom = null,
                 heardNote = if (notes.isEmpty()) "Check it and tap Save." else notes.joinToString(" · "),
                 error = null,
             )

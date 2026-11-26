@@ -47,8 +47,8 @@ android {
         applicationId = appPackage
         minSdk = 26
         targetSdk = 34
-        versionCode = 17
-        versionName = "0.11.0"
+        versionCode = 18
+        versionName = "0.12.0"
         buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebase["projectId"] ?: ""}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${firebase["apiKey"] ?: ""}\"")
         buildConfigField("String", "FIREBASE_APP_ID", "\"${firebase["appId"] ?: ""}\"")
@@ -114,6 +114,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.biometric) // fingerprint / phone lock to show private entries
     implementation(libs.glance.appwidget) // home-screen widgets written like Compose
+    implementation(libs.mlkit.text) // reads payment screenshots shared to Ledger, on the phone
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

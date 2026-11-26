@@ -178,3 +178,24 @@ close mid-scroll, and the keyboard stayed up while you scrolled. The fix was to 
 - **The type-or-say bar** moved to the top, dark, with the mic inside. Once you type, the mic turns into a
   "fill the form" arrow. It no longer looks like the form's own fields.
 - **"Your usuals" is gone** from the form. Typing in "What was it?" still suggests past entries that match.
+
+## Share a payment screenshot to Ledger (v18)
+
+Screenshot the payment app's "done" screen → Share → **Log in Ledger**. The quick add pop-up opens over the
+screenshot, reads it, and fills in amount, who, date and the UPI reference. You pick a category and Save.
+
+- **Two layers.** `ui/scan/ScreenshotReader` runs ML Kit text recognition (on the phone, through Play services,
+  so the APK only grows by a few hundred KB and the image never leaves the phone). core's `scan/PaymentScreen`
+  turns the lines into a `ScannedPayment` with plain rules: the tallest ₹ number is the amount; the text after
+  "Paid to / Sent to / To / Received from" is who; keywords give the date, UPI ref, app and status.
+  `PaymentScreenTest` pins one case per app layout (Google Pay, PhonePe, Paytm, received, failed…).
+- **The UPI reference** (12 digits, the same in every app and on your bank statement) goes into the comment as
+  "UPI ref …". Sharing the same screenshot twice shows "already logged".
+- **Warnings** show in the pop-up's note: failed or pending payments, a duplicate, or a payee who's in your People
+  (it might have been a loan).
+- **Manifest:** an `ACTION_SEND` `image/*` filter on `QuickAddActivity`, and the ML Kit `DEPENDENCIES=ocr`
+  meta-data so Play services downloads the model at install, not at the first share.
+
+### Concepts to look up
+- **Share targets**: `Intent.ACTION_SEND`, `EXTRA_STREAM`, and the temporary read permission that comes with a shared URI.
+- **ML Kit bundled vs unbundled** models: APK size against first-run availability.

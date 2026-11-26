@@ -312,6 +312,14 @@ class ScreenshotTest {
     @Test fun mini_light() = mini(false, miniFresh)
     @Test fun mini_dark() = mini(true, miniFresh)
     @Test fun mini_typed() = mini(false, miniFresh.copy(amountText = "240", description = "Uber"))
+    @Test fun mini_scanned() = mini(false, miniFresh.copy(
+        amountText = "1249", description = "Swiggy", note = "UPI ref 432811112222", keypadOn = false, heard = "",
+        heardFrom = "Paytm screenshot", heardNote = "Check it, pick a category and tap Save.",
+    ))
+    @Test fun mini_scan_dupe() = mini(false, miniFresh.copy(
+        amountText = "40", description = "Sharma Tea Stall", keypadOn = false, heard = "",
+        heardFrom = "PhonePe screenshot", heardNote = "Already logged: Chai on 24 Nov",
+    ))
     @Test fun mini_typing_dark() = mini(true, miniFresh.copy(amountText = "180", description = "Medicines", keypadOn = false), typing = true)
 
     @Test fun reminders_settings() = paparazzi.snapshot {

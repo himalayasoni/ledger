@@ -272,7 +272,7 @@ internal fun AddEntryContent(
         }
         // the shortcut: one line, typed or said, fills the whole form below
         if (s.editing == null) SayBar(actions::applySaid, onMic, onFocus)
-        s.heard?.let { Heard(it, s.heardNote) }
+        s.heard?.let { Heard(it, s.heardNote, s.heardFrom) }
         // while the phone keyboard is up, the type buttons step aside and the amount shrinks to one line
         if (!typing) TypeGrid(s.type, actions::onType)
         AmountDisplay(s.amountText, s.type, compact = typing, onTap = onShowKeypad)
@@ -339,7 +339,7 @@ internal fun MiniAddContent(
                 Alignment.Center,
             ) { Icon(LedgerIcons.Mic, "Speak an entry", tint = c.accent, modifier = Modifier.size(21.dp)) }
         }
-        s.heard?.let { Heard(it, s.heardNote) }
+        s.heard?.let { Heard(it, s.heardNote, s.heardFrom) }
         LedgerTextField(
             s.description, actions::onDescription, placeholder = "What was it?",
             imeAction = ImeAction.Done, onDone = { focus.clearFocus() },
@@ -455,12 +455,18 @@ internal fun SayBar(onSaid: (String) -> Unit, onMic: () -> Unit, onFocus: (Boole
     }
 }
 
-/** "Heard “lent 200 to Ashish”. Check it and tap Save." */
+/** "Heard “lent 200 to Ashish”. Check it and tap Save." Or, from a screenshot: "Read from Paytm screenshot. Check it…" */
 @Composable
-internal fun Heard(heard: String, note: String?) {
+internal fun Heard(heard: String, note: String?, from: String? = null) {
     val c = LocalLedgerColors.current
     Text(
         androidx.compose.ui.text.buildAnnotatedString {
+            if (from != null) {
+                append("Read from ")
+                withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)) { append(from) }
+                note?.let { append(". $it") }
+                return@buildAnnotatedString
+            }
             append("Heard ")
             withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)) { append("“$heard”") }
             note?.let { append(if (it.startsWith("Check")) ". $it" else " · $it") }

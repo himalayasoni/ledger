@@ -16,6 +16,9 @@ import com.himalayasoni.ledger.ui.add.AddEntrySheet
 import com.himalayasoni.ledger.ui.add.AddEntryViewModel
 import com.himalayasoni.ledger.ui.add.AddRequest
 import com.himalayasoni.ledger.ui.theme.LedgerTheme
+import com.himalayasoni.ledger.ui.scan.ScreenshotReader
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.qualifier.named
 
@@ -40,7 +43,7 @@ class QuickAddActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        request = QuickAdd.requestFrom(intent)
+        open(intent)
         setContent {
             LedgerTheme {
                 AddEntrySheet(
@@ -60,7 +63,25 @@ class QuickAddActivity : ComponentActivity() {
     /** Opened again while already showing (it's single-task): switch to what was asked for this time. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        request = QuickAdd.requestFrom(intent)
+        open(intent)
+    }
+
+    /**
+     * A shared screenshot: show the pop-up at once ("Reading…"), read it on the phone, then fill the
+     * pop-up from what it says. Anything else: as the intent asks.
+     */
+    private fun open(intent: Intent?) {
+        val shot = QuickAdd.sharedImage(intent)
+        if (shot == null) { request = QuickAdd.requestFrom(intent); return }
+        request = AddRequest(mini = true, scan = AddRequest.Scan.Reading)
+        lifecycleScope.launch {
+            val scan = when (val r = ScreenshotReader.read(applicationContext, shot)) {
+                is ScreenshotReader.Result.Read -> AddRequest.Scan.Read(r.payment)
+                ScreenshotReader.Result.NotAPayment -> AddRequest.Scan.NotAPayment
+                ScreenshotReader.Result.Unreadable -> AddRequest.Scan.Unreadable
+            }
+            request = AddRequest(mini = true, scan = scan)
+        }
     }
 }
 
@@ -108,5 +129,13 @@ object QuickAdd {
         val type = intent.getStringExtra(EXTRA_TYPE)?.let(EntryType::fromKey)
         val said = intent.getStringExtra(EXTRA_SAID)?.takeIf { it.isNotBlank() }
         return AddRequest(type = type, listen = listen, said = said, mini = type == null && !listen && said == null)
+    }
+
+    /** The image in a "Share → Log in Ledger", if that's how we were opened. */
+    fun sharedImage(intent: Intent?): android.net.Uri? {
+        if (intent?.action != Intent.ACTION_SEND || intent.type?.startsWith("image/") != true) return null
+        @Suppress("DEPRECATION")
+        return if (android.os.Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+        else intent.getParcelableExtra(Intent.EXTRA_STREAM)
     }
 }

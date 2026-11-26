@@ -18,6 +18,7 @@ googleId = "1.1.1"
 datastore = "1.1.1"
 biometric = "1.1.0"
 glance = "1.1.1"
+mlkitText = "19.0.1"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -48,6 +49,8 @@ googleid = { module = "com.google.android.libraries.identity.googleid:googleid",
 datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
+# on-phone text recognition, served by Google Play services: the model isn't bundled, so the APK stays small
+mlkit-text = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "mlkitText" }
 junit = { module = "junit:junit", version.ref = "junit" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
