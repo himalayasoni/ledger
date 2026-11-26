@@ -179,6 +179,8 @@ fun AppShell(
             tab = when { cardName != null -> Tab.HOME; personName != null -> Tab.PEOPLE; else -> tab }, onTab = goTab, onAdd = { adding = AddRequest() },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+        // adding or editing: a full page over everything (the toast after saving shows on top of it)
+        adding?.let { req -> AddEntrySheet(req, onDismiss = { adding = null }, onSaved = say) }
         AnimatedVisibility(
             visible = toast != null,
             enter = fadeIn() + slideInVertically { it / 2 }, exit = fadeOut() + slideOutVertically { it / 2 },
@@ -193,7 +195,6 @@ fun AppShell(
             onRemove = { entries.removeMoneyBack(f.entryId, undoable) },
         )
     }
-    adding?.let { req -> AddEntrySheet(req, onDismiss = { adding = null }, onSaved = say) }
     val privacyState by account.privacy.collectAsStateWithLifecycle()
     if (showAccount) AccountSheet(
         accountState, onSignIn = account::signIn, onSignOut = account::signOut, onDismiss = { showAccount = false },

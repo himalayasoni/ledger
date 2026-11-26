@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -135,17 +138,25 @@ fun AddEntrySheet(
         }
     }
 
+    // The mini quick add is a small sheet; the full form is a page of its own (a sheet that tall kept
+    // fighting its own scrolling). Until start() has run, the state may still be the last form's.
+    var started by remember(request) { mutableStateOf(false) }
+    val asPage = !(if (started) s.mini else request.mini)
+    fun hideThen(after: () -> Unit) { if (asPage) after() else scope.launch { sheetState.hide(); after() } }
+
     // start fresh, then wait for "saved" or "deleted" and close (one effect, so the order is guaranteed)
     LaunchedEffect(request) {
         viewModel.start(request)
+        started = true
         // a line from a notification reply that needs finishing: wait for your history, then fill the form from it
         request.said?.let { viewModel.awaitHistory(); viewModel.applySaid(it) }
         if (request.listen) listen()
         val msg = viewModel.state.mapNotNull { it.done }.first()
-        sheetState.hide(); onSaved(msg); onDismiss()
+        if (!asPage) sheetState.hide()
+        onSaved(msg); onDismiss()
     }
 
-    fun close() { scope.launch { sheetState.hide(); onDismiss() } }
+    fun close() = hideThen(onDismiss)
     fun showKeypad() { focus.clearFocus(); keyboard?.hide(); viewModel.setKeypad(true) }
     var keypadBeforeTyping by remember { mutableStateOf(true) }
     val onFocus: (Boolean) -> Unit = { f ->
@@ -166,6 +177,41 @@ fun AddEntrySheet(
         imeWasVisible = imeVisible
     }
 
+    // Scrolling the form by hand puts away whichever keyboard is up, so you can see what you're scrolling to
+    val onScrollForm: () -> Unit = {
+        if (typing || s.keypadOn) {
+            keypadBeforeTyping = false; typing = false
+            focus.clearFocus(); keyboard?.hide(); viewModel.setKeypad(false)
+        }
+    }
+
+    if (asPage) {
+        // Back: closes the page; but first lowers the keypad (that handler is composed later, so it goes first)
+        androidx.activity.compose.BackHandler { close() }
+        val shown = remember { androidx.compose.animation.core.MutableTransitionState(false).apply { targetState = true } }
+        AnimatedVisibility(
+            shown,
+            enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)) +
+                androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(220)) { it / 10 },
+        ) {
+            Box(
+                Modifier.fillMaxSize().background(c.surface).windowInsetsPadding(WindowInsets.statusBars)
+                    // taps that miss a control stay on this page instead of reaching the screen below
+                    .pointerInput(Unit) { detectTapGestures { } },
+            ) {
+                androidx.activity.compose.BackHandler(enabled = s.keypadOn && !typing) { viewModel.setKeypad(false) }
+                AddEntryContent(
+                    s, viewModel, typing,
+                    onFocus = onFocus, onClose = ::close, onShowKeypad = ::showKeypad, onMic = listen,
+                    modifier = Modifier.fillMaxSize().padding(top = 6.dp).windowInsetsPadding(WindowInsets.navigationBars).imePadding(),
+                    onSave = { focus.clearFocus(); viewModel.save() },
+                    onScrollForm = onScrollForm,
+                )
+            }
+        }
+        return
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -176,17 +222,9 @@ fun AddEntrySheet(
         contentWindowInsets = { WindowInsets(0) },
         tonalElevation = 0.dp,
     ) {
-        // Back lowers the keypad first (like a phone keyboard); a second Back closes the sheet
-        androidx.activity.compose.BackHandler(enabled = s.keypadOn && !typing && !s.mini) { viewModel.setKeypad(false) }
-        if (s.mini) MiniAddContent(
+        MiniAddContent(
             s, viewModel, typing, onFocus = onFocus, onShowKeypad = ::showKeypad, onMic = listen, onOpenApp = onOpenApp,
             modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars).imePadding().keepSheetOpen(),
-            onSave = { focus.clearFocus(); viewModel.save() },
-        ) else AddEntryContent(
-            s, viewModel, typing,
-            onFocus = onFocus, onClose = ::close, onShowKeypad = ::showKeypad, onMic = listen,
-            modifier = Modifier.fillMaxHeight(heightFraction).windowInsetsPadding(WindowInsets.navigationBars).imePadding()
-                .keepSheetOpen(),
             onSave = { focus.clearFocus(); viewModel.save() },
         )
     }
@@ -204,8 +242,23 @@ internal fun AddEntryContent(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
     onMic: () -> Unit = {},
+    onScrollForm: () -> Unit = {},
 ) {
     val c = LocalLedgerColors.current
+    // a finger dragging the form (not the form moving itself to show a box) counts as "scrolling by hand"
+    val dragWatch = remember(onScrollForm) {
+        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+            var dragged = 0f
+            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                if (source == androidx.compose.ui.input.nestedscroll.NestedScrollSource.Drag) {
+                    dragged += kotlin.math.abs(available.y)
+                    if (dragged > 48f) { dragged = 0f; onScrollForm() }
+                }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+            override suspend fun onPreFling(available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity { dragged = 0f; return androidx.compose.ui.unit.Velocity.Zero }
+        }
+    }
     val saveLabel = when {
         s.editing != null -> "Save changes"
         s.amount > 0 -> "Save ₹" + amountDisplay(s.amountText)
@@ -215,15 +268,10 @@ internal fun AddEntryContent(
         // ---- fixed top: kept small so the form gets the room ----
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(if (s.editing != null) "Edit entry" else "New entry", style = LedgerType.title, color = c.ink, modifier = Modifier.weight(1f))
-            if (s.editing == null) {
-                Box(
-                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(c.deep).pressable(onClick = onMic),
-                    Alignment.Center,
-                ) { Icon(LedgerIcons.Mic, "Speak an entry", tint = c.accent, modifier = Modifier.size(20.dp)) }
-                Spacer(Modifier.width(8.dp))
-            }
             SquareIconButton(LedgerIcons.Close, "Close") { onClose() }
         }
+        // the shortcut: one line, typed or said, fills the whole form below
+        if (s.editing == null) SayBar(actions::applySaid, onMic, onFocus)
         s.heard?.let { Heard(it, s.heardNote) }
         // while the phone keyboard is up, the type buttons step aside and the amount shrinks to one line
         if (!typing) TypeGrid(s.type, actions::onType)
@@ -231,10 +279,9 @@ internal fun AddEntryContent(
 
         // ---- scrolling middle ----
         Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 12.dp),
+            Modifier.weight(1f).fillMaxWidth().nestedScroll(dragWatch).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            if (s.editing == null) SayBar(actions, onFocus)
             Details(s, actions, onFocus)
         }
 
@@ -360,16 +407,51 @@ private fun Modifier.keepSheetOpen(): Modifier = this
 
 /* ---------- say bar (web: .say) ---------- */
 
+/**
+ * The type-or-say bar: dark, with a sparkle and the mic inside, so it reads as "the shortcut" and not as
+ * one more field of the form. Go (or the arrow) fills the form from the line; the mic does the same by voice.
+ */
 @Composable
-private fun SayBar(actions: AddEntryActions, onFocus: (Boolean) -> Unit) {
+internal fun SayBar(onSaid: (String) -> Unit, onMic: () -> Unit, onFocus: (Boolean) -> Unit) {
+    val c = LocalLedgerColors.current
     var text by remember { mutableStateOf("") }
-    Column {
-        FieldLabel("Type it in one line")
-        LedgerTextField(
-            text, { text = it }, placeholder = "lent 200 to Ashish · chai 20 cash",
-            imeAction = ImeAction.Go, onDone = { actions.applySaid(text); text = "" },
-            modifier = Modifier.onFocusChanged { onFocus(it.isFocused) },
+    val send = { if (text.isNotBlank()) { onSaid(text.trim()); text = "" } }
+    Row(
+        Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.deep)
+            .padding(start = 14.dp, end = 5.dp, top = 5.dp, bottom = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(LedgerIcons.Sparkle, null, tint = c.accent, modifier = Modifier.size(19.dp))
+        Spacer(Modifier.width(10.dp))
+        androidx.compose.foundation.text.BasicTextField(
+            text, { text = it }, singleLine = true,
+            textStyle = LedgerType.body.copy(fontSize = 15.sp, color = c.deepInk),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences, imeAction = ImeAction.Go,
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { send() }),
+            modifier = Modifier.weight(1f).onFocusChanged { onFocus(it.isFocused) },
+            decorationBox = { inner ->
+                Box(Modifier.fillMaxWidth(), Alignment.CenterStart) {
+                    if (text.isEmpty()) Text(
+                        "Type or say it: chai 20 cash", style = LedgerType.body.copy(fontSize = 15.sp), color = c.deepInk2,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                    inner()
+                }
+            },
         )
+        Spacer(Modifier.width(6.dp))
+        val typed = text.isNotBlank()
+        Box(
+            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(if (typed) c.accent else c.deep2)
+                .pressable(onClick = { if (typed) send() else onMic() }),
+            Alignment.Center,
+        ) {
+            if (typed) Icon(LedgerIcons.ChevronRight, "Fill the form", tint = c.accentInk, modifier = Modifier.size(20.dp))
+            else Icon(LedgerIcons.Mic, "Speak an entry", tint = c.accent, modifier = Modifier.size(20.dp))
+        }
     }
 }
 
@@ -453,13 +535,6 @@ internal fun AmountDisplay(text: String, type: EntryType, compact: Boolean, onTa
 private fun Details(s: AddEntryState, vm: AddEntryActions, onFocus: (Boolean) -> Unit) {
     val c = LocalLedgerColors.current
     var addingCategory by remember { mutableStateOf(false) }
-
-    if (s.usuals.isNotEmpty()) Column {
-        FieldLabel("Your usuals · one tap")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            s.usuals.forEach { u -> LedgerChip(u.description, soft = true, trailing = "₹" + groupIndian(u.amount.toLong())) { vm.pickUsual(u) } }
-        }
-    }
 
     Column {
         FieldLabel("What was it?")

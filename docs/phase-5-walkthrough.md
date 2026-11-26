@@ -163,3 +163,18 @@ the Quick settings tile "Add to Ledger", the "Quick add" shortcut dragged to the
   not for screen data, which still goes in as parameters.
 - **`activity-alias`** and **adaptive icons** (`<adaptive-icon>`: background, foreground and a
   `monochrome` layer for Android 13+ themed icons; keep the drawing inside the middle 66dp of 108dp).
+
+## Add is a page, not a sheet (v17 / web v21)
+
+A sheet as tall as the add form kept fighting itself: dragging the form could drag the sheet, the sheet could
+close mid-scroll, and the keyboard stayed up while you scrolled. The fix was to stop using a sheet for it.
+
+- **Android**: `AddEntrySheet` shows the full form as a page drawn over the app (inside `AppShell`'s Box, with a
+  `BackHandler` that closes it). The mini quick add stays a small sheet, since it never scrolls. In the pop-up,
+  "More" switches from the sheet to the page in place.
+- **Web**: `#sheet` is pinned to the visible screen's height (`--vvh`), with no rounded top and no grab handle.
+- **Scrolling by hand puts the keyboard away**: Android watches drags through a `NestedScrollConnection`
+  (`NestedScrollSource.Drag`, so the form scrolling itself to show a box doesn't count). The web uses `touchmove`.
+- **The type-or-say bar** moved to the top, dark, with the mic inside. Once you type, the mic turns into a
+  "fill the form" arrow. It no longer looks like the form's own fields.
+- **"Your usuals" is gone** from the form. Typing in "What was it?" still suggests past entries that match.

@@ -181,6 +181,16 @@ button.col{padding:0;min-width:0}
 .mic{flex:0 0 44px;height:44px;border-radius:12px;background:var(--deep);color:var(--accent);display:grid;place-items:center}
 .mic svg{width:20px;height:20px}
 .mic.on{background:var(--spent);color:var(--bg);animation:pulse 1s ease-in-out infinite}
+/* the type-or-say bar: dark, sparkle + mic inside, so it reads as the shortcut and not one more field */
+.saybar{display:flex;align-items:center;gap:10px;margin-top:10px;background:var(--deep);border-radius:16px;padding:5px 5px 5px 14px;flex:0 0 auto}
+.saybar>svg{width:19px;height:19px;color:var(--accent);flex:0 0 auto}
+.saybar input{flex:1;min-width:0;height:40px;background:none;border:0;outline:0;color:var(--deep-ink);font:inherit;font-size:15px}
+.saybar input::placeholder{color:var(--deep-ink-2);opacity:1}
+.saybar .mic{flex:0 0 40px;width:40px;height:40px;background:var(--deep-2)}
+.saybar .mic .go{display:none}
+.saybar.typed .mic:not(.on){background:var(--accent);color:var(--accent-ink)}
+.saybar.typed .mic:not(.on) .m{display:none}
+.saybar.typed .mic:not(.on) .go{display:block}
 .heard{font-size:13px;color:var(--ink-2);margin-top:6px}
 .heard b{color:var(--ink)}
 .ubar{display:flex;align-items:center;gap:8px;width:100%;background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:600;margin-bottom:12px;text-align:left}
@@ -462,10 +472,15 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
   transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.9,.25,1)}
 @supports (max-height:94dvh){.sheet{max-height:calc(var(--vvh, 100dvh) * .94)}}
 .sheet.open{transform:none}
+/* the add/edit form is a page of its own, not a sheet: nothing to drag, nothing to close by accident */
+#sheet{top:auto;height:100vh;max-height:none;border-radius:0;box-shadow:none;
+  padding-top:calc(10px + env(safe-area-inset-top,0px))}
+@supports (height:100dvh){#sheet{height:var(--vvh, 100dvh)}}
+#sheet .grab{display:none}
+#sheet .done{border-radius:0}
 .grab{width:40px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 6px}
 .sh-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .sh-head h2{margin:0;font-family:var(--f-display);font-size:18px;flex:1}
-.sh-head .mic{flex:0 0 40px;width:40px;height:40px}
 /* 7 types in two rows of four: labels only; what the chosen one means shows under the amount */
 .types{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px 0 0}
 .tbtn{height:38px;border:1px solid var(--line);border-radius:11px;padding:0 4px;background:var(--surface);min-width:0;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s}
@@ -490,7 +505,6 @@ textarea.inp{height:auto;padding:10px 12px;resize:vertical}
 .shake{animation:shake .35s ease}
 @keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 .sh-body{flex:1;overflow-y:auto;display:grid;gap:14px;align-content:start;padding:4px 2px 12px;min-height:80px}
-#quick:empty{display:none} /* no usuals: no empty gap in the form */
 .quick-h{font-size:12px;font-weight:700;color:var(--ink-2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
 .qp{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
 .qp b{font-variant-numeric:tabular-nums}
@@ -557,9 +571,15 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
   <!-- fixed top, kept small so the form gets the room: title, mic, close; type buttons; amount -->
   <div class="sh-head">
     <h2 id="sh-title">New entry</h2>
-    <button class="mic" id="mic-btn" data-act="mic" aria-label="Speak an entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
     <button class="icon-btn" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
+  <!-- the shortcut: one line, typed or said, fills the whole form below -->
+  <div class="saybar" id="say">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3.5l1.9 5.1 5.1 1.9-5.1 1.9L11 17.5l-1.9-5.1L4 10.5l5.1-1.9zM18.5 15v5M16 17.5h5"/></svg>
+    <input id="f-say" autocomplete="off" enterkeyhint="go" aria-label="Type or say an entry in one line" placeholder="Type or say it: chai 20 cash">
+    <button class="mic" id="mic-btn" data-act="mic" aria-label="Speak an entry"><svg class="m" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg><svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+  </div>
+  <div class="heard" id="heard" hidden></div>
   <div class="types" id="sh-types" role="group" aria-label="Entry type"></div>
   <div class="amount zero" id="sh-amount" role="button" tabindex="0" aria-label="Amount">
     <div class="amt-line"><span class="cur">₹</span><span id="amt-val">0</span></div>
@@ -567,12 +587,6 @@ pre.export{max-height:180px;overflow:auto;background:var(--bg);border:1px solid 
   </div>
   <!-- scrolling middle: the details -->
   <div class="sh-body" id="sh-body">
-    <div id="say">
-      <label class="fld"><span>Type it in one line</span>
-        <input class="inp" id="f-say" autocomplete="off" enterkeyhint="go" placeholder="lent 200 to Ashish · chai 20 cash"></label>
-      <div class="heard" id="heard" hidden></div>
-    </div>
-    <div id="quick"></div>
     <div>
       <label class="fld"><span>What was it?</span>
         <input class="inp" id="f-desc" autocomplete="off" placeholder="Chai, Uber, Rent, Movie tickets"></label>
@@ -695,7 +709,7 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v20';
+const APP_VERSION = 'v21';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
@@ -2018,7 +2032,7 @@ function openEntry(pref = {}, editId = null){
   $('#f-desc').value = D.desc || ''; $('#f-person').value = D.person || ''; $('#f-note').value = D.note || ''; $('#f-date').value = D.date;
   $('#desc-sugg').innerHTML = ''; $('#sh-title').textContent = e ? 'Edit entry' : pref.copy ? 'Duplicate entry' : 'New entry';
   $('#sh-del').hidden = !e; $('#done').hidden = true;
-  $('#say').hidden = !!src; $('#mic-btn').hidden = !!src; $('#heard').hidden = true; $('#f-say').value = ''; setErr('');
+  $('#say').hidden = !!src; $('#mic-btn').hidden = !!src; $('#heard').hidden = true; $('#f-say').value = ''; $('#say').classList.remove('typed'); setErr('');
   syncSheet(); showSheet($('#sheet'));
   setPad(!src && !pref.amount);
   $('#sh-body').scrollTop = 0;
@@ -2086,7 +2100,7 @@ function syncSheet(){
   $('#f-date').classList.toggle('on', D.date !== tk && D.date !== addDays(tk,-1));
   $('#mode-lbl').textContent = bill ? 'Paid from' : 'Paid with';
   $('#mode-chips').innerHTML = MODES.filter(m => !(bill && m === 'Card')).map(m=>`<button class="chip${D.mode===m?' on':''}" data-act="mode" data-m="${m}">${m}</button>`).join('');
-  renderQuick(); renderPersonSugg(); renderCards(); renderLink();
+  renderPersonSugg(); renderCards(); renderLink();
 }
 /* "Which card" chips: the cards you've named, plus a way to name a new one */
 const tidyCard = v => String(v || '').trim().replace(/\s+/g, ' ').slice(0, 24);
@@ -2125,12 +2139,6 @@ function renderLink(){
   else h += `<div class="card linklist">${list.map(o => `<button data-act="link" data-v="${esc(o.id)}"><b>${esc(o.title)}</b><span>${esc(o.detail)}</span></button>`).join('')}</div>
       <div class="chips"><button class="chip" data-act="link" data-v="">Not for an expense</button></div>`;
   box.innerHTML = h;
-}
-function renderQuick(){
-  const q = $('#quick');
-  if (D.editId || D.desc || D.amountStr){ q.innerHTML = ''; return; }
-  const ts = templates().filter(t => !D.typeTouched || t.type === D.type).sort((a,b)=>(b.count-a.count)||(b.last-a.last)).slice(0,6);
-  q.innerHTML = ts.length ? `<div class="quick-h">Your usuals · one tap</div><div class="chips">${ts.map((t,i)=>`<button class="chip qp" data-act="tpl" data-k="${esc(t.key)}">${esc(t.desc)} <b>${rupee(t.amount)}</b></button>`).join('')}</div>` : '';
 }
 function renderDescSugg(){
   const box = $('#desc-sugg'), q = (D.desc||'').trim().toLowerCase();
@@ -2198,7 +2206,6 @@ function keyPress(k){
   const s = nextAmount(D.amountStr, k);
   if (s === D.amountStr && k !== 'del') return;
   D.amountStr = s; setErr(''); syncAmount(true);
-  if ($('#quick').innerHTML && s) renderQuick();
 }
 function shake(el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
 let saving = false;
@@ -2628,7 +2635,7 @@ document.addEventListener('click', ev => {
   switch (a){
     case 'nav': S.person = null; go(el.dataset.v); break;
     case 'voice': openEntry({}); startVoice(); break;
-    case 'mic': startVoice(); break;
+    case 'mic': if (!listening && $('#f-say').value.trim()) runLine($('#f-say').value); else startVoice(); break;
     case 'add': if (el.dataset.lp){ delete el.dataset.lp; break; } openEntry({type: el.dataset.type, person: el.dataset.person, amount: el.dataset.amount, focusWith: el.dataset.with, card: el.dataset.card}); break;
     case 'open': openSub('entry', {entryId: el.dataset.id}); break; // a tap on a row opens the entry's page
     case 'back': leaveSub(); break;
@@ -2654,7 +2661,7 @@ document.addEventListener('click', ev => {
       syncSheet(); break;
     }
     case 'card': D.card = lc(D.card) === lc(el.dataset.c) ? '' : el.dataset.c; setErr(''); renderCards(); break;
-    case 'usebill': D.amountStr = trimAmt(+el.dataset.v); setErr(''); syncAmount(true); renderQuick(); break;
+    case 'usebill': D.amountStr = trimAmt(+el.dataset.v); setErr(''); syncAmount(true); break;
     case 'cardpage': openSub('card', {card: el.dataset.c, cardPick: false, duePick: false, cardOpen: {}}); break;
     case 'stmtpick': S.cardPick = !S.cardPick; S.duePick = false; render(); break;
     case 'stmtday': S.cardPick = false; saveCardSettings(S.card, {statementDay: +el.dataset.d || null}); break;
@@ -2876,6 +2883,15 @@ $('#sh-amount').addEventListener('click', () => { setPad(true); document.activeE
 const sheet = $('#sheet');
 // touching the form tucks the keypad away; tapping the amount brings it back
 $('#sh-body').addEventListener('pointerdown', () => { if (!sheet.classList.contains('padoff')) setPad(false); });
+// dragging the form by hand (not the page moving itself to show a box) puts the phone keyboard away too
+let dragY = null;
+$('#sh-body').addEventListener('touchstart', e => { dragY = e.touches[0].clientY; }, {passive: true});
+$('#sh-body').addEventListener('touchmove', e => {
+  if (dragY === null || Math.abs(e.touches[0].clientY - dragY) < 24) return;
+  dragY = null;
+  const a = document.activeElement;
+  if (a && sheet.contains(a) && a.matches('input,textarea')) a.blur();
+}, {passive: true});
 // typing in a text box: the phone keyboard comes up, so Ledger's keypad goes down
 sheet.addEventListener('focusin', e => {
   if (!e.target.matches('input:not([type=date]):not([type=checkbox]),textarea')) return;
@@ -2898,7 +2914,7 @@ window.addEventListener('resize', fitToKeyboard);
 fitToKeyboard();
 sheet.addEventListener('focusout', () => setTimeout(() => { if (!sheet.contains(document.activeElement) || !document.activeElement.matches('input:not([type=date]):not([type=checkbox]),textarea')) sheet.classList.remove('typing'); }, 50));
 $('#f-desc').addEventListener('input', e => {
-  D.desc = e.target.value; renderDescSugg(); renderQuick();
+  D.desc = e.target.value; renderDescSugg();
   const exact = templates(S.everything).find(t => t.key === D.desc.trim().toLowerCase());
   if (exact && !D.catTouched && TYPES[D.type].kind==='flow'){
     D.cat = exact.cat || ''; syncSheetCats();
@@ -3417,7 +3433,7 @@ function applyParsed(r, heard){
   const h = $('#heard'); h.hidden = false;
   h.innerHTML = `Heard <b>“${esc(heard)}”</b>${notes.length ? ' · ' + esc(notes.join(' · ')) : '. Check it and tap Save.'}`;
 }
-function runLine(v){ stopVoice(); v = (v || '').trim(); if (!v || !D) return; applyParsed(parseLine(v), v); $('#f-say').value = ''; $('#f-say').blur(); }
+function runLine(v){ stopVoice(); v = (v || '').trim(); if (!v || !D) return; applyParsed(parseLine(v), v); $('#f-say').value = ''; $('#say').classList.remove('typed'); $('#f-say').blur(); }
 
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null, listening = false;
@@ -3425,8 +3441,7 @@ function micUI(){
   const b = $('#mic-btn'), i = $('#f-say');
   b.classList.toggle('on', listening);
   b.setAttribute('aria-label', listening ? 'Stop listening' : 'Speak an entry');
-  i.placeholder = listening ? 'Listening… say it like “chai 20”' : 'lent 200 to Ashish · chai 20 cash';
-  if (listening) $('#sh-body').scrollTop = 0; // what you say shows in the first box of the form
+  i.placeholder = listening ? 'Listening… say it like “chai 20”' : 'Type or say it: chai 20 cash';
 }
 function stopVoice(){ if (rec && listening){ try { rec.abort(); } catch {} } listening = false; if ($('#mic-btn')) micUI(); }
 function startVoice(){
@@ -3462,6 +3477,7 @@ document.addEventListener('keydown', e => {
   else if (e.target.id === 'cat-rename'){ e.preventDefault(); $('[data-act=catsave]').click(); }
 });
 $('#f-say').addEventListener('focus', () => { if (listening) stopVoice(); });
+$('#f-say').addEventListener('input', e => $('#say').classList.toggle('typed', !!e.target.value.trim() && !listening));
 $('#f-say').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); runLine(e.target.value); } });
 /* ---------- rows: a tap opens the entry's page; a long press (or right-click) opens its menu ----------
    Some browsers end a long press with a click where the finger lifts, which would land on the menu that just

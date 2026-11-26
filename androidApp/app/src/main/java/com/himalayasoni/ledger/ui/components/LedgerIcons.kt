@@ -45,5 +45,7 @@ object LedgerIcons {
     val ChevronLeft = icon("chevron-left", 2.2f, "M15 6l-6 6 6 6")
     val ChevronRight = icon("chevron-right", 2.2f, "M9 6l6 6-6 6")
     val Card = icon("card", 2f, "M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM3 10h18M7 15h4")
+    /** The type-or-say bar: one line in, a filled form out. */
+    val Sparkle = icon("sparkle", 1.8f, "M11 3.5l1.9 5.1 5.1 1.9-5.1 1.9L11 17.5l-1.9-5.1L4 10.5l5.1-1.9z", "M18.5 15v5M16 17.5h5")
     val Check = icon("check", 2.6f, "M5 12.5l4.5 4.5L19 7.5")
 }
