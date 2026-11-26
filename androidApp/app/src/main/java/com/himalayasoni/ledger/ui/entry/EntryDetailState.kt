@@ -1,6 +1,7 @@
 package com.himalayasoni.ledger.ui.entry
 
 import com.himalayasoni.ledger.core.domain.balances
+import com.himalayasoni.ledger.core.domain.cost
 import com.himalayasoni.ledger.core.domain.net
 import com.himalayasoni.ledger.core.domain.people
 import com.himalayasoni.ledger.core.domain.repaid
@@ -50,6 +51,7 @@ data class EntryDetail(
     val facts: List<Fact>,
     val sharesTitle: String?,       // "Split 3 ways · ₹1,067 each"
     val shares: List<ShareLine>,
+    val costSoFar: String? = null,  // shared spend: what it has cost you after the shares paid back so far
     val note: String,
     val moneyBack: MoneyBackUi?,
     val actions: List<ActionUi>,
@@ -154,6 +156,7 @@ fun buildEntryDetail(e: Entry, all: List<Entry>, today: LocalDate): EntryDetail 
         sharesTitle = if (with.isEmpty()) null else
             "Split $ways ways · ${formatRupees(e.share())} each" + if (!e.includesMe) " (not you)" else "",
         shares = shares,
+        costSoFar = if (with.isEmpty()) null else formatRupees(e.cost()),
         note = e.note.trim(),
         moneyBack = moneyBack,
         actions = actions,

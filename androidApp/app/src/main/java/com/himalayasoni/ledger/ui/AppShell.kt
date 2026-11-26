@@ -144,6 +144,7 @@ fun AppShell(
         when {
             entryId != null -> EntryPage(
                 entryPage?.takeIf { it.id == entryId }?.detail, onBack = { entryId = null }, onAction = onEntryAction,
+                onSharePaid = { name, paid -> entryId?.let { entries.setSharePaid(it, name, paid, undoable) } },
                 onCard = { name -> entryId = null; personName = null; cardName = name },
                 backLabel = cardName ?: personName ?: when (tab) { Tab.HOME -> "Home"; Tab.PEOPLE -> "People"; Tab.SEARCH -> "Search"; Tab.INSIGHTS -> "Insights" },
             )

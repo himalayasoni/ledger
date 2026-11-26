@@ -60,6 +60,7 @@ fun EntryPage(
     onAction: (EntryAction) -> Unit,
     onCard: (String) -> Unit,
     backLabel: String = "Back",
+    onSharePaid: (name: String, paid: Boolean) -> Unit = { _, _ -> },
 ) {
     val c = LocalLedgerColors.current
     LazyColumn(
@@ -72,7 +73,7 @@ fun EntryPage(
         item { Hero(state, onAction) }
         state.moneyBack?.let { m -> item { MoneyBackCard(m) } }
         item { FactsCard(state.facts, onCard) }
-        if (state.shares.isNotEmpty()) item { SharesCard(state.sharesTitle.orEmpty(), state.shares) }
+        if (state.shares.isNotEmpty()) item { SharesCard(state.sharesTitle.orEmpty(), state.shares, state.costSoFar, onSharePaid) }
         if (state.note.isNotBlank()) item {
             LedgerCard(radius = 18.dp) {
                 Column(Modifier.padding(16.dp)) {
@@ -182,7 +183,7 @@ private fun FactsCard(facts: List<Fact>, onCard: (String) -> Unit) {
 }
 
 @Composable
-private fun SharesCard(title: String, shares: List<ShareLine>) {
+private fun SharesCard(title: String, shares: List<ShareLine>, costSoFar: String?, onSharePaid: (String, Boolean) -> Unit) {
     val c = LocalLedgerColors.current
     LedgerCard(radius = 18.dp) {
         Column {
@@ -197,8 +198,27 @@ private fun SharesCard(title: String, shares: List<ShareLine>) {
                     Text(sh.name, style = LedgerType.body, fontWeight = FontWeight.SemiBold, color = c.ink, modifier = Modifier.weight(1f).padding(start = 10.dp))
                     Column(horizontalAlignment = Alignment.End) {
                         Text(sh.share, style = LedgerType.amount, color = c.ink)
-                        Text(sh.status, style = LedgerType.small, fontWeight = FontWeight.SemiBold, color = if (sh.settled) c.income else c.ink2)
+                        if (!sh.settled && sh.status != "Not paid back")
+                            Text(sh.status, style = LedgerType.small, fontWeight = FontWeight.SemiBold, color = c.ink2)
+                        // one tap: they've paid their share back (tap again to undo; the toast has Undo too)
+                        Text(
+                            if (sh.settled) "Paid back ✓" else "Mark paid back",
+                            style = LedgerType.small, fontWeight = FontWeight.Bold,
+                            color = if (sh.settled) c.income else c.ink,
+                            modifier = Modifier.padding(top = 4.dp).clip(RoundedCornerShape(999.dp))
+                                .background(if (sh.settled) c.income.copy(alpha = 0.12f) else c.accentSoft)
+                                .pressable(onClick = { onSharePaid(sh.name, !sh.settled) })
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                        )
                     }
+                }
+            }
+            // the true cost: the bill, less what the others have paid back so far
+            costSoFar?.let {
+                Hairline()
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Cost you so far", style = LedgerType.body, color = c.ink2, modifier = Modifier.weight(1f))
+                    Text(it, style = LedgerType.amount, fontWeight = FontWeight.Bold, color = c.ink)
                 }
             }
         }

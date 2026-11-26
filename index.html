@@ -192,6 +192,7 @@ button.col{padding:0;min-width:0}
 .saybar.typed .mic:not(.on) .m{display:none}
 .saybar.typed .mic:not(.on) .go{display:block}
 .heard{font-size:13px;color:var(--ink-2);margin-top:6px}
+button.pill.mark{background:var(--accent-soft);color:var(--ink);font-weight:700}
 .heard b{color:var(--ink)}
 .ubar{display:flex;align-items:center;gap:8px;width:100%;background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:600;margin-bottom:12px;text-align:left}
 .ubar svg{width:16px;height:16px;flex:0 0 auto}
@@ -709,7 +710,7 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS_MODE = 'ledger-mode';
-const APP_VERSION = 'v21';
+const APP_VERSION = 'v22';
 window.__ledgerBusy = () => !!(typeof openEl !== 'undefined' && openEl) || !$('#pin').hidden || !$('#quickbox').hidden;
 const ICON = {
   bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>',
@@ -1560,7 +1561,8 @@ function viewEntry(){
     const people = w.map(n => {
       const got = repaidOf(e, n), done = got >= sh - 0.5;
       return `<div class="crow"><button class="cn go" data-act="person" data-name="${esc(n)}">${esc(n)}</button><span class="cc">share ${rupee(sh)}</span>
-        ${done ? '<span class="pill owe-you">paid back</span>' : got > 0 ? `<span class="pill even">paid ${rupee(got)}</span>` : '<span class="pill even">not paid back</span>'}</div>`;
+        ${got > 0 && !done ? `<span class="pill even">paid ${rupee(got)}</span>` : ''}
+        <button class="pill ${done ? 'owe-you' : 'mark'}" data-act="sharepaid" data-id="${id}" data-name="${esc(n)}" data-v="${done ? 0 : 1}">${done ? 'Paid back ✓' : 'Mark paid back'}</button></div>`;
     }).join('');
     shared = `<div class="card"><h3>Shared with ${w.length === 1 ? esc(w[0]) : w.length + ' people'}</h3>
       <p class="muted es-line">${me ? `${ways} shares of ${rupee(sh)}, one of them yours` : `Not on you: ${rupee(sh)} on each of them`}${r ? ', after the money back' : ''}</p>
@@ -2455,6 +2457,17 @@ async function markArrived(id){
   toast('Refund marked arrived', 'Undo', () => store.put(before));
 }
 
+/* "Mark paid back" on an entry's page: that person paid their whole share back (tap again to undo) */
+async function setSharePaid(id, name, paid){
+  const e = S.entries.find(x => x.id === id);
+  if (!e || e.type !== 'spent') return;
+  const before = cleanRec(e), pb = {...(e.paidBack || {})}, sh = Math.round(shareOf(e) * 100) / 100;
+  if (paid) pb[lc(name)] = sh; else delete pb[lc(name)];
+  buzz();
+  await store.put({...cleanRec(e), paidBack: pb});
+  toast(paid ? `${name} paid back ${rupee(sh)}` : `${name}'s share marked not paid back`, 'Undo', () => store.put(before));
+}
+
 /* ---------- long-press menu on a row ---------- */
 function openRowMenu(id){
   const e = S.entries.find(x => x.id === id); if (!e) return;
@@ -2647,6 +2660,7 @@ document.addEventListener('click', ev => {
       deleteWithUndo(e); break;
     }
     case 'arrived': markArrived(el.dataset.id); break;
+    case 'sharepaid': setSharePaid(el.dataset.id, el.dataset.name, el.dataset.v === '1'); break;
     case 'mbopen': openMoneyBack(el.dataset.id); break;
     case 'close': closeSheet(); break;
     case 'person': openSub('person', {person: el.dataset.name}); break;

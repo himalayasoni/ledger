@@ -11,6 +11,8 @@ import com.himalayasoni.ledger.core.domain.newEntryId
 import com.himalayasoni.ledger.core.domain.recentPeople
 import com.himalayasoni.ledger.core.domain.withMoneyBack
 import com.himalayasoni.ledger.core.domain.withoutMoneyBack
+import com.himalayasoni.ledger.core.domain.withSharePaid
+import com.himalayasoni.ledger.core.domain.share
 import com.himalayasoni.ledger.core.model.Entry
 import com.himalayasoni.ledger.core.money.formatRupees
 import com.himalayasoni.ledger.data.VisibleEntries
@@ -66,6 +68,11 @@ class EntryViewModel(visible: VisibleEntries, private val repository: EntryRepos
     fun saveMoneyBack(f: MoneyBackForm, onDone: (Undoable) -> Unit) = change(f.entryId, onDone) { e, now ->
         val after = e.withMoneyBack(f.amount, f.from, f.arrived, f.confirmed, f.received, f.to, f.card, now)
         after to "${formatRupees(after.refund?.amount ?: 0.0)} back on ${e.description.ifBlank { e.category }} · counts as ${formatRupees(after.net())} spent"
+    }
+
+    fun setSharePaid(id: String, name: String, paid: Boolean, onDone: (Undoable) -> Unit) = change(id, onDone) { e, now ->
+        e.withSharePaid(name, paid, now) to
+            if (paid) "$name paid back ${formatRupees(e.share())}" else "$name's share marked not paid back"
     }
 
     fun removeMoneyBack(id: String, onDone: (Undoable) -> Unit) = change(id, onDone) { e, now ->

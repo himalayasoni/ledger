@@ -35,7 +35,8 @@ data class ScannedPayment(
  */
 object PaymentScreen {
     private val currency = Regex("""(?:₹|rs\.?|inr)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
-    private val bareNumber = Regex("""^[₹]?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]{1,6}(?:\.[0-9]{1,2})?)$""")
+    // a line that's only a number; text recognition sometimes reads a big ₹ as Z, R, % or <, so one such letter is allowed in front
+    private val bareNumber = Regex("""^[₹ZzR%<]?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]{1,6}(?:\.[0-9]{1,2})?)$""")
     private val ignoreForAmount = Regex("""cashback|reward|offer|won|scratch|balance|limit|coins?|points|save up|get up to|fee|charges""", RegexOption.IGNORE_CASE)
     private val upi = Regex("""\b[a-zA-Z0-9.\-_]{2,}@[a-zA-Z][a-zA-Z0-9]{1,}\b""")
     private val twelveDigits = Regex("""(?<![0-9])([0-9]{12})(?![0-9])""")
@@ -53,7 +54,7 @@ object PaymentScreen {
     private val apps = listOf(
         "Google Pay" to Regex("""google\s*pay|\bg\s?pay\b""", RegexOption.IGNORE_CASE),
         "PhonePe" to Regex("""phone\s?pe""", RegexOption.IGNORE_CASE),
-        "Paytm" to Regex("""paytm""", RegexOption.IGNORE_CASE),
+        "Paytm" to Regex("""pay\s?t\s?m|pautm|paytrn|@pt(?:sbi|yes|axis|hdfc)\b""", RegexOption.IGNORE_CASE),
         "BHIM" to Regex("""\bbhim\b""", RegexOption.IGNORE_CASE),
         "Amazon Pay" to Regex("""amazon\s*pay""", RegexOption.IGNORE_CASE),
         "CRED" to Regex("""\bcred\b""", RegexOption.IGNORE_CASE),

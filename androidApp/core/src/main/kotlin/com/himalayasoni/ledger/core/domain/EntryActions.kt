@@ -89,3 +89,14 @@ fun Entry.duplicateAsNew(id: String, today: LocalDate, now: Long): Entry = copy(
 
 /** "Remove money back": the spend counts at its full amount again. */
 fun Entry.withoutMoneyBack(now: Long): Entry = if (refund == null) this else copy(refund = null, updatedAt = now)
+
+/**
+ * A shared spend: [name] has paid back their whole share ([paid] = true), or hasn't after all (false).
+ * Same as ticking them in the edit form's "Paid back" list. Names are matched without case.
+ */
+fun Entry.withSharePaid(name: String, paid: Boolean, now: Long): Entry {
+    val n = name.lowercase()
+    if (type != EntryType.SPENT || people().none { it.lowercase() == n }) return this
+    val back = if (paid) paidBack + (n to round2(share())) else paidBack - n
+    return if (back == paidBack) this else copy(withPeople = people(), paidBack = back, updatedAt = now)
+}

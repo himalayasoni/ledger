@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -245,18 +248,20 @@ internal fun AddEntryContent(
     onScrollForm: () -> Unit = {},
 ) {
     val c = LocalLedgerColors.current
-    // a finger dragging the form (not the form moving itself to show a box) counts as "scrolling by hand"
-    val dragWatch = remember(onScrollForm) {
-        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
-            var dragged = 0f
-            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
-                if (source == androidx.compose.ui.input.nestedscroll.NestedScrollSource.Drag) {
-                    dragged += kotlin.math.abs(available.y)
-                    if (dragged > 48f) { dragged = 0f; onScrollForm() }
-                }
-                return androidx.compose.ui.geometry.Offset.Zero
+    // A finger dragging the form counts as "scrolling by hand"; the form scrolling itself to show the box you
+    // tapped (when the keyboard opens) must not, or the keyboard would close as it opens. Scroll events can't tell
+    // the two apart (both arrive as user input), so this watches the finger: it looks at touches without using them.
+    val dragWatch = Modifier.pointerInput(onScrollForm) {
+        val far = viewConfiguration.touchSlop * 3
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            var moved = 0f
+            while (true) {
+                val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
+                if (!change.pressed) break
+                moved = kotlin.math.abs(change.position.y - down.position.y)
+                if (moved > far) { onScrollForm(); break }
             }
-            override suspend fun onPreFling(available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity { dragged = 0f; return androidx.compose.ui.unit.Velocity.Zero }
         }
     }
     val saveLabel = when {
@@ -279,7 +284,7 @@ internal fun AddEntryContent(
 
         // ---- scrolling middle ----
         Column(
-            Modifier.weight(1f).fillMaxWidth().nestedScroll(dragWatch).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 12.dp),
+            Modifier.weight(1f).fillMaxWidth().then(dragWatch).verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Details(s, actions, onFocus)

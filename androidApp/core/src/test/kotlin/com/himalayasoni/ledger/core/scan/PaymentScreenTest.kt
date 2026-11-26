@@ -58,6 +58,32 @@ class PaymentScreenTest {
         assertEquals("Paytm", p.app)
     }
 
+    /** A real Paytm "Sent Successfully" screen (person to person), as shared by Himalaya on 26 Nov 2026. */
+    @Test fun paytmSentToAPerson() {
+        val p = read(
+            "16:24" to 34, "57" to 26, "Sent Successfully" to 52, "Share" to 40, "Help" to 40, "Amount" to 38,
+            "₹313" to 92, "Rupees Three Hundred Thirteen" to 38, "Only" to 38, "Money Transfer" to 42, "Edit" to 40,
+            "To" to 38, "Raseed" to 56, "UPI ID: ******1088@ptsbi" to 40, "on Paytm" to 44, "Pay Again" to 42,
+            "View History" to 42, "From" to 38, "Himalaya Soni" to 56, "UPI ID: ******4632@ptsbi" to 40,
+            "State Bank Of India - 7458" to 40, "Paid at 06:56 AM, 18 Nov 2026" to 40,
+            "UPI Ref No: 632270215732 Copy" to 40, "Paytm | Powered by UPI | SBI" to 26,
+        )
+        assertEquals(313.0, p.amount!!, 0.0)
+        assertFalse(p.received)
+        assertEquals("Raseed", p.party)
+        assertEquals(LocalDate.of(2026, 11, 18), p.date)
+        assertEquals("632270215732", p.ref)
+        assertEquals("Paytm", p.app)
+        assertFalse(p.failed); assertFalse(p.pending)
+    }
+
+    /** The same screen with the ₹ misread as a Z and no line heights. */
+    @Test fun rupeeSignMisread() {
+        val p = PaymentScreen.read(listOf("Sent Successfully", "Amount", "Z313", "To", "Raseed", "UPI Ref No: 632270215732").map { OcrLine(it) }, today)!!
+        assertEquals(313.0, p.amount!!, 0.0)
+        assertEquals("Raseed", p.party)
+    }
+
     @Test fun googlePayReceived() {
         val p = read(
             "From Amit Verma" to 44, "₹1,500" to 120, "Received" to 36, "Received from Amit Verma" to 30,

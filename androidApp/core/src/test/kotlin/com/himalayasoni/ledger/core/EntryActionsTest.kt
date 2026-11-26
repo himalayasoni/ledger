@@ -5,6 +5,7 @@ import com.himalayasoni.ledger.core.domain.duplicateAsNew
 import com.himalayasoni.ledger.core.domain.markRefundArrived
 import com.himalayasoni.ledger.core.domain.withMoneyBack
 import com.himalayasoni.ledger.core.domain.withoutMoneyBack
+import com.himalayasoni.ledger.core.domain.withSharePaid
 import com.himalayasoni.ledger.core.model.Entry
 import com.himalayasoni.ledger.core.model.EntryType
 import com.himalayasoni.ledger.core.model.Refund
@@ -128,5 +129,19 @@ class EntryActionsTest {
         assertEquals(1500.0, off.cost(), 0.0)
         assertEquals(now, off.updatedAt)
         assertSame(ticket, ticket.withoutMoneyBack(now))
+    }
+
+    @Test fun `marking a share paid back from the entry page, and undoing it`() {
+        val party = Entry(
+            id = "p1", type = EntryType.SPENT, amount = 3223.5, date = day, description = "Haldiram (Office Party)",
+            category = "Party", mode = "UPI", withPeople = listOf("Aryan shah", "Siddhant"), includesMe = true, createdAt = 1, updatedAt = 1,
+        )
+        val paid = party.withSharePaid("Aryan Shah", true, now)
+        assertEquals(1074.5, paid.paidBack["aryan shah"]!!, 0.001)
+        assertEquals(3223.5 - 1074.5, paid.cost(), 0.001)
+        assertEquals(now, paid.updatedAt)
+        val undone = paid.withSharePaid("aryan shah", false, now + 1)
+        assertTrue(undone.paidBack.isEmpty())
+        assertSame(party, party.withSharePaid("Nobody", true, now))
     }
 }
